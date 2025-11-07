@@ -7,18 +7,18 @@ import { OSM, Vector as VectorSource, XYZ } from "ol/source";
 import { fromLonLat } from "ol/proj";
 import { MapViewToggle, type MapViewType } from "./MapViewToggle";
 import { LoadingOverlay } from "./LoadingOverlay";
-import type { Feature } from "ol";
+import { Overlay, type Feature } from "ol";
 import type { Geometry } from "ol/geom";
-import { Style, Circle as CircleStyle } from "ol/style";
+import type { FeatureLike } from "ol/Feature";
+import { Style, Circle as CircleStyle, Text } from "ol/style";
 import Stroke from "ol/style/Stroke";
 import Fill from "ol/style/Fill";
-import { Modify, Select } from "ol/interaction";
 import { defaults as defaultControls } from "ol/control";
-import { click } from "ol/events/condition";
 import Toolbar from "./ToolBar";
 import GeoJSON from "ol/format/GeoJSON";
 import KML from "ol/format/KML";
 import JSZip from "jszip";
+import { DrawingToolsManager, type ToolType } from "../utils/drawingTools";
 import "ol/ol.css";
 import "ol-ext/dist/ol-ext.css";
 
@@ -26,40 +26,55 @@ const MapEditor: React.FC = () => {
   const mapRef = useRef<Map | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const vectorSourceRef = useRef(new VectorSource());
-  const [currentMapView, setCurrentMapView] = useState<MapViewType>("osm");
-  const [isTransitioning, setIsTransitioning] = useState(false);
+  const vectorLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
+  const drawingToolsManagerRef = useRef<DrawingToolsManager | null>(null);
+  const popupRef = useRef<HTMLDivElement | null>(null);
   const osmLayerRef = useRef<TileLayer<OSM> | null>(null);
   const satelliteLayerRef = useRef<TileLayer<XYZ> | null>(null);
-  const [selectedFeature, setSelectedFeature] =
-    useState<Feature<Geometry> | null>(null);
+
+  const [currentMapView, setCurrentMapView] = useState<MapViewType>("osm");
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [currentTool, setCurrentTool] = useState<ToolType>("hand");
+  const [popupContent, setPopupContent] = useState<string | null>(null);
 
   // ✅ Custom feature styles (used for GeoJSON, KML, and KMZ)
-  const getFeatureStyle = (feature: Feature<Geometry>) => {
+  const getFeatureStyle = (feature: FeatureLike) => {
     const type = feature.getGeometry()?.getType();
+    const name = feature.get("name") || "";
+
+    const baseStyle = new Style({
+      text: name
+        ? new Text({
+            text: String(name),
+            font: "12px Calibri,sans-serif",
+            fill: new Fill({ color: "#000" }),
+            backgroundFill: new Fill({ color: "white" }),
+            stroke: new Stroke({ color: "#fff", width: 4 }),
+            offsetY: -12, // move label slightly above the point or line
+          })
+        : undefined,
+    });
 
     if (type === "LineString" || type === "MultiLineString") {
-      return new Style({
-        stroke: new Stroke({
+      baseStyle.setStroke(
+        new Stroke({
           color: "#00ff00",
           width: 4,
-        }),
-      });
-    }
-
-    if (type === "Point" || type === "MultiPoint") {
-      return new Style({
-        image: new CircleStyle({
+        })
+      );
+    } else if (type === "Point" || type === "MultiPoint") {
+      baseStyle.setImage(
+        new CircleStyle({
           radius: 6,
           fill: new Fill({ color: "#ff0000" }),
           stroke: new Stroke({ color: "#fff", width: 2 }),
-        }),
-      });
+        })
+      );
+    } else {
+      baseStyle.setFill(new Fill({ color: "rgba(255, 255, 0, 0.2)" }));
+      baseStyle.setStroke(new Stroke({ color: "#ff8800", width: 3 }));
     }
-
-    return new Style({
-      fill: new Fill({ color: "rgba(255, 255, 0, 0.2)" }),
-      stroke: new Stroke({ color: "#ff8800", width: 3 }),
-    });
+    return baseStyle;
   };
 
   // ✅ Initialize map
@@ -90,6 +105,8 @@ const MapEditor: React.FC = () => {
       style: getFeatureStyle,
     });
 
+    vectorLayerRef.current = vectorLayer;
+
     const map = new Map({
       target: "map",
       layers: [osmLayer, satelliteLayer, vectorLayer],
@@ -107,25 +124,58 @@ const MapEditor: React.FC = () => {
       }),
     });
 
-    // ✅ Select + Modify interactions
-    const selectInteraction = new Select({
-      condition: click,
-      layers: [vectorLayer],
-    });
-    const modifyInteraction = new Modify({
-      features: selectInteraction.getFeatures(),
-    });
-    map.addInteraction(selectInteraction);
-    map.addInteraction(modifyInteraction);
-
-    selectInteraction.on("select", (e) => {
-      setSelectedFeature(e.selected[0] || null);
-    });
-
     mapRef.current = map;
+
+    // Tooltip Overlay
+    const popupOverlay = new Overlay({
+      element: popupRef.current!,
+      autoPan: {
+        animation: { duration: 250 },
+      },
+    });
+    map.addOverlay(popupOverlay);
+
+    // ✅ Tooltip on hover (use singleclick if you prefer click)
+    map.on("click", (event) => {
+      const feature = map.forEachFeatureAtPixel(event.pixel, (feat) => feat);
+      if (feature) {
+        const properties = feature.getProperties();
+        delete properties.geometry;
+
+        const info =
+          Object.keys(properties).length > 0
+            ? Object.entries(properties)
+                .map(([key, value]) => `<b>${key}</b>: ${value}`)
+                .join("<br/>")
+            : "No additional info";
+
+        setPopupContent(info);
+        popupOverlay.setPosition(event.coordinate);
+      } else {
+        setPopupContent(null);
+        popupOverlay.setPosition(undefined);
+      }
+    });
+
+    // Initialize DrawingToolsManager after map is created
+    drawingToolsManagerRef.current = new DrawingToolsManager({
+      map,
+      vectorLayer,
+    });
+
+    // Set default tool to hand
+    drawingToolsManagerRef.current.setActiveTool("hand");
 
     return () => map.setTarget(undefined);
   }, []);
+
+  // Handle tool selection
+  const handleToolSelect = (tool: ToolType) => {
+    setCurrentTool(tool);
+    if (drawingToolsManagerRef.current) {
+      drawingToolsManagerRef.current.setActiveTool(tool);
+    }
+  };
 
   // ✅ Handle map view change with smooth transitions
   const handleMapViewChange = (newView: MapViewType) => {
@@ -249,11 +299,11 @@ const MapEditor: React.FC = () => {
 
   // ✅ Delete selected feature
   const handleDelete = () => {
-    if (selectedFeature) {
-      vectorSourceRef.current.removeFeature(selectedFeature);
-      setSelectedFeature(null);
-    } else {
-      alert("Please select a feature to delete.");
+    if (drawingToolsManagerRef.current) {
+      const deleted = drawingToolsManagerRef.current.deleteSelectedFeature();
+      if (!deleted) {
+        alert("Please select a feature to delete.");
+      }
     }
   };
 
@@ -263,6 +313,8 @@ const MapEditor: React.FC = () => {
         <Toolbar
           onFileImport={handleImportClick}
           onDeleteFeature={handleDelete}
+          onToolSelect={handleToolSelect}
+          selectedTool={currentTool}
         />
 
         <input
@@ -280,7 +332,20 @@ const MapEditor: React.FC = () => {
           currentView={currentMapView}
           onViewChange={handleMapViewChange}
         />
-        {/* Toolbar */}
+
+        {/* ✅ Tooltip Popup */}
+        <div
+          ref={popupRef}
+          className="absolute bg-white text-xs text-black rounded shadow-md p-2 border border-gray-300 z-[1000] pointer-events-none"
+          style={{
+            minWidth: "120px",
+            maxWidth: "400px",
+            whiteSpace: "normal",
+            overflow: "auto",
+            display: popupContent ? "block" : "none",
+          }}
+          dangerouslySetInnerHTML={{ __html: popupContent || "" }}
+        />
       </div>
     </div>
   );

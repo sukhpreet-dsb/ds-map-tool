@@ -10,18 +10,20 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Import, Menu, Trash2 } from "lucide-react";
 import { TOOLS } from "../tools/toolConfig";
+import type { ToolType } from "../utils/drawingTools";
 
 interface ToolbarProps {
   onFileImport: () => void;
   onDeleteFeature: () => void;
+  onToolSelect: (toolId: ToolType) => void;
+  selectedTool?: ToolType;
 }
 
-const Toolbar = ({ onFileImport, onDeleteFeature }: ToolbarProps) => {
+const Toolbar = ({ onFileImport, onDeleteFeature, onToolSelect, selectedTool }: ToolbarProps) => {
   const [open, setOpen] = useState(true);
-  const [selectedTool, setSelectedTool] = useState("");
 
-  const handleToolClick = (toolId: string) => {
-    setSelectedTool(toolId);
+  const handleToolClick = (toolId: ToolType) => {
+    onToolSelect(toolId);
     console.log(toolId, "toolId");
   };
 
@@ -43,22 +45,22 @@ const Toolbar = ({ onFileImport, onDeleteFeature }: ToolbarProps) => {
         >
           <DropdownMenuLabel className="px-3">Tools</DropdownMenuLabel>
           <DropdownMenuGroup className="my-2 px-3">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3">
               {TOOLS.map((tool) => {
                 const Icon = tool.icon;
                 return (
                   <DropdownMenuItem
                     key={tool.id}
                     onSelect={(e) => e.preventDefault()}
-                    className={`w-full cursor-pointer ${
+                    className={`w-full cursor-pointer p-2 ${
                       selectedTool === tool.id
                         ? "bg-[#e0dfff] focus:bg-[#e0dfff]"
                         : "focus:bg-zinc-200/60"
-                    } hover:bg-[#e0dfff]  delay-75 transition-all flex justify-center `}
-                    onClick={() => handleToolClick(tool.id)}
+                    } hover:bg-[#e0dfff] delay-75 transition-all flex justify-center `}
+                    onClick={() => handleToolClick(tool.id as ToolType)}
                     title={tool.name}
                   >
-                    <Icon />
+                    <Icon size={16} />
                   </DropdownMenuItem>
                 );
               })}
