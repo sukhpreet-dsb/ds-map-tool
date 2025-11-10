@@ -2,6 +2,18 @@ export interface LegendType {
   id: string;
   name: string;
   imagePath: string;
+  text?: string;
+  textStyle?: {
+    font?: string;
+    fill?: string;
+    stroke?: string;
+    strokeWidth?: number;
+    repeat?: number;
+    offsetX?: number;
+    offsetY?: number;
+    scale?: number;
+    maxAngle?: number;
+  };
   style: {
     strokeColor?: string;
     strokeWidth?: number;
@@ -37,8 +49,20 @@ export const LEGEND_TYPES: LegendType[] = [
     id: "legend11",
     name: "Legend 11",
     imagePath: "/Legends/legend11.png",
+    text: "OIL",
+    textStyle: {
+      font: "bold 10px Arial",
+      fill: "#000000",
+      stroke: "#ffffff",
+      strokeWidth: 4,
+      repeat: 84, // Dash cycle length (16+20) for optimal alignment
+      offsetX: 0,
+      offsetY: 0,
+      scale: 1.1,
+      maxAngle: Math.PI / 6
+    },
     style: {
-      strokeColor: "#00FF00",
+      strokeColor: "#ff0e0e",
       strokeWidth: 4,
       strokeDash: [16, 12],
     }
@@ -47,22 +71,44 @@ export const LEGEND_TYPES: LegendType[] = [
     id: "legend12",
     name: "Legend 12",
     imagePath: "/Legends/legend12.png",
-    style: {
-      strokeColor: "#0066CC",
+    text: "HW",
+    textStyle: {
+      font: "bold 8.5px Arial",
+      fill: "#000000",
+      stroke: "#ffffff",
       strokeWidth: 4,
-      strokeDash: [12, 8],
-      opacity: 1.0
+      repeat: 84,
+      offsetX: 14,
+      offsetY: 0,
+      scale: 1.1,
+      maxAngle: Math.PI / 6
+    },
+    style: {
+      strokeColor: "#ffbf00",
+      strokeWidth: 4,
+      strokeDash: [16, 12],
     }
   },
   {
     id: "legend13",
     name: "Legend 13",
     imagePath: "/Legends/legend13.png",
+    text: "GAS",
+    textStyle: {
+      font: "bold 8.5px Arial",
+      fill: "#000000",
+      stroke: "#ffffff",
+      strokeWidth: 4,
+      repeat: 84,
+      offsetX: 14,
+      offsetY: 0,
+      scale: 1.1,
+      maxAngle: Math.PI / 6
+    },
     style: {
-      strokeColor: "#FF6600",
-      strokeWidth: 2,
-      strokeDash: [6, 6],
-      opacity: 0.7
+      strokeColor: "#0ff",
+      strokeWidth: 4,
+      strokeDash: [16, 12],
     }
   }
 ];
