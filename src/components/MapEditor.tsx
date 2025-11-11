@@ -106,12 +106,30 @@ const MapEditor: React.FC = () => {
   );
   const drawInteractionRef = useRef<Draw | null>(null);
 
+  // ✅ NEW: Ref for Modify interaction to manage hover behavior
+  const modifyInteractionRef = useRef<Modify | null>(null);
+  // const vectorLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
+
   // ✅ Custom feature styles (used for GeoJSON, KML, and KMZ)
   const getFeatureStyle = (feature: FeatureLike) => {
     const type = feature.getGeometry()?.getType();
     const isArrow = feature.get("isArrow");
+    const isPits = feature.get("isPits");
 
     console.log("Checking : ", activeTool);
+
+    if (isPits && (type === "Point" || type === "MultiPoint")) {
+      return new Style({
+        image: new RegularShape({
+          points: 4,
+          radius: 10,
+          radius2: 0,
+          angle: 0,
+          stroke: new Stroke({ color: "red", width: 6 }),
+          fill: new Fill({ color: "transparent" }),
+        }),
+      });
+    }
 
     if (isArrow && (type === "LineString" || type === "MultiLineString")) {
       return getArrowStyle(feature);
@@ -414,6 +432,10 @@ const MapEditor: React.FC = () => {
         break;
 
       case "select":
+        // This enables the hover-to-show-dots behavior
+        // if (modifyInteractionRef.current) {
+        //   modifyInteractionRef.current.setActive(true);
+        // }
         // Reactivate select/modify interactions
         const selectInteraction = mapRef.current
           .getInteractions()
@@ -422,6 +444,32 @@ const MapEditor: React.FC = () => {
         if (selectInteraction) {
           selectInteraction.setActive(true);
         }
+        break;
+
+      case "pits":
+        const pitsDraw = new Draw({
+          source: vectorSourceRef.current,
+          type: "Point",
+          style: new Style({
+            image: new RegularShape({
+              points: 4,
+              radius: 10,
+              radius2: 0,
+              angle: 0,
+              stroke: new Stroke({ color: "red", width: 6 }),
+              fill: new Fill({ color: "transparent" }),
+            }),
+          }),
+        });
+
+        // Mark the feature as pits when drawing finishes
+        pitsDraw.on("drawend", (event) => {
+          const feature = event.feature;
+          feature.set("isPits", true);
+        });
+
+        drawInteractionRef.current = pitsDraw;
+        mapRef.current.addInteraction(pitsDraw);
         break;
 
       case "hand":
@@ -468,6 +516,9 @@ const MapEditor: React.FC = () => {
       style: getFeatureStyle,
     });
 
+    // ✅ NEW: Store vectorLayer ref for later use in Modify interaction
+    // vectorLayerRef.current = vectorLayer;
+
     const map = new Map({
       target: "map",
       layers: [osmLayer, satelliteLayer, vectorLayer],
@@ -490,9 +541,29 @@ const MapEditor: React.FC = () => {
       condition: click,
       layers: [vectorLayer],
     });
+    // ✅ NEW: Modify interaction with hitDetection for hover-to-show-dots behavior
     const modifyInteraction = new Modify({
-      features: selectInteraction.getFeatures(),
+      // ✅ KEY: Use hitDetection with vectorLayer to detect visual appearance
+      hitDetection: vectorLayer,
+      source: vectorSourceRef.current,
     });
+
+    // ✅ NEW: Store ref to Modify interaction
+    modifyInteractionRef.current = modifyInteraction;
+
+    // ✅ NEW: Handle cursor changes on hover
+    modifyInteraction.on(["modifystart", "modifyend"], function (evt) {
+      const target = map.getTargetElement();
+      target.style.cursor = evt.type === "modifystart" ? "grabbing" : "pointer";
+    });
+
+    // ✅ NEW: Show pointer cursor when hovering over a vertex dot (on overlay)
+    const overlaySource = modifyInteraction.getOverlay().getSource();
+    overlaySource.on(["addfeature", "removefeature"], function (evt) {
+      const target = map.getTargetElement();
+      target.style.cursor = evt.type === "addfeature" ? "pointer" : "";
+    });
+
     map.addInteraction(selectInteraction);
     map.addInteraction(modifyInteraction);
 

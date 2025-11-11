@@ -40,10 +40,14 @@ This is a **DS Map Tool** - a web-based map editor application built with React 
 - Tool selection system with toolbar
 - Feature selection and deletion
 - Smooth map view transitions
+- Advanced legends system with text labels
+- Configurable dash patterns and text styling
 
 ### Architecture
 - `src/components/MapEditor.tsx` - Main map component with OpenLayers integration
 - `src/components/ToolBar.tsx` - Toolbar for tool selection
+- `src/components/LegendDropdown.tsx` - Legend selection dropdown component
+- `src/tools/legendsConfig.ts` - Legend configurations and styling definitions
 - `src/tools/toolConfig.ts` - Tool configuration and definitions
 - `src/components/MapViewToggle.tsx` - Map view switcher component
 - `src/components/LoadingOverlay.tsx` - Loading overlay for transitions
@@ -55,12 +59,45 @@ This is a **DS Map Tool** - a web-based map editor application built with React 
 - **Polyline**: Draw straight lines
 - **Line**: Draw line segments
 - **Freehand**: Freehand drawing
-- **Text**: Place and edit text labels (planned feature)
+- **Legends**: Draw legends with text labels (legend11, legend12, legend13)
+
+### Legend System
+The application includes an advanced legends system with configurable text styling:
+
+**Available Legends:**
+- **Legend 11**: Red dashed lines with "OIL" text
+- **Legend 12**: Yellow dashed lines with "HW" text
+- **Legend 13**: Cyan dashed lines with "GAS" text
+
+**Legend Configuration:**
+- Dash pattern: 16px dash, 20px gap
+- Text repeat: 36px (aligned with dash cycle)
+- Configurable fonts, colors, and styling
+- Mathematical text alignment for consistent positioning
+
+**Implementation:**
+- Reusable `getTextAlongLineStyle()` function for text rendering
+- Dynamic repeat calculation based on dash patterns
+- Consistent text centering across all legends
+- Support for custom text properties via `legendsConfig.ts`
 
 ### Development
 - Run development server: `npm run dev`
 - Build for production: `npm run build`
 - TypeScript compilation: `npm run build` (includes type checking)
+
+### Recent Enhancements
+- **Legend Text Centering**: Implemented mathematical text alignment for consistent positioning in dash segments
+- **Configurable Gaps**: Updated all legends to use 20px gaps (from 12px) for better readability
+- **Reusable Architecture**: Created DRY legend styling system that works across all legend types
+- **Dynamic Repeat Calculation**: Text repeat automatically aligns with dash pattern cycles
+- **Enhanced Text Styling**: Support for custom fonts, colors, strokes, and positioning per legend
+
+### Code Organization
+- **DRY Principle**: Single `getTextAlongLineStyle()` function handles all text rendering
+- **Configuration-Driven**: Legend properties defined in `legendsConfig.ts` for easy maintenance
+- **Type Safety**: Full TypeScript support with proper interfaces and type checking
+- **Modular Design**: Clear separation between rendering logic, configuration, and UI components
 
 ---
 
