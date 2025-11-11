@@ -107,9 +107,13 @@ const MapEditor: React.FC = () => {
   );
   const drawInteractionRef = useRef<Draw | null>(null);
 
-  // Pit rotation state
-  const [isRotatingPit, setIsRotatingPit] = useState(false);
+  // Pit hover state
+  const [hoveredPit, setHoveredPit] = useState<FeatureLike | null>(null);
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [currentPitRotation, setCurrentPitRotation] = useState(0);
+
+  // Pit scaling state
+  const [currentPitScale, setCurrentPitScale] = useState(1.0);
 
   // ✅ NEW: Ref for Modify interaction to manage hover behavior
   const modifyInteractionRef = useRef<Modify | null>(null);
@@ -121,20 +125,64 @@ const MapEditor: React.FC = () => {
     const isArrow = feature.get("isArrow");
     const isPits = feature.get("isPits");
 
-    console.log("Checking : ", activeTool);
-
     if (isPits && (type === "Point" || type === "MultiPoint")) {
       const rotation = feature.get("rotation") || 0;
-      return new Style({
-        image: new RegularShape({
-          points: 4,
-          radius: 10,
-          radius2: 0,
-          angle: rotation,
-          stroke: new Stroke({ color: "red", width: 6 }),
-          fill: new Fill({ color: "transparent" }),
-        }),
-      });
+      const scale = feature.get("scale") || 1.0;
+
+      // Check if this pit is currently active (being controlled by the panel)
+      const isActivePit = isPanelOpen && hoveredPit === feature;
+
+      if (isActivePit) {
+        // Active pit: Blue outline with glow effect
+        return [
+          // Outer glow effect
+          new Style({
+            image: new RegularShape({
+              points: 4,
+              radius: 14, // Slightly larger radius for glow effect
+              radius2: 0,
+              angle: rotation,
+              scale: scale,
+              stroke: new Stroke({
+                color: "#60a5fa", // Lighter blue for glow
+                width: 3,
+                lineDash: [4, 4], // Dashed outline for glow effect
+              }),
+              fill: new Fill({ color: "transparent" }),
+            }),
+            zIndex: 1,
+          }),
+          // Main pit with blue outline
+          new Style({
+            image: new RegularShape({
+              points: 4,
+              radius: 10,
+              radius2: 0,
+              angle: rotation,
+              scale: scale,
+              stroke: new Stroke({
+                color: "#3b82f6", // Blue outline when active
+                width: 8, // Thicker outline when active
+              }),
+              fill: new Fill({ color: "transparent" }),
+            }),
+            zIndex: 2,
+          }),
+        ];
+      } else {
+        // Normal pit: Red outline
+        return new Style({
+          image: new RegularShape({
+            points: 4,
+            radius: 10,
+            radius2: 0,
+            angle: rotation,
+            scale: scale,
+            stroke: new Stroke({ color: "red", width: 6 }),
+            fill: new Fill({ color: "transparent" }),
+          }),
+        });
+      }
     }
 
     if (isArrow && (type === "LineString" || type === "MultiLineString")) {
@@ -269,14 +317,12 @@ const MapEditor: React.FC = () => {
 
   // ✅ Handle legend selection - only updates state
   const handleLegendSelect = (legend: LegendType) => {
-    console.log("🎯 Legend selected:", legend.name, legend.id);
     setSelectedLegend(legend);
   };
 
   // ✅ Auto-activate legends tool when selectedLegend changes
   useEffect(() => {
     if (selectedLegend) {
-      console.log("🔧 Activating legends tool for:", selectedLegend.name);
       // Remove any existing draw interaction first
       if (drawInteractionRef.current) {
         mapRef.current?.removeInteraction(drawInteractionRef.current);
@@ -370,13 +416,8 @@ const MapEditor: React.FC = () => {
         break;
 
       case "legends":
-        console.log(
-          "🎨 Legends tool activation, selectedLegend:",
-          selectedLegend?.name || "none"
-        );
         // Don't allow drawing if no legend is selected
         if (!selectedLegend) {
-          console.log("❌ No legend selected, cannot activate legends tool");
           return;
         }
 
@@ -423,18 +464,11 @@ const MapEditor: React.FC = () => {
         });
         legendlineDraw.on("drawend", (event) => {
           const feature = event.feature;
-          console.log(
-            "✏️ Drawing completed for legend:",
-            selectedLegend.name,
-            "with color:",
-            selectedLegend.style.strokeColor
-          );
           feature.set("islegends", true);
           feature.set("legendType", selectedLegend.id);
         });
         drawInteractionRef.current = legendlineDraw;
         mapRef.current.addInteraction(legendlineDraw);
-        console.log("✅ Legends tool activated with:", selectedLegend.name);
         break;
 
       case "select":
@@ -473,7 +507,7 @@ const MapEditor: React.FC = () => {
           const feature = event.feature;
           feature.set("isPits", true);
           feature.set("rotation", 0); // Initialize rotation to 0 degrees
-          console.log("✅ New pit created with rotation:", 0);
+          feature.set("scale", 1.0); // Initialize scale to 1.0 (100%)
         });
 
         drawInteractionRef.current = pitsDraw;
@@ -548,12 +582,16 @@ const MapEditor: React.FC = () => {
     const selectInteraction = new Select({
       condition: click,
       layers: [vectorLayer],
+      style: null, 
     });
     // ✅ NEW: Modify interaction with hitDetection for hover-to-show-dots behavior
     const modifyInteraction = new Modify({
       // ✅ KEY: Use hitDetection with vectorLayer to detect visual appearance
       hitDetection: vectorLayer,
       source: vectorSourceRef.current,
+      style: function() {
+        return []; // Return empty array to hide vertices
+      }
     });
 
     // ✅ NEW: Store ref to Modify interaction
@@ -564,6 +602,10 @@ const MapEditor: React.FC = () => {
       const target = map.getTargetElement();
       target.style.cursor = evt.type === "modifystart" ? "grabbing" : "pointer";
     });
+
+    modifyInteraction.on("change",()=>{
+      console.log("Change:active")
+    })
 
     // ✅ NEW: Show pointer cursor when hovering over a vertex dot (on overlay)
     const overlaySource = modifyInteraction.getOverlay().getSource();
@@ -578,32 +620,98 @@ const MapEditor: React.FC = () => {
     map.addInteraction(modifyInteraction);
 
     selectInteraction.on("select", (e) => {
+      e.preventDefault()
       const selected = e.selected[0] || null;
       setSelectedFeature(selected);
 
-      // Debug logging to track selection state
-      console.log("🎯 Feature selected:", {
-        hasFeature: !!selected,
-        isPit: selected?.get("isPits"),
-        activeTool: activeTool,
-        rotation: selected?.get("rotation")
-      });
+      console.log("CLicked : ",selected);
 
-      // Check if selected feature is a pit (regardless of active tool)
-      if (selected && selected.get("isPits")) {
-        const existingRotation = selected.get("rotation") || 0;
-        setCurrentPitRotation(existingRotation);
-        setIsRotatingPit(true);
-        console.log("✅ Pit rotation panel should be visible");
-      } else {
-        setIsRotatingPit(false);
+      // NOTE: Pit rotation panel is now activated by hover, not click
+      // Click selection for pits is disabled as per requirements
+    });
+
+    // Add pointermove event listener for pit activation (behaves like mouseEnter)
+    map.on("pointermove", (evt) => {
+      const pixel = map.getEventPixel(evt.originalEvent);
+      const hitFeatures = map.getFeaturesAtPixel(pixel);
+      const pitFeatures = hitFeatures.filter((feature: FeatureLike) =>
+        feature.get("isPits")
+      );
+
+      if (pitFeatures.length > 0) {
+        // Activate panel for topmost pit (first in array) only if panel is not already open
+        setIsPanelOpen((currentIsPanelOpen) => {
+          if (!currentIsPanelOpen) {
+            // Panel is not open, activate it
+            const hoveredPitFeature = pitFeatures[0];
+            setHoveredPit(hoveredPitFeature);
+
+            // Update rotation and scale from hovered pit
+            const existingRotation = hoveredPitFeature.get("rotation") || 0;
+            const existingScale = hoveredPitFeature.get("scale") || 1.0;
+            setCurrentPitRotation(existingRotation);
+            setCurrentPitScale(existingScale);
+            return true;
+          } else {
+            // Panel is already open, check if we're hovering over a different pit
+            const hoveredPitFeature = pitFeatures[0];
+            setHoveredPit((currentHoveredPit) => {
+              if (currentHoveredPit !== hoveredPitFeature) {
+                // Switching to a different pit
+                const existingRotation = hoveredPitFeature.get("rotation") || 0;
+                const existingScale = hoveredPitFeature.get("scale") || 1.0;
+                setCurrentPitRotation(existingRotation);
+                setCurrentPitScale(existingScale);
+
+                return hoveredPitFeature;
+              }
+              return currentHoveredPit;
+            });
+            return true;
+          }
+        });
       }
+    });
+
+    // Add ESC key listener to close panel
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setHoveredPit((prevHoveredPit) => {
+          if (prevHoveredPit) {
+            setIsPanelOpen(false);
+            return null;
+          }
+          return prevHoveredPit;
+        });
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+
+    // Add click-outside listener to close panel when clicking on map (not on pits)
+    map.on("click", (evt) => {
+      // Check if click is on a pit feature
+      const pixel = map.getEventPixel(evt.originalEvent);
+      const hitFeatures = map.getFeaturesAtPixel(pixel);
+      const pitFeatures = hitFeatures.filter((feature: FeatureLike) =>
+        feature.get("isPits")
+      );
+
+      // Check current state safely
+      setIsPanelOpen((currentIsPanelOpen) => {
+        if (currentIsPanelOpen && pitFeatures.length === 0) {
+          // Panel is open and click is not on a pit, close the panel
+          setHoveredPit(null);
+          return false;
+        }
+        return currentIsPanelOpen;
+      });
     });
 
     mapRef.current = map;
 
     return () => {
       map.setTarget(undefined);
+      document.removeEventListener("keydown", handleKeyDown);
     };
   }, []);
 
@@ -703,7 +811,6 @@ const MapEditor: React.FC = () => {
         }
 
         vectorSourceRef.current.clear();
-        console.log(features, "features");
         vectorSourceRef.current.addFeatures(features);
 
         const extent: Extent = vectorSourceRef.current.getExtent();
@@ -732,7 +839,8 @@ const MapEditor: React.FC = () => {
     if (selectedFeature) {
       vectorSourceRef.current.removeFeature(selectedFeature);
       setSelectedFeature(null);
-      setIsRotatingPit(false); // Close rotation panel when deleting
+      setHoveredPit(null); // Close rotation panel when deleting
+      setIsPanelOpen(false); // Ensure panel is also closed
     } else {
       alert("Please select a feature to delete.");
     }
@@ -742,33 +850,34 @@ const MapEditor: React.FC = () => {
   const handlePitRotationChange = (angle: number) => {
     setCurrentPitRotation(angle);
 
-    // Update the selected feature with new rotation
-    if (selectedFeature && selectedFeature.get("isPits")) {
-      selectedFeature.set("rotation", angle);
+    // Update the hovered pit feature with new rotation
+    if (hoveredPit && hoveredPit.get("isPits")) {
+      const feature = hoveredPit as Feature;
+      feature.set("rotation", angle);
       // Force map to re-render the feature
-      selectedFeature.changed();
+      feature.changed();
+    }
+  };
+
+  // Handle pit scale changes
+  const handlePitScaleChange = (scale: number) => {
+    setCurrentPitScale(scale);
+
+    // Update the hovered pit feature with new scale
+    if (hoveredPit && hoveredPit.get("isPits")) {
+      const feature = hoveredPit as Feature;
+      feature.set("scale", scale);
+      // Force map to re-render the feature
+      feature.changed();
     }
   };
 
   // Close rotation panel and save rotation
   const handleRotationPanelClose = () => {
-    setIsRotatingPit(false);
+    setHoveredPit(null);
+    setIsPanelOpen(false);
     // Rotation is already saved in feature properties during real-time updates
   };
-
-  // Close rotation panel when tool changes or clicking away
-  useEffect(() => {
-    if (activeTool !== "select") {
-      setIsRotatingPit(false);
-    }
-  }, [activeTool]);
-
-  // Close rotation panel when selectedFeature changes to non-pit
-  useEffect(() => {
-    if (!selectedFeature || !selectedFeature.get("isPits")) {
-      setIsRotatingPit(false);
-    }
-  }, [selectedFeature]);
 
   return (
     <div>
@@ -798,11 +907,13 @@ const MapEditor: React.FC = () => {
           onViewChange={handleMapViewChange}
         />
 
-        {/* Pit Rotation Panel - shown only when rotating a pit */}
-        {isRotatingPit && (
+        {/* Pit Rotation Panel - shown when panel is open and there's a hovered pit */}
+        {isPanelOpen && hoveredPit && (
           <PitRotationPanel
             rotation={currentPitRotation}
+            scale={currentPitScale}
             onRotationChange={handlePitRotationChange}
+            onScaleChange={handlePitScaleChange}
             onClose={handleRotationPanelClose}
           />
         )}
