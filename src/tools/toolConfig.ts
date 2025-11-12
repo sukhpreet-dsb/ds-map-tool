@@ -6,7 +6,8 @@ import {
   Type,
   Circle,
   ArrowUp,
-  Minus
+  Minus,
+  Move
 } from "lucide-react";
 
 export const TOOLS = [
@@ -14,6 +15,11 @@ export const TOOLS = [
     id: "select",
     name: "Select",
     icon: MousePointer2,
+  },
+  {
+    id: "transform",
+    name: "Transform",
+    icon: Move,
   },
   {
     id: "hand",

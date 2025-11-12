@@ -19,7 +19,10 @@
       "mcp__context7__resolve-library-id",
       "mcp__context7__get-library-docs",
       "WebFetch(domain:excalidraw.com)",
-      "WebFetch(domain:maas-log-prod.cn-wlcb.ufileos.com)"
+      "WebFetch(domain:maas-log-prod.cn-wlcb.ufileos.com)",
+      "WebFetch(domain:viglino.github.io)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)"
     ],
     "deny": [],
     "ask": []

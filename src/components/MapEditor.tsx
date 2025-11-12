@@ -4,6 +4,7 @@ import View from "ol/View";
 import { Tile as TileLayer, Vector as VectorLayer } from "ol/layer";
 import type { Extent } from "ol/extent";
 import { OSM, Vector as VectorSource, XYZ } from "ol/source";
+import { Collection } from "ol";
 import { fromLonLat } from "ol/proj";
 import { MapViewToggle, type MapViewType } from "./MapViewToggle";
 import { LoadingOverlay } from "./LoadingOverlay";
@@ -15,6 +16,7 @@ import Stroke from "ol/style/Stroke";
 import Fill from "ol/style/Fill";
 import { Modify, Select } from "ol/interaction";
 import { Point, LineString } from "ol/geom";
+import Transform from "ol-ext/interaction/Transform";
 import { defaults as defaultControls } from "ol/control";
 import { click } from "ol/events/condition";
 import Toolbar from "./ToolBar";
@@ -105,13 +107,17 @@ const MapEditor: React.FC = () => {
     undefined
   );
   const drawInteractionRef = useRef<Draw | null>(null);
+  const transformInteractionRef = useRef<Transform | null>(null);
+  const transformSelectInteractionRef = useRef<Select | null>(null);
+  const vectorLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
+  const transformFeaturesRef = useRef<Collection<Feature<Geometry>> | null>(
+    null
+  );
 
   // ✅ Custom feature styles (used for GeoJSON, KML, and KMZ)
   const getFeatureStyle = (feature: FeatureLike) => {
     const type = feature.getGeometry()?.getType();
     const isArrow = feature.get("isArrow");
-
-    console.log("Checking : ", activeTool);
 
     if (isArrow && (type === "LineString" || type === "MultiLineString")) {
       return getArrowStyle(feature);
@@ -245,14 +251,12 @@ const MapEditor: React.FC = () => {
 
   // ✅ Handle legend selection - only updates state
   const handleLegendSelect = (legend: LegendType) => {
-    console.log("🎯 Legend selected:", legend.name, legend.id);
     setSelectedLegend(legend);
   };
 
   // ✅ Auto-activate legends tool when selectedLegend changes
   useEffect(() => {
     if (selectedLegend) {
-      console.log("🔧 Activating legends tool for:", selectedLegend.name);
       // Remove any existing draw interaction first
       if (drawInteractionRef.current) {
         mapRef.current?.removeInteraction(drawInteractionRef.current);
@@ -271,6 +275,52 @@ const MapEditor: React.FC = () => {
     if (drawInteractionRef.current) {
       mapRef.current.removeInteraction(drawInteractionRef.current);
       drawInteractionRef.current = null;
+    }
+
+    // Deactivate and remove transform interaction when switching away from transform tool
+    if (toolId !== "transform" && transformInteractionRef.current) {
+      transformInteractionRef.current.setActive(false);
+      if (
+        mapRef.current
+          .getInteractions()
+          .getArray()
+          .includes(transformInteractionRef.current as any)
+      ) {
+        mapRef.current.removeInteraction(
+          transformInteractionRef.current as any
+        );
+      }
+      transformInteractionRef.current = null;
+    }
+
+    // Remove transform selection interaction when switching away from transform tool
+    if (toolId !== "transform" && transformSelectInteractionRef.current) {
+      if (
+        mapRef.current
+          .getInteractions()
+          .getArray()
+          .includes(transformSelectInteractionRef.current)
+      ) {
+        mapRef.current.removeInteraction(transformSelectInteractionRef.current);
+      }
+      transformSelectInteractionRef.current = null;
+    }
+
+    // Clear transform features collection when switching away from transform tool
+    if (toolId !== "transform" && transformFeaturesRef.current) {
+      transformFeaturesRef.current.clear();
+      transformFeaturesRef.current = null;
+    }
+
+    // Reactivate modify interaction when switching away from transform tool
+    if (toolId !== "transform") {
+      const modifyInteraction = mapRef.current
+        .getInteractions()
+        .getArray()
+        .find((interaction) => interaction instanceof Modify) as Modify;
+      if (modifyInteraction) {
+        modifyInteraction.setActive(true);
+      }
     }
 
     setActiveTool(toolId);
@@ -346,13 +396,8 @@ const MapEditor: React.FC = () => {
         break;
 
       case "legends":
-        console.log(
-          "🎨 Legends tool activation, selectedLegend:",
-          selectedLegend?.name || "none"
-        );
         // Don't allow drawing if no legend is selected
         if (!selectedLegend) {
-          console.log("❌ No legend selected, cannot activate legends tool");
           return;
         }
 
@@ -399,18 +444,11 @@ const MapEditor: React.FC = () => {
         });
         legendlineDraw.on("drawend", (event) => {
           const feature = event.feature;
-          console.log(
-            "✏️ Drawing completed for legend:",
-            selectedLegend.name,
-            "with color:",
-            selectedLegend.style.strokeColor
-          );
           feature.set("islegends", true);
           feature.set("legendType", selectedLegend.id);
         });
         drawInteractionRef.current = legendlineDraw;
         mapRef.current.addInteraction(legendlineDraw);
-        console.log("✅ Legends tool activated with:", selectedLegend.name);
         break;
 
       case "select":
@@ -422,6 +460,69 @@ const MapEditor: React.FC = () => {
         if (selectInteraction) {
           selectInteraction.setActive(true);
         }
+        break;
+
+      case "transform":
+        // Ensure vector layer is available
+        if (!vectorLayerRef.current) {
+          break;
+        }
+
+        // Deactivate modify interaction to prevent vertex editing during transform
+        const modifyInteraction = mapRef.current
+          .getInteractions()
+          .getArray()
+          .find((interaction) => interaction instanceof Modify) as Modify;
+        if (modifyInteraction) {
+          modifyInteraction.setActive(false);
+        }
+
+        // Create dedicated feature collection for transform
+        transformFeaturesRef.current = new Collection<Feature<Geometry>>();
+
+        // Create transform selection interaction to add features to transform collection
+        const transformSelectInteraction = new Select({
+          condition: click,
+          layers: [vectorLayerRef.current],
+          style: null,
+        });
+
+        // When transform selection happens, add features to transform collection
+        transformSelectInteraction.on("select", (e) => {
+          // Clear previous selection
+          transformFeaturesRef.current?.clear();
+
+          // Add newly selected features to transform collection
+          e.selected.forEach((feature) => {
+            transformFeaturesRef.current?.push(feature);
+          });
+        });
+
+        // Add selection interaction to map
+        mapRef.current.addInteraction(transformSelectInteraction);
+        transformSelectInteractionRef.current = transformSelectInteraction;
+
+        // Create transform interaction with proper configuration
+        const newTransformInteraction = new Transform({
+          features: transformFeaturesRef.current, // Use dedicated collection
+          layers: [vectorLayerRef.current], // Restrict to vector layer
+          translate: true, // Enable move/translate
+          translateFeature: true, // Enable direct feature translation
+          rotate: true, // Enable rotation
+          scale: true, // Enable scaling
+          stretch: true, // Enable stretching
+          keepAspectRatio: (e) => e.originalEvent.shiftKey, // Hold Shift for aspect ratio
+          hitTolerance: 3, // Better hit tolerance for selection
+          filter: (_feature) => {
+            // Filter to prevent conflicts - allow all features for now
+            return true;
+          },
+        });
+
+        // Add and activate transform interaction
+        mapRef.current.addInteraction(newTransformInteraction as any);
+        transformInteractionRef.current = newTransformInteraction;
+        newTransformInteraction.setActive(true);
         break;
 
       case "hand":
@@ -468,6 +569,9 @@ const MapEditor: React.FC = () => {
       style: getFeatureStyle,
     });
 
+    // Store vector layer reference
+    vectorLayerRef.current = vectorLayer;
+
     const map = new Map({
       target: "map",
       layers: [osmLayer, satelliteLayer, vectorLayer],
@@ -493,6 +597,7 @@ const MapEditor: React.FC = () => {
     const modifyInteraction = new Modify({
       features: selectInteraction.getFeatures(),
     });
+
     map.addInteraction(selectInteraction);
     map.addInteraction(modifyInteraction);
 
@@ -603,7 +708,6 @@ const MapEditor: React.FC = () => {
         }
 
         vectorSourceRef.current.clear();
-        console.log(features, "features");
         vectorSourceRef.current.addFeatures(features);
 
         const extent: Extent = vectorSourceRef.current.getExtent();
@@ -612,7 +716,6 @@ const MapEditor: React.FC = () => {
           padding: [50, 50, 50, 50],
         });
       } catch (err) {
-        console.error("File parsing error:", err);
         alert("Invalid or unsupported file format.");
       }
     };
