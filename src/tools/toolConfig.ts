@@ -1,8 +1,5 @@
-import { GP } from "@/icons/Gp";
-import { JunctionPoint } from "@/icons/JunctionPoint";
 import { Pits } from "@/icons/Pits";
-import { Tower } from "@/icons/Tower";
-import { TriangleRI } from "@/icons/Triangle";
+import { Triangle } from "@/icons/Triangle";
 import {
   HandGrab,
   MousePointer2,
@@ -62,24 +59,9 @@ export const TOOLS = [
   },
   {
     id: 'triangle',
-    name: 'Triangle - R1',
-    icon: TriangleRI,
+    name: 'Triangle',
+    icon: Triangle,
   },
-  {
-    id: 'gp',
-    name: 'GP',
-    icon: GP,
-  },
-  {
-    id: 'junction',
-    name: 'Junction Point',
-    icon: JunctionPoint,
-  },
-  {
-    id: 'tower',
-    name: 'Tower',
-    icon: Tower,
-  }
 ];
 
 export const DEFAULT_TOOL = "hand";

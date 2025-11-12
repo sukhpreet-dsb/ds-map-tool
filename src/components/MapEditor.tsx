@@ -7,16 +7,16 @@ import { OSM, Vector as VectorSource, XYZ } from "ol/source";
 import { fromLonLat } from "ol/proj";
 import { MapViewToggle, type MapViewType } from "./MapViewToggle";
 import { LoadingOverlay } from "./LoadingOverlay";
-import { Feature } from "ol";
+import { Feature, MapBrowserEvent } from "ol";
 import type { Geometry } from "ol/geom";
 import type { FeatureLike } from "ol/Feature";
 import { Style, Circle as CircleStyle, Text } from "ol/style";
 import Stroke from "ol/style/Stroke";
 import Fill from "ol/style/Fill";
 import { Modify, Select } from "ol/interaction";
-import { Point, LineString } from "ol/geom";
+import { Point, LineString, Polygon } from "ol/geom";
 import { defaults as defaultControls } from "ol/control";
-import { click } from "ol/events/condition";
+import { click, primaryAction } from "ol/events/condition";
 import Toolbar from "./ToolBar";
 import GeoJSON from "ol/format/GeoJSON";
 import KML from "ol/format/KML";
@@ -91,6 +91,24 @@ const getTextAlongLineStyle = (
   return styles;
 };
 
+// Helper function to create a regular polygon
+const createRegularPolygon = (center: number[], radius: number, sides: number): Polygon => {
+  const coordinates: number[][] = [];
+  const angleStep = (2 * Math.PI) / sides;
+
+  for (let i = 0; i < sides; i++) {
+    const angle = i * angleStep - Math.PI / 2; // Start from top
+    const x = center[0] + radius * Math.cos(angle);
+    const y = center[1] + radius * Math.sin(angle);
+    coordinates.push([x, y]);
+  }
+
+  // Close the polygon by adding the first point at the end
+  coordinates.push(coordinates[0]);
+
+  return new Polygon([coordinates]);
+};
+
 const MapEditor: React.FC = () => {
   const mapRef = useRef<Map | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -124,6 +142,7 @@ const MapEditor: React.FC = () => {
     const type = feature.getGeometry()?.getType();
     const isArrow = feature.get("isArrow");
     const isPits = feature.get("isPits");
+    const isTriangle = feature.get("isTriangle");
 
     if (isPits && (type === "Point" || type === "MultiPoint")) {
       const rotation = feature.get("rotation") || 0;
@@ -183,6 +202,18 @@ const MapEditor: React.FC = () => {
           }),
         });
       }
+    }
+
+    if (isTriangle && type === "Polygon") {
+      return new Style({
+        stroke: new Stroke({
+          color: "#ff0000",
+          width: 2,
+        }),
+        fill: new Fill({
+          color: "#ff0000",
+        }),
+      });
     }
 
     if (isArrow && (type === "LineString" || type === "MultiLineString")) {
@@ -514,6 +545,36 @@ const MapEditor: React.FC = () => {
         mapRef.current.addInteraction(pitsDraw);
         break;
 
+      case "triangle":
+        const triangleDraw = new Draw({
+          source: vectorSourceRef.current,
+          type: "Point",
+          style: new Style({
+            image: new CircleStyle({
+              radius: 3,
+              fill: new Fill({ color: "#ff0000" }),
+              stroke: new Stroke({ color: "#fff", width: 1 }),
+            }),
+          }),
+        });
+
+        // Convert point to triangle when drawing finishes
+        triangleDraw.on("drawend", (event) => {
+          const feature = event.feature;
+          const center = feature.getGeometry().getCoordinates();
+
+          // Create triangle geometry with appropriate radius
+          const triangleGeometry = createRegularPolygon(center, 20, 3);
+
+          // Replace point geometry with triangle polygon
+          feature.setGeometry(triangleGeometry);
+          feature.set("isTriangle", true);
+        });
+
+        drawInteractionRef.current = triangleDraw;
+        mapRef.current.addInteraction(triangleDraw);
+        break;
+
       case "hand":
         // Deactivate select/modify for pan navigation
         const selectInteractionForHand = mapRef.current
@@ -578,6 +639,34 @@ const MapEditor: React.FC = () => {
       }),
     });
 
+    const disableVertexDragCondition = (event:MapBrowserEvent<KeyboardEvent | WheelEvent | PointerEvent>): boolean => {
+      // Allow primary drag actions but prevent vertex dragging for polygons or specific features
+      // Access map click coordinate and hit detection on vertices
+      const map = mapRef.current;
+      if(!map) return false
+      const pixel = event.pixel;
+    
+      let hitVertex = false;
+    
+      // Hit detection on modify vertices
+      map.forEachFeatureAtPixel(pixel, (feature, layer) => {
+        if (feature.getGeometry()?.getType() === 'Polygon') {
+          hitVertex = true;
+        }
+      }, {
+        hitTolerance: 5,
+        layerFilter: (layerCandidate) => true,
+      });
+    
+      // If pointer is on a vertex of a Polygon, disallow drag (return false)
+      if (hitVertex) {
+        return false;
+      }
+    
+      // Otherwise allow the default primaryAction (drag of whole feature)
+      return primaryAction(event);
+    };
+
     // ✅ Select + Modify interactions
     const selectInteraction = new Select({
       condition: click,
@@ -589,6 +678,8 @@ const MapEditor: React.FC = () => {
       // ✅ KEY: Use hitDetection with vectorLayer to detect visual appearance
       hitDetection: vectorLayer,
       source: vectorSourceRef.current,
+      condition: disableVertexDragCondition,
+      // insertVertexCondition: () => false, // prevent adding new vertices
       style: function() {
         return []; // Return empty array to hide vertices
       }
