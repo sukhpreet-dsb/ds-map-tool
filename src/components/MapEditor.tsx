@@ -41,6 +41,7 @@ import {
   junctionUtils,
 } from "@/icons/JuctionPoint";
 import { handleTowerClickFromSvg } from "@/icons/Tower";
+import { isSelectableFeature } from "@/utils/featureTypeUtils";
 
 // ✅ Reusable function for legends with text along line path
 const getTextAlongLineStyle = (
@@ -736,10 +737,11 @@ const MapEditor: React.FC = () => {
       }),
     });
 
-    // ✅ Select + Modify interactions
+    // ✅ Select + Modify interactions with feature type filtering
     const selectInteraction = new Select({
       condition: click,
       layers: [vectorLayer],
+      filter: isSelectableFeature,
     });
     const modifyInteraction = new Modify({
       features: selectInteraction.getFeatures(),
