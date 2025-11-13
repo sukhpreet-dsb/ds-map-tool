@@ -28,9 +28,18 @@ import "ol/ol.css";
 import "ol-ext/dist/ol-ext.css";
 import { RegularShape } from "ol/style";
 import { getLegendById, type LegendType } from "@/tools/legendsConfig";
-import { handleTriangleClick, isTriangleFeature, triangleUtils } from "@/icons/Triangle";
-import {handlePitClick, isPitFeature, pitUtils} from "@/icons/Pit";
-import {handleGPClick, isGPFeature, gpUtils} from "@/icons/Gp";
+import {
+  handleTriangleClick,
+  isTriangleFeature,
+  triangleUtils,
+} from "@/icons/Triangle";
+import { handlePitClick, isPitFeature, pitUtils } from "@/icons/Pit";
+import { handleGPClick, isGPFeature, gpUtils } from "@/icons/Gp";
+import {
+  handleJunctionClick,
+  isJunctionFeature,
+  junctionUtils,
+} from "@/icons/JuctionPoint";
 
 // ✅ Reusable function for legends with text along line path
 const getTextAlongLineStyle = (
@@ -130,7 +139,7 @@ const MapEditor: React.FC = () => {
     if (isTriangleFeature(feature as Feature) && type === "Polygon") {
       return triangleUtils.getStyle();
     }
-    
+
     // Handle pit features
     if (isPitFeature(feature as Feature) && type === "Polygon") {
       return pitUtils.getStyle();
@@ -138,6 +147,11 @@ const MapEditor: React.FC = () => {
 
     // Handle gp features
     if (isGPFeature(feature as Feature) && type === "Polygon") {
+      return gpUtils.getStyles();
+    }
+
+    // Handle juction point features
+    if (isJunctionFeature(feature as Feature) && type === "Polygon") {
       return gpUtils.getStyles();
     }
 
@@ -297,20 +311,29 @@ const MapEditor: React.FC = () => {
 
     // Remove triangle click handler if switching away from triangle tool
     if ((mapRef.current as any).triangleClickHandler) {
-      mapRef.current.un('click', (mapRef.current as any).triangleClickHandler);
+      mapRef.current.un("click", (mapRef.current as any).triangleClickHandler);
       delete (mapRef.current as any).triangleClickHandler;
     }
 
     // Remove pit click handler if switching away from pit tool
     if ((mapRef.current as any).PitClickHandler) {
-      mapRef.current.un('click', (mapRef.current as any).PitClickHandler);
+      mapRef.current.un("click", (mapRef.current as any).PitClickHandler);
       delete (mapRef.current as any).PitClickHandler;
     }
-    
-    // Remove gp click handler if switching away from pit tool
+
+    // Remove gp click handler if switching away from gp tool
     if ((mapRef.current as any).GpClickHandler) {
-      mapRef.current.un('click', (mapRef.current as any).GpClickHandler);
+      mapRef.current.un("click", (mapRef.current as any).GpClickHandler);
       delete (mapRef.current as any).GpClickHandler;
+    }
+
+    // Remove gp click handler if switching away from juction tool
+    if ((mapRef.current as any).JuctionPointClickHandler) {
+      mapRef.current.un(
+        "click",
+        (mapRef.current as any).JuctionPointClickHandler
+      );
+      delete (mapRef.current as any).JuctionPointClickHandler;
     }
 
     // Deactivate and remove transform interaction when switching away from transform tool
@@ -571,14 +594,14 @@ const MapEditor: React.FC = () => {
           handleTriangleClick(vectorSourceRef.current, coordinate);
         };
 
-        mapRef.current.on('click', triangleClickHandler);
+        mapRef.current.on("click", triangleClickHandler);
 
         // Store the handler reference for cleanup when switching tools
         (mapRef.current as any).triangleClickHandler = triangleClickHandler;
         break;
 
-        case "pit":
-          // Pit tool: set up click listener for single-click pit creation
+      case "pit":
+        // Pit tool: set up click listener for single-click pit creation
         if (!mapRef.current) return;
 
         // Add click event listener for pit creation
@@ -587,14 +610,14 @@ const MapEditor: React.FC = () => {
           handlePitClick(vectorSourceRef.current, coordinate);
         };
 
-        mapRef.current.on('click', PitClickHandler);
+        mapRef.current.on("click", PitClickHandler);
 
         // Store the handler reference for cleanup when switching tools
         (mapRef.current as any).PitClickHandler = PitClickHandler;
         break;
 
-        case "gp":
-          // Gp tool: set up click listener for single-click gp creation
+      case "gp":
+        // Gp tool: set up click listener for single-click gp creation
         if (!mapRef.current) return;
 
         // Add click event listener for gp creation
@@ -603,10 +626,27 @@ const MapEditor: React.FC = () => {
           handleGPClick(vectorSourceRef.current, coordinate);
         };
 
-        mapRef.current.on('click', GpClickHandler);
+        mapRef.current.on("click", GpClickHandler);
 
         // Store the handler reference for cleanup when switching tools
         (mapRef.current as any).GpClickHandler = GpClickHandler;
+        break;
+
+      case "junction":
+        // Gp tool: set up click listener for single-click gp creation
+        if (!mapRef.current) return;
+
+        // Add click event listener for gp creation
+        const JuctionPointClickHandler = (event: any) => {
+          const coordinate = event.coordinate;
+          handleJunctionClick(vectorSourceRef.current, coordinate);
+        };
+
+        mapRef.current.on("click", JuctionPointClickHandler);
+
+        // Store the handler reference for cleanup when switching tools
+        (mapRef.current as any).JuctionPointClickHandler =
+          JuctionPointClickHandler;
         break;
 
       case "hand":
