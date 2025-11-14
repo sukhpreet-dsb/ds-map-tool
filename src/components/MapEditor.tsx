@@ -11,7 +11,7 @@ import { LoadingOverlay } from "./LoadingOverlay";
 import { Feature } from "ol";
 import type { Geometry } from "ol/geom";
 import type { FeatureLike } from "ol/Feature";
-import { Style, Circle as CircleStyle, Text } from "ol/style";
+import { Style, Text, RegularShape } from "ol/style";
 import Stroke from "ol/style/Stroke";
 import Fill from "ol/style/Fill";
 import { Modify, Select } from "ol/interaction";
@@ -26,22 +26,29 @@ import JSZip from "jszip";
 import { Draw } from "ol/interaction";
 import "ol/ol.css";
 import "ol-ext/dist/ol-ext.css";
-import { RegularShape } from "ol/style";
 import { getLegendById, type LegendType } from "@/tools/legendsConfig";
-import {
-  handleTriangleClick,
-  isTriangleFeature,
-  triangleUtils,
-} from "@/icons/Triangle";
-import { handlePitClick, isPitFeature, pitUtils } from "@/icons/Pit";
-import { handleGPClick, isGPFeature, gpUtils } from "@/icons/Gp";
-import {
-  handleJunctionClick,
-  isJunctionFeature,
-  junctionUtils,
-} from "@/icons/JuctionPoint";
-import { handleTowerClickFromSvg } from "@/icons/Tower";
 import { isSelectableFeature } from "@/utils/featureTypeUtils";
+import { handleTriangleClick } from "@/icons/Triangle";
+import { handlePitClick } from "@/icons/Pit";
+import { handleGPClick } from "@/icons/Gp";
+import { handleJunctionClick } from "@/icons/JuctionPoint";
+import { handleTowerClickFromSvg } from "@/icons/Tower";
+
+// New utilities
+import { applyOpacityToColor } from "@/utils/colorUtils";
+import { getFeatureTypeStyle } from "@/utils/featureUtils";
+import { createPointStyle, createLineStyle } from "@/utils/styleUtils";
+import {
+  createPointDraw,
+  createPolylineDraw,
+  createFreehandDraw,
+  createArrowDraw,
+  createLegendDraw
+} from "@/utils/interactionUtils";
+import { useClickHandlerManager } from "@/hooks/useClickHandlerManager";
+import {
+  TOWER_CONFIG
+} from "@/config/toolConfig";
 
 // ✅ Reusable function for legends with text along line path
 const getTextAlongLineStyle = (
@@ -128,6 +135,12 @@ const MapEditor: React.FC = () => {
     null
   );
 
+  // Click handler manager hook
+  const {
+    registerClickHandler,
+    removeAllClickHandlers,
+  } = useClickHandlerManager();
+
   // ✅ Custom feature styles (used for GeoJSON, KML, and KMZ)
   const getFeatureStyle = (feature: FeatureLike) => {
     const type = feature.getGeometry()?.getType();
@@ -137,24 +150,10 @@ const MapEditor: React.FC = () => {
       return getArrowStyle(feature);
     }
 
-    // Handle triangle features
-    if (isTriangleFeature(feature as Feature) && type === "Polygon") {
-      return triangleUtils.getStyle();
-    }
-
-    // Handle pit features
-    if (isPitFeature(feature as Feature) && type === "Polygon") {
-      return pitUtils.getStyle();
-    }
-
-    // Handle gp features
-    if (isGPFeature(feature as Feature) && type === "Polygon") {
-      return gpUtils.getStyles();
-    }
-
-    // Handle juction point features
-    if (isJunctionFeature(feature as Feature) && type === "Polygon") {
-      return junctionUtils.getStyles();
+    // Handle icon features using utility
+    const iconStyle = getFeatureTypeStyle(feature);
+    if (iconStyle) {
+      return iconStyle;
     }
 
     if (
@@ -184,21 +183,12 @@ const MapEditor: React.FC = () => {
 
       const styles: Style[] = [];
       const opacity = legendType.style.opacity || 1;
-      const strokeColor = legendType.style.strokeColor;
-
-      // Apply opacity to the stroke color
-      const colorWithOpacity =
-        opacity < 1
-          ? strokeColor +
-            Math.round(opacity * 255)
-              .toString(16)
-              .padStart(2, "0")
-          : strokeColor;
+      const strokeColor = legendType.style.strokeColor || "#000000";
 
       styles.push(
         new Style({
           stroke: new Stroke({
-            color: colorWithOpacity,
+            color: applyOpacityToColor(strokeColor, opacity),
             width: legendType.style.strokeWidth || 2,
             lineDash: legendType.style.strokeDash || [5, 5],
             lineCap: "butt",
@@ -209,21 +199,15 @@ const MapEditor: React.FC = () => {
     }
 
     if (type === "LineString" || type === "MultiLineString") {
-      return new Style({
-        stroke: new Stroke({
-          color: "#00ff00",
-          width: 4,
-        }),
-      });
+      return createLineStyle("#00ff00", 4);
     }
 
     if (type === "Point" || type === "MultiPoint") {
-      return new Style({
-        image: new CircleStyle({
-          radius: 6,
-          fill: new Fill({ color: "#ff0000" }),
-          stroke: new Stroke({ color: "#fff", width: 2 }),
-        }),
+      return createPointStyle({
+        radius: 6,
+        fillColor: "#ff0000",
+        strokeColor: "#ffffff",
+        strokeWidth: 2,
       });
     }
   };
@@ -311,38 +295,8 @@ const MapEditor: React.FC = () => {
       drawInteractionRef.current = null;
     }
 
-    // Remove triangle click handler if switching away from triangle tool
-    if ((mapRef.current as any).triangleClickHandler) {
-      mapRef.current.un("click", (mapRef.current as any).triangleClickHandler);
-      delete (mapRef.current as any).triangleClickHandler;
-    }
-
-    // Remove pit click handler if switching away from pit tool
-    if ((mapRef.current as any).PitClickHandler) {
-      mapRef.current.un("click", (mapRef.current as any).PitClickHandler);
-      delete (mapRef.current as any).PitClickHandler;
-    }
-
-    // Remove gp click handler if switching away from gp tool
-    if ((mapRef.current as any).GpClickHandler) {
-      mapRef.current.un("click", (mapRef.current as any).GpClickHandler);
-      delete (mapRef.current as any).GpClickHandler;
-    }
-
-    // Remove juction click handler if switching away from juction tool
-    if ((mapRef.current as any).JuctionPointClickHandler) {
-      mapRef.current.un(
-        "click",
-        (mapRef.current as any).JuctionPointClickHandler
-      );
-      delete (mapRef.current as any).JuctionPointClickHandler;
-    }
-
-    // Remove tower click handler if switching away from juction tool
-    if ((mapRef.current as any).TowerClickHandler) {
-      mapRef.current.un("click", (mapRef.current as any).TowerClickHandler);
-      delete (mapRef.current as any).TowerClickHandler;
-    }
+    // Remove all click handlers using the hook
+    removeAllClickHandlers(mapRef.current);
 
     // Deactivate and remove transform interaction when switching away from transform tool
     if (toolId !== "transform" && transformInteractionRef.current) {
@@ -394,72 +348,23 @@ const MapEditor: React.FC = () => {
 
     switch (toolId) {
       case "point":
-        const pointDraw = new Draw({
-          source: vectorSourceRef.current,
-          type: "Point",
-          style: new Style({
-            image: new CircleStyle({
-              radius: 6,
-              fill: new Fill({ color: "#ff0000" }),
-              stroke: new Stroke({ color: "#fff", width: 2 }),
-            }),
-          }),
-        });
-        drawInteractionRef.current = pointDraw;
-        mapRef.current.addInteraction(pointDraw);
+        drawInteractionRef.current = createPointDraw(vectorSourceRef.current);
+        mapRef.current.addInteraction(drawInteractionRef.current);
         break;
 
       case "polyline":
-        const lineDraw = new Draw({
-          source: vectorSourceRef.current,
-          type: "LineString",
-          style: new Style({
-            stroke: new Stroke({
-              color: "#00ff00",
-              width: 4,
-            }),
-          }),
-        });
-        drawInteractionRef.current = lineDraw;
-        mapRef.current.addInteraction(lineDraw);
+        drawInteractionRef.current = createPolylineDraw(vectorSourceRef.current);
+        mapRef.current.addInteraction(drawInteractionRef.current);
         break;
 
       case "freehand":
-        const freehandDraw = new Draw({
-          source: vectorSourceRef.current,
-          type: "LineString",
-          freehand: true,
-          style: new Style({
-            stroke: new Stroke({
-              color: "#00ff00",
-              width: 4,
-            }),
-          }),
-        });
-        drawInteractionRef.current = freehandDraw;
-        mapRef.current.addInteraction(freehandDraw);
+        drawInteractionRef.current = createFreehandDraw(vectorSourceRef.current);
+        mapRef.current.addInteraction(drawInteractionRef.current);
         break;
 
       case "arrow":
-        const arrowDraw = new Draw({
-          source: vectorSourceRef.current,
-          type: "LineString",
-          style: new Style({
-            stroke: new Stroke({
-              color: "#000000",
-              width: 4,
-            }),
-          }),
-        });
-
-        // Mark the feature as arrow when drawing finishes
-        arrowDraw.on("drawend", (event) => {
-          const feature = event.feature;
-          feature.set("isArrow", true);
-        });
-
-        drawInteractionRef.current = arrowDraw;
-        mapRef.current.addInteraction(arrowDraw);
+        drawInteractionRef.current = createArrowDraw(vectorSourceRef.current);
+        mapRef.current.addInteraction(drawInteractionRef.current);
         break;
 
       case "legends":
@@ -467,18 +372,6 @@ const MapEditor: React.FC = () => {
         if (!selectedLegend) {
           return;
         }
-
-        const opacity = selectedLegend.style.opacity || 1;
-        const strokeColor = selectedLegend.style.strokeColor;
-
-        // Apply opacity to the stroke color
-        const colorWithOpacity =
-          opacity < 1
-            ? strokeColor +
-              Math.round(opacity * 255)
-                .toString(16)
-                .padStart(2, "0")
-            : strokeColor;
 
         // Use text styling for legends that have text, otherwise use standard style
         let drawStyle;
@@ -494,28 +387,23 @@ const MapEditor: React.FC = () => {
           tempFeature.set("islegends", true);
           drawStyle = getTextAlongLineStyle(tempFeature, selectedLegend);
         } else {
-          drawStyle = new Style({
-            stroke: new Stroke({
-              color: colorWithOpacity,
-              width: selectedLegend.style.strokeWidth,
-              lineDash: selectedLegend.style.strokeDash,
-              lineCap: "butt",
-            }),
-          });
+          const opacity = selectedLegend.style.opacity || 1;
+          const strokeColor = selectedLegend.style.strokeColor || "#000000";
+
+          drawStyle = createLineStyle(
+            strokeColor,
+            selectedLegend.style.strokeWidth,
+            opacity,
+            selectedLegend.style.strokeDash
+          );
         }
 
-        const legendlineDraw = new Draw({
-          source: vectorSourceRef.current,
-          type: "LineString",
-          style: drawStyle,
-        });
-        legendlineDraw.on("drawend", (event) => {
-          const feature = event.feature;
-          feature.set("islegends", true);
-          feature.set("legendType", selectedLegend.id);
-        });
-        drawInteractionRef.current = legendlineDraw;
-        mapRef.current.addInteraction(legendlineDraw);
+        drawInteractionRef.current = createLegendDraw(
+          vectorSourceRef.current,
+          drawStyle,
+          selectedLegend.id
+        );
+        mapRef.current.addInteraction(drawInteractionRef.current);
         break;
 
       case "select":
@@ -593,84 +481,71 @@ const MapEditor: React.FC = () => {
         break;
 
       case "triangle":
-        // Triangle tool: set up click listener for single-click triangle creation
-        if (!mapRef.current) return;
-
-        // Add click event listener for triangle creation
-        const triangleClickHandler = (event: any) => {
-          const coordinate = event.coordinate;
-          handleTriangleClick(vectorSourceRef.current, coordinate);
-        };
-
-        mapRef.current.on("click", triangleClickHandler);
-
-        // Store the handler reference for cleanup when switching tools
-        (mapRef.current as any).triangleClickHandler = triangleClickHandler;
+        registerClickHandler(
+          mapRef.current,
+          {
+            toolId: "triangle",
+            handlerKey: "triangleClickHandler",
+            onClick: (coordinate) => handleTriangleClick(vectorSourceRef.current, coordinate),
+          },
+          vectorSourceRef.current
+        );
         break;
 
       case "pit":
-        // Pit tool: set up click listener for single-click pit creation
-        if (!mapRef.current) return;
-
-        // Add click event listener for pit creation
-        const PitClickHandler = (event: any) => {
-          const coordinate = event.coordinate;
-          handlePitClick(vectorSourceRef.current, coordinate);
-        };
-
-        mapRef.current.on("click", PitClickHandler);
-
-        // Store the handler reference for cleanup when switching tools
-        (mapRef.current as any).PitClickHandler = PitClickHandler;
+        registerClickHandler(
+          mapRef.current,
+          {
+            toolId: "pit",
+            handlerKey: "PitClickHandler",
+            onClick: (coordinate) => handlePitClick(vectorSourceRef.current, coordinate),
+          },
+          vectorSourceRef.current
+        );
         break;
 
       case "gp":
-        // Gp tool: set up click listener for single-click gp creation
-        if (!mapRef.current) return;
-
-        // Add click event listener for gp creation
-        const GpClickHandler = (event: any) => {
-          const coordinate = event.coordinate;
-          handleGPClick(vectorSourceRef.current, coordinate);
-        };
-
-        mapRef.current.on("click", GpClickHandler);
-
-        // Store the handler reference for cleanup when switching tools
-        (mapRef.current as any).GpClickHandler = GpClickHandler;
+        registerClickHandler(
+          mapRef.current,
+          {
+            toolId: "gp",
+            handlerKey: "GpClickHandler",
+            onClick: (coordinate) => handleGPClick(vectorSourceRef.current, coordinate),
+          },
+          vectorSourceRef.current
+        );
         break;
 
       case "junction":
-        // Gp tool: set up click listener for single-click gp creation
-        if (!mapRef.current) return;
-
-        // Add click event listener for gp creation
-        const JuctionPointClickHandler = (event: any) => {
-          const coordinate = event.coordinate;
-          handleJunctionClick(vectorSourceRef.current, coordinate);
-        };
-
-        mapRef.current.on("click", JuctionPointClickHandler);
-
-        // Store the handler reference for cleanup when switching tools
-        (mapRef.current as any).JuctionPointClickHandler =
-          JuctionPointClickHandler;
+        registerClickHandler(
+          mapRef.current,
+          {
+            toolId: "junction",
+            handlerKey: "JuctionPointClickHandler",
+            onClick: (coordinate) => handleJunctionClick(vectorSourceRef.current, coordinate),
+          },
+          vectorSourceRef.current
+        );
         break;
 
       case "tower":
-        const towerPathD = `M11.8545,6.4336l-.4131-.2813a4.7623,4.7623,0,0,0,.2813-4.8779l-.0835-.1533L12.0747.875l.0908.167a5.2619,5.2619,0,0,1-.311,5.3916Zm1.1521,7.1316V14h-11v-.4348H4.4952L6.0439,6.4a.5.5,0,0,1,.4888-.3945h.7255V4.6014A1.14,1.14,0,0,1,6.3756,3.5a1.1568,1.1568,0,1,1,2.3136,0,1.14,1.14,0,0,1-.931,1.1112V6.0059h.7223A.5.5,0,0,1,8.9692,6.4l1.5478,7.1648ZM8.4543,8.751H6.5588L6.236,10.2441H8.777ZM6.1279,10.7441l-.3233,1.4952H9.2082l-.3231-1.4952ZM6.936,7.0059,6.6669,8.251H8.3463L8.0771,7.0059ZM5.5179,13.5652H9.4948l-.1786-.8259h-3.62ZM5.21,5.0137a2.7523,2.7523,0,0,1,.0161-3.0518L4.812,1.6826a3.25,3.25,0,0,0-.019,3.6065ZM10.7568,3.5a3.2433,3.2433,0,0,0-.5341-1.7861l-.418.2754a2.7517,2.7517,0,0,1-.0176,3.0488l.4141.2793A3.2341,3.2341,0,0,0,10.7568,3.5ZM3.5342,6.1182A4.7637,4.7637,0,0,1,3.3813,1.13L2.9478.88a5.2643,5.2643,0,0,0,.1694,5.5137Z`;
-        const towerHandler = (evt: any) => {
-          const coordinate = evt.coordinate;
-          handleTowerClickFromSvg(
-            vectorSourceRef.current,
-            coordinate,
-            towerPathD,
-            15,
-            1
-          );
-        };
-        mapRef.current.on("click", towerHandler);
-        (mapRef.current as any).TowerClickHandler = towerHandler;
+        registerClickHandler(
+          mapRef.current,
+          {
+            toolId: "tower",
+            handlerKey: "TowerClickHandler",
+            onClick: (coordinate) => {
+              handleTowerClickFromSvg(
+                vectorSourceRef.current,
+                coordinate,
+                TOWER_CONFIG.svgPath,
+                TOWER_CONFIG.scale,
+                TOWER_CONFIG.strokeWidth
+              );
+            },
+          },
+          vectorSourceRef.current
+        );
         break;
 
       case "hand":

@@ -1,0 +1,173 @@
+import { Draw } from "ol/interaction";
+import { Style } from "ol/style";
+import { createPointStyle, createLineStyle } from "./styleUtils";
+
+/**
+ * Draw interaction configuration interface
+ */
+export interface DrawInteractionConfig {
+  type: "Point" | "LineString" | "Polygon" | "MultiLineString" | "MultiPolygon";
+  source: any;
+  freehand?: boolean;
+  style?: Style | Style[] | ((feature: any) => Style | Style[]);
+  onDrawEnd?: (event: any) => void;
+  featureProperties?: Record<string, any>;
+}
+
+/**
+ * Predefined draw configurations for common tools
+ */
+export const DRAW_CONFIGS = {
+  point: {
+    type: "Point" as const,
+    style: createPointStyle({
+      radius: 6,
+      fillColor: "#ff0000",
+      strokeColor: "#ffffff",
+      strokeWidth: 2,
+    }),
+  },
+  polyline: {
+    type: "LineString" as const,
+    style: createLineStyle("#00ff00", 4),
+  },
+  freehand: {
+    type: "LineString" as const,
+    freehand: true,
+    style: createLineStyle("#00ff00", 4),
+  },
+  arrow: {
+    type: "LineString" as const,
+    style: createLineStyle("#000000", 4),
+    featureProperties: {
+      isArrow: true,
+    },
+  },
+} as const;
+
+/**
+ * Factory function to create draw interactions with standardized configuration
+ * @param config - Draw interaction configuration
+ * @returns Configured Draw interaction
+ */
+export const createDrawInteraction = (config: DrawInteractionConfig): Draw => {
+  const drawInteraction = new Draw({
+    source: config.source,
+    type: config.type,
+    freehand: config.freehand || false,
+    style: config.style,
+  });
+
+  // Set feature properties on draw end if specified
+  if (config.featureProperties) {
+    drawInteraction.on("drawend", (event) => {
+      const feature = event.feature;
+      Object.entries(config.featureProperties!).forEach(([key, value]) => {
+        feature.set(key, value);
+      });
+
+      // Call custom onDrawEnd handler if provided
+      if (config.onDrawEnd) {
+        config.onDrawEnd(event);
+      }
+    });
+  } else if (config.onDrawEnd) {
+    drawInteraction.on("drawend", config.onDrawEnd);
+  }
+
+  return drawInteraction;
+};
+
+/**
+ * Create a point draw interaction
+ * @param source - Vector source to draw on
+ * @param onDrawEnd - Optional callback for when drawing ends
+ * @returns Point draw interaction
+ */
+export const createPointDraw = (
+  source: any,
+  onDrawEnd?: (event: any) => void
+): Draw => {
+  return createDrawInteraction({
+    ...DRAW_CONFIGS.point,
+    source,
+    onDrawEnd,
+  });
+};
+
+/**
+ * Create a polyline draw interaction
+ * @param source - Vector source to draw on
+ * @param onDrawEnd - Optional callback for when drawing ends
+ * @returns Polyline draw interaction
+ */
+export const createPolylineDraw = (
+  source: any,
+  onDrawEnd?: (event: any) => void
+): Draw => {
+  return createDrawInteraction({
+    ...DRAW_CONFIGS.polyline,
+    source,
+    onDrawEnd,
+  });
+};
+
+/**
+ * Create a freehand draw interaction
+ * @param source - Vector source to draw on
+ * @param onDrawEnd - Optional callback for when drawing ends
+ * @returns Freehand draw interaction
+ */
+export const createFreehandDraw = (
+  source: any,
+  onDrawEnd?: (event: any) => void
+): Draw => {
+  return createDrawInteraction({
+    ...DRAW_CONFIGS.freehand,
+    source,
+    onDrawEnd,
+  });
+};
+
+/**
+ * Create an arrow draw interaction
+ * @param source - Vector source to draw on
+ * @param onDrawEnd - Optional callback for when drawing ends
+ * @returns Arrow draw interaction
+ */
+export const createArrowDraw = (
+  source: any,
+  onDrawEnd?: (event: any) => void
+): Draw => {
+  return createDrawInteraction({
+    ...DRAW_CONFIGS.arrow,
+    source,
+    onDrawEnd,
+  });
+};
+
+/**
+ * Create a legend line draw interaction
+ * @param source - Vector source to draw on
+ * @param style - Style for the legend line
+ * @param legendTypeId - ID of the legend type
+ * @param onDrawEnd - Optional callback for when drawing ends
+ * @returns Legend draw interaction
+ */
+export const createLegendDraw = (
+  source: any,
+  style: Style | Style[],
+  legendTypeId: string,
+  onDrawEnd?: (event: any) => void
+): Draw => {
+  return createDrawInteraction({
+    type: "LineString",
+    source,
+    style,
+    featureProperties: {
+      islegends: true,
+      legendType: legendTypeId,
+    },
+    onDrawEnd,
+  });
+};

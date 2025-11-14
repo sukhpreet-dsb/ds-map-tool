@@ -60,7 +60,7 @@ const svgToMap = (
  */
 export const sampleSvgPathToSubpaths = (
   pathD: string,
-  viewBoxSize: number = 15,
+  _viewBoxSize: number = 15,
   samplingStepPx: number = 0.5,
   jumpThresholdPx: number = 2
 ): number[][][] => {
@@ -172,7 +172,7 @@ export const createFeatureFromSvgPath = (
  * Style that uses Stroke + Fill (no Icon) matching your SVG (black fill, black stroke).
  * You can tweak strokeWidth and fillOpacity.
  */
-export const getTowerVectorStyle = (strokeWidth = 1, fillOpacity = 0.1): Style => {
+export const getTowerVectorStyle = (_strokeWidth = 1, fillOpacity = 0.1): Style => {
   return new Style({
     stroke: new Stroke({
       color: "#000000",
