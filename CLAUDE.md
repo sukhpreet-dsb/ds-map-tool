@@ -35,32 +35,52 @@ This is a **DS Map Tool** - a web-based map editor application built with React 
 
 ### Key Features
 - Interactive map with OSM and satellite view toggle
-- Drawing tools (Point, Polyline, Freehand line)
+- Advanced drawing tools (Point, Polyline, Line, Freehand, Arrow, GP, Tower, Junction Point)
 - File import/export support (GeoJSON, KML, KMZ)
 - Tool selection system with toolbar
-- Feature selection and deletion
+- Feature selection and deletion (works on Polyline, Freehand Line, Arrow and legend)
+- Legend creation and management
 - Smooth map view transitions
 
 ### Architecture
 - `src/components/MapEditor.tsx` - Main map component with OpenLayers integration
 - `src/components/ToolBar.tsx` - Toolbar for tool selection
+- `src/components/Legend.tsx` - Legend creation and management component
 - `src/tools/toolConfig.ts` - Tool configuration and definitions
+- `src/tools/` - Individual tool implementations (ArrowTool.ts, GPTool.ts, TowerTool.ts, JunctionPointTool.ts)
 - `src/components/MapViewToggle.tsx` - Map view switcher component
 - `src/components/LoadingOverlay.tsx` - Loading overlay for transitions
 
 ### Available Tools
-- **Select**: Select and modify features
+- **Select**: Select and modify features (works on Polyline, Freehand Line, Arrow and legend)
 - **Hand**: Pan navigation mode
 - **Point**: Place point markers
 - **Polyline**: Draw straight lines
 - **Line**: Draw line segments
 - **Freehand**: Freehand drawing
+- **Arrow**: Draw arrows with customizable styles
+- **GP**: GP (General Purpose) drawing tool
+- **Tower**: Place tower markers
+- **Junction Point**: Place junction/connectivity points
+- **Legend**: Create and manage map legends
 - **Text**: Place and edit text labels (planned feature)
 
 ### Development
 - Run development server: `npm run dev`
 - Build for production: `npm run build`
 - TypeScript compilation: `npm run build` (includes type checking)
+
+### Recent Changes
+- Added Arrow tool for drawing arrows with various styles
+- Added GP (General Purpose) drawing tool
+- Added Tower tool for placing tower markers
+- Added Junction Point tool for connectivity points
+- Enhanced Legend component with full CRUD operations
+- Improved Select tool to work specifically with Polyline, Freehand Line, Arrow, and Legend features
+- Added file export support for KMZ format in addition to GeoJSON and KML
+- Implemented auto-save functionality
+- Added keyboard shortcuts for tool switching
+- Enhanced UI with improved tooltips and visual feedback
 
 ---
 
