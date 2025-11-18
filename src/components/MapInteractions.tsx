@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { Modify, Select } from "ol/interaction";
 import { Collection } from "ol";
-import { click } from "ol/events/condition";
+import { click, altKeyOnly } from "ol/events/condition";
 import Transform from "ol-ext/interaction/Transform";
 import type Map from "ol/Map";
 import type VectorLayer from "ol/layer/Vector";
@@ -50,6 +50,7 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
     const editableFeatures = new Collection<Feature<Geometry>>();
     const modifyInteraction = new Modify({
       features: editableFeatures,
+      deleteCondition: altKeyOnly, // Enable Alt+Click vertex deletion
     });
 
     // Add modify event handling for distance recalculation

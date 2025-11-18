@@ -61,7 +61,7 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
       target: mapContainerRef.current,
       layers: [osmLayer, satelliteLayer, vectorLayer],
       view: new View({
-        center: fromLonLat([78.9629, 20.5937]),
+        center: fromLonLat([78.9629, 21.5937]),
         zoom: 5,
         maxZoom: 19,
         minZoom: 0,
