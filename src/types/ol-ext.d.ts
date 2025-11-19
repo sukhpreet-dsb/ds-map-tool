@@ -37,3 +37,50 @@ declare module 'ol-ext/interaction/Transform' {
     setActive(active: boolean): void;
   }
 }
+
+declare module 'ol-ext/interaction/CopyPaste' {
+  import { Interaction } from 'ol/interaction';
+  import { Collection } from 'ol';
+  import Feature from 'ol/Feature';
+  import { EventsKey } from 'ol/events';
+  import { BaseEvent } from 'ol/events';
+  import { VectorSource } from 'ol/source';
+
+  export interface CopyPasteOptions {
+    features?: Collection<Feature>;
+    destination?: VectorSource;
+    sources?: VectorSource | VectorSource[];
+    condition?: (event: any) => string | false; // 'copy', 'cut', 'paste', or false
+    mapCondition?: (event: any) => boolean;
+  }
+
+  export interface CopyPasteEvent extends BaseEvent {
+    features: Collection<Feature>;
+    type: 'copy' | 'cut' | 'paste';
+  }
+
+  export interface CopyOptions {
+    features?: Collection<Feature>;
+    cut?: boolean;
+    silent?: boolean;
+  }
+
+  export interface PasteOptions {
+    destination?: VectorSource;
+    silent?: boolean;
+  }
+
+  export default class CopyPaste extends Interaction {
+    constructor(options?: CopyPasteOptions);
+    on(type: string | string[], listener: (event: CopyPasteEvent) => void): EventsKey;
+    copy(options?: CopyOptions): void;
+    paste(options?: PasteOptions, features?: Collection<Feature>): void;
+    getFeatures(): Collection<Feature>;
+    setFeatures(features: Collection<Feature>): void;
+    getDestination(): VectorSource;
+    setDestination(source: VectorSource): void;
+    getSources(): VectorSource[];
+    setSources(sources: VectorSource | VectorSource[]): void;
+    setActive(active: boolean): void;
+  }
+}

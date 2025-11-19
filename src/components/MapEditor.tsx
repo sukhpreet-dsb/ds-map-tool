@@ -17,6 +17,9 @@ import ToolManager from "./ToolManager";
 import { useMapState } from "@/hooks/useMapState";
 import { useToolState } from "@/hooks/useToolState";
 import { useFeatureState } from "@/hooks/useFeatureState";
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { cloneFeature, offsetFeature } from "@/utils/interactionUtils";
+import { Select } from "ol/interaction";
 
 const MapEditor: React.FC = () => {
   // Core map references
@@ -33,14 +36,19 @@ const MapEditor: React.FC = () => {
     handleMapViewChange,
   } = useMapState();
 
-  const {
-    activeTool,
-    selectedLegend,
-    setActiveTool,
-    handleLegendSelect,
-  } = useToolState();
+  const { activeTool, selectedLegend, setActiveTool, handleLegendSelect } =
+    useToolState();
 
-  const { selectedFeature, setSelectedFeature } = useFeatureState();
+  const {
+    selectedFeature,
+    setSelectedFeature,
+    clipboardState,
+    setCopiedFeatures,
+    clearClipboard,
+  } = useFeatureState();
+
+  // Reference to select interaction for keyboard shortcuts
+  const selectInteractionRef = useRef<Select | null>(null);
 
   // File input reference for FileManager
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -140,6 +148,77 @@ const MapEditor: React.FC = () => {
     fileInputRef.current?.click();
   };
 
+  // Copy-paste operation handlers
+  const handleCopyOperation = (
+    features: Feature<Geometry>[],
+    isCut: boolean
+  ) => {
+    setCopiedFeatures(features, isCut);
+  };
+
+  const handlePasteOperation = (
+    features: Feature<Geometry>[],
+    coordinates: number[]
+  ) => {
+
+    const pastedFeatures: Feature<Geometry>[] = [];
+
+    clipboardState.copiedFeatures.forEach((originalFeature) => {
+      const clonedFeature = cloneFeature(originalFeature);
+
+      // Move cloned feature to the exact coordinates provided
+      // Calculate offset needed to move feature from original position to target
+      const originalGeometry = originalFeature.getGeometry();
+      if (originalGeometry) {
+        const originalExtent = originalGeometry.getExtent();
+        const originalCenter = [
+          (originalExtent[0] + originalExtent[2]) / 2,
+          (originalExtent[1] + originalExtent[3]) / 2,
+        ];
+
+        // Calculate offset to move feature center to target coordinates
+        const offsetX = coordinates[0] - originalCenter[0];
+        const offsetY = coordinates[1] - originalCenter[1];
+
+        // Apply translation
+        const translatedFeature = offsetFeature(
+          clonedFeature,
+          offsetX,
+          offsetY
+        );
+        vectorSourceRef.current.addFeature(translatedFeature);
+        pastedFeatures.push(translatedFeature);
+      }
+    });
+
+    // Select the first pasted feature
+    if (pastedFeatures.length > 0) {
+      setSelectedFeature(pastedFeatures[0]);
+    }
+
+    // If it was a cut operation, clear the clipboard after pasting
+    if (clipboardState.isCutOperation) {
+      clearClipboard();
+    }
+  };
+
+  // Handle select interaction reference from MapInteractions
+  const handleSelectInteractionReady = (selectInteraction: Select | null) => {
+    selectInteractionRef.current = selectInteraction;
+  };
+
+  // Set up keyboard shortcuts
+  useKeyboardShortcuts({
+    map: mapRef.current,
+    vectorSource: vectorSourceRef.current,
+    selectInteraction: selectInteractionRef.current,
+    clipboardFeatures: clipboardState.copiedFeatures,
+    onCopyOperation: handleCopyOperation,
+    onPasteOperation: handlePasteOperation,
+    onSetActiveTool: setActiveTool,
+    disabled: false,
+  });
+
   return (
     <div>
       <MapInstance
@@ -155,6 +234,10 @@ const MapEditor: React.FC = () => {
         vectorLayer={vectorLayerRef.current}
         activeTool={activeTool}
         onFeatureSelect={setSelectedFeature}
+        clipboardFeatures={clipboardState.copiedFeatures}
+        onCopyFeatures={handleCopyOperation}
+        onPasteFeatures={handlePasteOperation}
+        onSelectInteractionReady={handleSelectInteractionReady}
       />
 
       <ToolManager

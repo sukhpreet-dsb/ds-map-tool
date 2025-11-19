@@ -244,3 +244,55 @@ export const recalculateMeasureDistances = (features: Feature<Geometry>[]): void
     }
   });
 };
+
+/**
+ * Deep clone a feature with all its properties and geometry
+ * @param feature - Feature to clone
+ * @returns Cloned feature
+ */
+export const cloneFeature = (feature: Feature<Geometry>): Feature<Geometry> => {
+  const clonedFeature = new Feature({
+    ...feature.getProperties(),
+    // Don't copy the feature itself
+    geometry: feature.getGeometry()?.clone()
+  });
+
+  // Copy the style if it exists
+  if (feature.getStyle()) {
+    clonedFeature.setStyle(feature.getStyle());
+  }
+
+  return clonedFeature;
+};
+
+/**
+ * Offset a feature's geometry by a given amount
+ * @param feature - Feature to offset
+ * @param offsetX - X offset in map coordinates
+ * @param offsetY - Y offset in map coordinates
+ * @returns Feature with offset geometry
+ */
+export const offsetFeature = (
+  feature: Feature<Geometry>,
+  offsetX: number,
+  offsetY: number
+): Feature<Geometry> => {
+  const clonedFeature = cloneFeature(feature);
+  const geometry = clonedFeature.getGeometry();
+
+  if (geometry) {
+    geometry.translate(offsetX, offsetY);
+  }
+
+  return clonedFeature;
+};
+
+/**
+ * Get features that can be copied/pasted from a selection
+ * @param selectedFeatures - Collection of selected features
+ * @returns Array of features that can be copied
+ */
+export const getCopyableFeatures = (selectedFeatures: Feature<Geometry>[]): Feature<Geometry>[] => {
+  // All selectable features can be copied
+  return selectedFeatures.filter(feature => feature.getGeometry() !== undefined);
+};

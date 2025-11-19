@@ -12,13 +12,20 @@ import {
   isSelectableFeature,
   isEditableFeature,
 } from "@/utils/featureTypeUtils";
-import { recalculateMeasureDistances } from "@/utils/interactionUtils";
+import {
+  recalculateMeasureDistances,
+} from "@/utils/interactionUtils";
 
 export interface MapInteractionsProps {
   map: Map | null;
   vectorLayer: VectorLayer<VectorSource<Feature<Geometry>>> | null;
   activeTool: string;
   onFeatureSelect: (feature: Feature<Geometry> | null) => void;
+  clipboardFeatures?: Feature<Geometry>[];
+  onCopyFeatures?: (features: Feature<Geometry>[], isCut: boolean) => void;
+  onPasteFeatures?: (features: Feature<Geometry>[], coordinates: number[]) => void;
+  pasteCoordinates?: number[] | null;
+  onSelectInteractionReady?: (selectInteraction: Select | null) => void;
 }
 
 export const MapInteractions: React.FC<MapInteractionsProps> = ({
@@ -26,6 +33,7 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
   vectorLayer,
   activeTool,
   onFeatureSelect,
+  onSelectInteractionReady,
 }) => {
   const selectInteractionRef = useRef<Select | null>(null);
   const modifyInteractionRef = useRef<Modify | null>(null);
@@ -86,6 +94,11 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
     selectInteractionRef.current = selectInteraction;
     modifyInteractionRef.current = modifyInteraction;
 
+    // Notify parent component that select interaction is ready
+    if (onSelectInteractionReady) {
+      onSelectInteractionReady(selectInteraction);
+    }
+
     return () => {
       if (selectInteractionRef.current) {
         map.removeInteraction(selectInteractionRef.current);
@@ -94,7 +107,11 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
         map.removeInteraction(modifyInteractionRef.current);
       }
     };
-  }, [map, vectorLayer, onFeatureSelect]);
+  }, [map, vectorLayer, onFeatureSelect, onSelectInteractionReady]);
+
+  // CopyPaste functionality is now handled entirely through keyboard shortcuts
+  // This removes the dependency on the OpenLayers CopyPaste interaction
+  // which was causing conflicts and reliability issues
 
   // Handle transform tool activation/deactivation
   useEffect(() => {
@@ -216,12 +233,17 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
     };
   }, [activeTool, map, vectorLayer]);
 
-  // Handle select interaction activation/deactivation - only enable for select and transform tools
+  // Copy-paste tools are now handled through keyboard shortcuts only
+  // No special interaction activation needed for copy/cut/paste tools
+
+  // Handle select interaction activation/deactivation - only enable for select, transform, and copy-paste tools
   useEffect(() => {
     if (!map || !selectInteractionRef.current) return;
 
-    if (activeTool === "select" || activeTool === "transform") {
-      // Enable selection only for select and transform tools
+    const selectEnabledTools = ["select", "transform", "copy", "cut"];
+
+    if (selectEnabledTools.includes(activeTool)) {
+      // Enable selection for select, transform, copy, and cut tools
       selectInteractionRef.current.setActive(true);
     } else {
       // Disable selection for all other tools (drawing, navigation, icon tools, etc.)

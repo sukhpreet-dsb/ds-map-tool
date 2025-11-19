@@ -13,6 +13,7 @@ export interface ToolConfig {
   description?: string;
   requiresDrawInteraction?: boolean;
   requiresClickHandler?: boolean;
+  requiresCopyPasteInteraction?: boolean;
   drawType?: "Point" | "LineString" | "Polygon" | "MultiLineString" | "MultiPolygon";
   freehand?: boolean;
   clickHandler?: (coordinate: number[], vectorSource: any) => void;
@@ -171,6 +172,14 @@ export const getDrawTools = (): ToolConfig[] => {
  */
 export const getClickHandlerTools = (): ToolConfig[] => {
   return getAllTools().filter((tool) => tool.requiresClickHandler);
+};
+
+/**
+ * Get tools that require copy-paste interactions
+ * @returns Array of tool configurations that need copy-paste interactions
+ */
+export const getCopyPasteTools = (): ToolConfig[] => {
+  return getAllTools().filter((tool) => tool.requiresCopyPasteInteraction);
 };
 
 /**
