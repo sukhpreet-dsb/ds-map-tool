@@ -1,12 +1,14 @@
 import { Style, Stroke, Fill } from "ol/style";
 import { Feature } from "ol";
-import { Polygon, Circle as CircleGeom, GeometryCollection } from "ol/geom";
+import { Polygon, GeometryCollection } from "ol/geom";
 import { Vector as VectorSource } from "ol/source";
 import type { Geometry } from "ol/geom";
+import { createCirclePolygon } from "@/utils/geometryUtils";
 
 /**
  * Create a single Feature that contains both square + inner circle
  * as a GeometryCollection so they behave as one selectable feature.
+ * Using Polygon for inner circle for GeoJSON compatibility.
  */
 export const createJunctionGeometry = (
   center: number[],
@@ -25,7 +27,8 @@ export const createJunctionGeometry = (
   ];
 
   const square = new Polygon([squareCoords]);
-  const innerCircle = new CircleGeom(center, innerRadius);
+  // Convert inner circle to polygon for GeoJSON compatibility
+  const innerCircle = createCirclePolygon(center, innerRadius, 16);
 
   const geomCollection = new GeometryCollection([square, innerCircle]);
 

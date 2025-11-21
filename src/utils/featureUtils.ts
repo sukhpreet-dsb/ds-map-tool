@@ -5,6 +5,7 @@ import { isTriangleFeature, triangleUtils } from "@/icons/Triangle";
 import { isPitFeature, pitUtils } from "@/icons/Pit";
 import { isGPFeature, gpUtils } from "@/icons/Gp";
 import { isJunctionFeature, junctionUtils } from "@/icons/JunctionPoint";
+import { isTowerFeature, towerUtils } from "@/icons/Tower";
 
 /**
  * Feature type checker configuration
@@ -24,15 +25,19 @@ const FEATURE_TYPE_CHECKERS: Record<string, FeatureTypeChecker> = {
   },
   pit: {
     isFeature: isPitFeature,
-    geometryType: "Polygon",
+    geometryType: "MultiLineString",
   },
   gp: {
     isFeature: isGPFeature,
-    geometryType: "Polygon",
+    geometryType: "GeometryCollection",
   },
   junction: {
     isFeature: isJunctionFeature,
-    geometryType: "Polygon",
+    geometryType: "GeometryCollection",
+  },
+  tower: {
+    isFeature: isTowerFeature,
+    geometryType: "GeometryCollection",
   },
 };
 
@@ -102,6 +107,10 @@ export const getFeatureTypeStyle = (feature: FeatureLike) => {
 
   if (isFeatureType(feature, "junction")) {
     return junctionUtils.getStyles();
+  }
+
+  if (isFeatureType(feature, "tower")) {
+    return towerUtils.getStyle();
   }
 
   return null;

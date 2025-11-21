@@ -62,7 +62,7 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
       maxHistorySize: 50,
     });
 
-    console.log("undoRedoInteraction initialized: ", undoRedoInteraction)
+    // console.log("undoRedoInteraction initialized: ", undoRedoInteraction)
 
     map.addInteraction(undoRedoInteraction as any);
     undoRedoInteractionRef.current = undoRedoInteraction;
