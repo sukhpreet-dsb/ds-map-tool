@@ -48,8 +48,10 @@ This is a **DS Map Tool** - a web-based map editor application built with React 
 - **Point delete functionality** in polylines with vertex manipulation
 - **Enhanced keyboard shortcuts** for improved workflow efficiency
 - **Undo/Redo functionality** with keyboard shortcuts (Ctrl+Z, Ctrl+Y) for all drawing operations
+- **Multi-Job/Project Management** - Create, edit, delete, and switch between multiple map projects with isolated databases
 - **Data persistence with PGLite** - Local PostgreSQL-compatible database for reliable data storage and retrieval
 - **Enhanced serialization utilities** - Advanced feature serialization and deserialization for complex data structures
+- **Project-based data isolation** - Each project maintains its own separate database and map state
 - Smooth map view transitions
 
 ### Architecture
@@ -57,7 +59,7 @@ This is a **DS Map Tool** - a web-based map editor application built with React 
 The application follows a modular, component-based architecture with clear separation of concerns:
 
 #### Core Components (`src/components/`)
-- **`MapEditor.tsx`** - Main orchestrator component that coordinates all sub-components
+- **`MapEditor.tsx`** - Main orchestrator component that coordinates all sub-components and project management
 - **`MapInstance.tsx`** - Core OpenLayers map initialization, layer setup, and view configuration
 - **`MapInteractions.tsx`** - Select, Modify, Transform, and UndoRedo interaction management
 - **`ToolManager.tsx`** - Tool activation, draw interactions, and click handler coordination
@@ -67,6 +69,8 @@ The application follows a modular, component-based architecture with clear separ
 - **`LegendDropdown.tsx`** - Legend creation and management component
 - **`MapViewToggle.tsx`** - Map view switcher component
 - **`LoadingOverlay.tsx`** - Loading overlay for transitions
+- **`JobSelection.tsx`** - Multi-job/project selection, creation, and management component with edit/delete functionality
+- **`CreatingJob.tsx`** - New job/project creation dialog with validation
 - **`ui/`** - Reusable UI components (Button, Card, Dropdown, Toggle, ToggleGroup)
 
 #### Custom Hooks (`src/hooks/`)
@@ -75,6 +79,7 @@ The application follows a modular, component-based architecture with clear separ
 - **`useFeatureState.ts`** - Feature selection, editing state, and clipboard management
 - **`useClickHandlerManager.ts`** - OpenLayers event handler management
 - **`useKeyboardShortcuts.ts`** - Keyboard shortcuts management for cut/copy/paste and undo/redo operations
+- **`useMapProjects.ts`** - Multi-job/project management with isolated PGLite databases, project CRUD operations, and data persistence
 
 #### Configuration & Tools
 - **`src/config/toolConfig.ts`** - Tool configuration and definitions
@@ -185,6 +190,14 @@ The application follows a modular, component-based architecture with clear separ
    - Automatic data recovery and restoration capabilities
    - Performance-optimized database operations for real-time applications
 
+9. **Multi-Job/Project Management**:
+   - Project-based data isolation with separate PGLite databases for each project
+   - Comprehensive CRUD operations through `useMapProjects.ts` hook
+   - Project metadata management with timestamps and persistent storage
+   - Dynamic database creation and deletion with proper cleanup
+   - Cross-tab synchronization using localStorage events
+   - Automatic default project initialization on first app load
+
 #### Benefits of the New Architecture
 - **Easier debugging** - Issues can be isolated to specific components
 - **Better testing** - Each component can be unit tested independently
@@ -198,7 +211,18 @@ The `Icons2.0` branch includes the latest features and improvements over the mai
 
 ### Recent Changes
 
-#### Data Persistence with PGLite (Latest - v2.3)
+#### Multi-Job Project Management (Latest - v2.4)
+- **Project-based architecture** - Complete multi-job system with isolated PGLite databases for each project
+- **`useMapProjects.ts` hook** - Comprehensive project management with CRUD operations and state persistence
+- **`JobSelection.tsx` component** - Advanced project selection interface with edit/delete functionality and keyboard shortcuts
+- **`CreatingJob.tsx` component** - Streamlined project creation dialog with validation and immediate project switching
+- **Dynamic database management** - Automatic PGLite database creation, initialization, and cleanup for each project
+- **Cross-tab synchronization** - Real-time project list updates across browser tabs using localStorage events
+- **Automatic default project** - Seamless first-time user experience with default "My First Map" project
+- **Project metadata tracking** - Complete timestamp management for creation and modification tracking
+- **Integrated project switching** - Immediate project switching with proper database connection management and UI updates
+
+#### Data Persistence with PGLite (v2.3)
 - **PGLite database integration** - Implemented PostgreSQL-compatible local database for reliable data storage
 - **Advanced serialization system** - New `serializationUtils.ts` handles complex feature serialization and deserialization
 - **Map state persistence** - `mapStateUtils.ts` provides comprehensive map state management and recovery
@@ -276,7 +300,7 @@ The `Icons2.0` branch includes the latest features and improvements over the mai
 - Enhanced UI with improved tooltips and visual feedback
 
 ### Version History
-- **Icons2.0** (current) - Latest features including PGLite persistence, advanced serialization, Cut/Copy/Paste, point delete, Measure tool, icon improvements, and architecture refactoring
+- **Icons2.0** (current) - Latest features including Multi-Job Project Management, PGLite persistence, advanced serialization, Cut/Copy/Paste, point delete, Measure tool, icon improvements, and architecture refactoring
 - **Icons** - Icon tools implementation
 - **Legends** - Legend component enhancements
 - **Satellite** - Arrow tool and satellite view improvements

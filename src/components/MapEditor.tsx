@@ -20,8 +20,6 @@ import { useFeatureState } from "@/hooks/useFeatureState";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { cloneFeature, offsetFeature } from "@/utils/interactionUtils";
 import { Select } from "ol/interaction";
-import SuperJSON from "superjson";
-import { usePGlite } from "@electric-sql/pglite-react";
 import {
   convertFeaturesToGeoJSON,
   convertGeoJSONToFeatures,
@@ -29,6 +27,7 @@ import {
 } from "@/utils/serializationUtils";
 import { fitMapToFeatures, restoreMapView } from "@/utils/mapStateUtils";
 import { JobSelection } from "./JobSelection";
+import { useMapProjects } from "@/hooks/useMapProjects";
 
 // Interface for properly serializable map data
 interface SerializedMapData {
@@ -44,36 +43,20 @@ const MapEditor: React.FC = () => {
   // Core map references
   const mapRef = useRef<Map | null>(null);
   const vectorSourceRef = useRef(new VectorSource());
-  console.log(vectorSourceRef);
   const vectorLayerRef = useRef<any>(null);
   const [interactionReady, setInteractionReady] = useState(false);
+  const isProjectReadyRef = useRef(false);
 
-  // PgLite database instance from hook
-  const db = usePGlite();
+  const {
+    projects,
+    currentProjectId,
+    currentDb,
+    loadProject,
+    saveMapState: saveToDb,
+    loadMapState: loadFromDb,
+  } = useMapProjects();
 
-  // Initialize database table
-  const initializeDatabase = async () => {
-    if (!db) return;
-
-    try {
-      // Create map_state table if it doesn't exist
-      await db.query(`
-        CREATE TABLE IF NOT EXISTS map_state (
-          id INTEGER PRIMARY KEY,
-          serialized_data TEXT NOT NULL,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-      `);
-      console.log("Database initialized successfully");
-      return true;
-    } catch (error) {
-      console.error("Failed to initialize database:", error);
-      return false;
-    }
-  };
-
-  // Custom hooks for state management
+  // Custom hooks
   const {
     currentMapView,
     isTransitioning,
@@ -93,16 +76,11 @@ const MapEditor: React.FC = () => {
     clearClipboard,
   } = useFeatureState();
 
-  // Reference to select interaction for keyboard shortcuts
   const selectInteractionRef = useRef<Select | null>(null);
-
-  // Reference to undo interaction for keyboard shortcuts
   const undoRedoInteractionRef = useRef<any>(null);
-
-  // File input reference for FileManager
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // File change handler
+  // File import handler
   const handleFileChange = async (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
@@ -159,7 +137,6 @@ const MapEditor: React.FC = () => {
           fitMapToFeatures(mapRef.current, extent);
         }
 
-        // Save imported features to database silently
         await saveMapState();
       } catch (err) {
         alert("Invalid or unsupported file format.");
@@ -167,40 +144,35 @@ const MapEditor: React.FC = () => {
     };
 
     if (name.endsWith(".kmz")) {
-      // JSZip reads blob directly, no need to use FileReader
       reader.readAsArrayBuffer(file);
     } else {
       reader.readAsText(file);
     }
   };
 
-  // Handle map initialization
+  // Map initialization
   const handleMapReady = (map: Map) => {
     mapRef.current = map;
   };
 
-  // Handle tool activation
   const handleToolActivation = (toolId: string) => {
     setActiveTool(toolId);
   };
 
-  // Handle feature deletion
   const handleDelete = () => {
     if (selectedFeature) {
       vectorSourceRef.current.removeFeature(selectedFeature);
       setSelectedFeature(null);
-      saveMapState(); // ✨ Save after delete
+      saveMapState();
     } else {
       alert("Please select a feature to delete.");
     }
   };
 
-  // Handle file import
   const handleImportClick = () => {
     fileInputRef.current?.click();
   };
 
-  // Copy-paste operation handlers
   const handleCopyOperation = (
     features: Feature<Geometry>[],
     isCut: boolean
@@ -216,9 +188,6 @@ const MapEditor: React.FC = () => {
 
     clipboardState.copiedFeatures.forEach((originalFeature) => {
       const clonedFeature = cloneFeature(originalFeature);
-
-      // Move cloned feature to the exact coordinates provided
-      // Calculate offset needed to move feature from original position to target
       const originalGeometry = originalFeature.getGeometry();
       if (originalGeometry) {
         const originalExtent = originalGeometry.getExtent();
@@ -227,11 +196,9 @@ const MapEditor: React.FC = () => {
           (originalExtent[1] + originalExtent[3]) / 2,
         ];
 
-        // Calculate offset to move feature center to target coordinates
         const offsetX = coordinates[0] - originalCenter[0];
         const offsetY = coordinates[1] - originalCenter[1];
 
-        // Apply translation
         const translatedFeature = offsetFeature(
           clonedFeature,
           offsetX,
@@ -242,65 +209,38 @@ const MapEditor: React.FC = () => {
       }
     });
 
-    // Select the first pasted feature
     if (pastedFeatures.length > 0) {
       setSelectedFeature(pastedFeatures[0]);
     }
 
-    // If it was a cut operation, clear the clipboard after pasting
     if (clipboardState.isCutOperation) {
       clearClipboard();
     }
   };
 
-  // Handle select interaction reference from MapInteractions
   const handleSelectInteractionReady = (selectInteraction: Select | null) => {
     selectInteractionRef.current = selectInteraction;
   };
 
-  // Handle undo interaction reference from MapInteractions
   const handleUndoInteractionReady = (undoInteraction: any) => {
     undoRedoInteractionRef.current = undoInteraction;
     setInteractionReady(true);
-    // console.log(undoRedoInteractionRef.current?.getStack());
-    // console.log(
-    //   "handleUndoInteractionReady UndoInteration MapEditor : ",
-    //   undoInteraction
-    // );
   };
 
-  // Undo operation handler
   const handleUndoOperation = () => {
-    // console.log("handleUndoOperation : ", undoRedoInteractionRef.current);
-    // console.log(undoRedoInteractionRef.current?.getStack());
-    // console.log(undoRedoInteractionRef.current?.getStack());
-    if (
-      undoRedoInteractionRef.current &&
-      undoRedoInteractionRef.current.hasUndo()
-    ) {
+    if (undoRedoInteractionRef.current?.hasUndo()) {
       undoRedoInteractionRef.current.undo();
     }
   };
 
-  // Save map data to localStorage
-  // const saveMapState = () => {
-  //   if (!undoRedoInteractionRef.current || !mapRef.current) return;
-
-  //   const mapData: SerializedMapData = {
-  //     features: convertFeaturesToGeoJSON(vectorSourceRef.current),
-  //     mapState: {
-  //       center: mapRef.current.getView().getCenter() as [number, number],
-  //       zoom: mapRef.current.getView().getZoom() || 0,
-  //       viewMode: currentMapView,
-  //     },
-  //   };
-
-  //   saveMapDataToLocalStorage(mapData);
-  // };
-
-  // Save map state to PgLite
+  // ✅ SAVE to isolated DB
   const saveMapState = async () => {
-    if (!db || !mapRef.current) return;
+    if (!isProjectReadyRef.current) {
+      console.warn("Project not ready for saving, skipping");
+      return;
+    }
+
+    if (!mapRef.current) return;
 
     try {
       const mapData: SerializedMapData = {
@@ -312,49 +252,23 @@ const MapEditor: React.FC = () => {
         },
       };
 
-      const serialized = JSON.stringify(SuperJSON.serialize(mapData));
-
-      // Upsert single record with id=1
-      const exists = await db.query("SELECT id FROM map_state WHERE id = 1;");
-      if (exists.rows.length === 0) {
-        await db.query(
-          "INSERT INTO map_state (id, serialized_data) VALUES (1, $1);",
-          [serialized]
-        );
-      } else {
-        await db.query(
-          "UPDATE map_state SET serialized_data = $1, updated_at = CURRENT_TIMESTAMP WHERE id = 1;",
-          [serialized]
-        );
-      }
-
-      console.log("Map state saved to PgLite");
+      await saveToDb(mapData);
+      console.log("Saved to isolated DB");
     } catch (error) {
-      console.error("Failed to save map state to PgLite:", error);
+      console.error("Failed to save map state:", error);
     }
   };
 
-  // Load map state from PgLite on DB ready
-  const loadMapState = async () => {
-    if (!db) return;
-
+  // ✅ LOAD from isolated DB
+  const handleLoadMapState = async () => {
     try {
-      const result = await db.query(
-        "SELECT serialized_data FROM map_state WHERE id = 1;"
-      );
-      if (result.rows.length === 0) {
-        console.log("No saved map state found in PgLite");
-        return;
-      }
+      // 1. ALWAYS clear the map first!
+      // This ensures old project data is removed even if the new project is empty
+      vectorSourceRef.current.clear();
 
-      const row = result.rows[0] as { serialized_data: string };
-      const serializedData: string = row.serialized_data;
-      const mapData = SuperJSON.deserialize(
-        JSON.parse(serializedData)
-      ) as SerializedMapData;
-
-      if (mapData.features && mapData.features.features.length > 0) {
-        vectorSourceRef.current.clear();
+      const mapData = await loadFromDb();
+      if (mapData?.features) {
+        // vectorSourceRef.current.clear();
         const features = convertGeoJSONToFeatures(mapData.features);
         vectorSourceRef.current.addFeatures(features);
 
@@ -363,67 +277,76 @@ const MapEditor: React.FC = () => {
           fitMapToFeatures(mapRef.current, extent);
         }
       }
-
-      if (mapData.mapState && mapRef.current) {
+      if (mapData?.mapState && mapRef.current) {
         restoreMapView(mapRef.current, mapData.mapState, handleMapViewChange);
       }
-
-      console.log("Map state loaded from PgLite");
+      console.log("Map state loaded");
     } catch (error) {
-      console.error("Failed to load map state from PgLite:", error);
+      console.error("Failed to load map state:", error);
     }
   };
 
-  // Load once PgLite DB is ready
+  // Update ready flag
   useEffect(() => {
-    if (!db) return;
+    if (currentProjectId && currentDb && interactionReady) {
+      isProjectReadyRef.current = true;
+      console.log("Project is ready for saving");
+    } else {
+      isProjectReadyRef.current = false;
+    }
+  }, [currentProjectId, currentDb, interactionReady]);
 
-    // Initialize database first, then load state
-    initializeDatabase().then((success) => {
-      if (success) {
-        loadMapState();
-      } else {
-        console.log("Database initialization failed");
-      }
-    });
-  }, [db]);
-
+  // Load map state when project changes
   useEffect(() => {
-    if (!interactionReady) return;
+    if (!currentProjectId || !currentDb) {
+      console.log("Waiting for project to load...");
+      return;
+    }
 
-    // Set up event listeners for undo/redo operations
-    undoRedoInteractionRef.current?.on("stack:add", () => {
+    console.log("Project loaded, loading map state");
+    handleLoadMapState();
+  }, [currentProjectId, currentDb]);
+
+  // Setup auto-save listeners
+  useEffect(() => {
+    if (!interactionReady || !currentProjectId || !currentDb) {
+      console.log("Waiting for project to be ready...");
+      return;
+    }
+
+    console.log("Setting up auto-save listeners");
+
+    const onStackAdd = () => {
       console.log("Feature added to stack");
       saveMapState();
-    });
-
-    undoRedoInteractionRef.current?.on("stack:remove", () => {
-      console.log("Feature removed from stack");
-      saveMapState();
-    });
-
-    undoRedoInteractionRef.current?.on("undo", () => {
+    };
+    const onUndo = () => {
       console.log("Undo operation performed");
       saveMapState();
-    });
-
-    undoRedoInteractionRef.current?.on("redo", () => {
+    };
+    const onRedo = () => {
       console.log("Redo operation performed");
       saveMapState();
-    });
-  }, [undoRedoInteractionRef, interactionReady, currentMapView]);
+    };
 
-  // Redo operation handler
+    undoRedoInteractionRef.current?.on("stack:add", onStackAdd);
+    undoRedoInteractionRef.current?.on("undo", onUndo);
+    undoRedoInteractionRef.current?.on("redo", onRedo);
+
+    return () => {
+      undoRedoInteractionRef.current?.un("stack:add", onStackAdd);
+      undoRedoInteractionRef.current?.un("undo", onUndo);
+      undoRedoInteractionRef.current?.un("redo", onRedo);
+    };
+  }, [interactionReady, currentProjectId, currentDb, currentMapView]);
+
   const handleRedoOperation = () => {
-    if (
-      undoRedoInteractionRef.current &&
-      undoRedoInteractionRef.current.hasRedo()
-    ) {
+    if (undoRedoInteractionRef.current?.hasRedo()) {
       undoRedoInteractionRef.current.redo();
     }
   };
 
-  // Set up keyboard shortcuts
+  // Keyboard shortcuts
   useKeyboardShortcuts({
     map: mapRef.current,
     vectorSource: vectorSourceRef.current,
@@ -489,7 +412,13 @@ const MapEditor: React.FC = () => {
         onChange={handleFileChange}
         style={{ display: "none" }}
       />
-      <JobSelection />
+
+      <JobSelection
+        projects={projects}
+        currentProjectId={currentProjectId}
+        onSelectProject={loadProject}
+      />
+
       <LoadingOverlay
         isVisible={isTransitioning}
         message="Switching map view..."
