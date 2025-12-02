@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from "react";
-import { Modify, Select } from "ol/interaction";
+import { Modify, Select, Translate } from "ol/interaction";
 import { Collection } from "ol";
-import { click, altKeyOnly } from "ol/events/condition";
+import { click, altKeyOnly, shiftKeyOnly, always } from "ol/events/condition";
 import Transform from "ol-ext/interaction/Transform";
 import UndoRedo from "ol-ext/interaction/UndoRedo";
 import type Map from "ol/Map";
@@ -13,9 +13,7 @@ import {
   isSelectableFeature,
   isEditableFeature,
 } from "@/utils/featureTypeUtils";
-import {
-  recalculateMeasureDistances,
-} from "@/utils/interactionUtils";
+import { recalculateMeasureDistances } from "@/utils/interactionUtils";
 
 export interface MapInteractionsProps {
   map: Map | null;
@@ -24,10 +22,16 @@ export interface MapInteractionsProps {
   onFeatureSelect: (feature: Feature<Geometry> | null) => void;
   clipboardFeatures?: Feature<Geometry>[];
   onCopyFeatures?: (features: Feature<Geometry>[], isCut: boolean) => void;
-  onPasteFeatures?: (features: Feature<Geometry>[], coordinates: number[]) => void;
+  onPasteFeatures?: (
+    features: Feature<Geometry>[],
+    coordinates: number[]
+  ) => void;
   pasteCoordinates?: number[] | null;
   onSelectInteractionReady?: (selectInteraction: Select | null) => void;
   onUndoInteractionReady?: (undoInteraction: UndoRedo | null) => void;
+  // 🆕 Multi-select props
+  onMultiSelectChange?: (features: Feature<Geometry>[]) => void;
+  multiSelectMode?: "shift-click" | "always" | "custom"; // 'shift-click' = default
 }
 
 export const MapInteractions: React.FC<MapInteractionsProps> = ({
@@ -37,6 +41,8 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
   onFeatureSelect,
   onSelectInteractionReady,
   onUndoInteractionReady,
+  onMultiSelectChange,
+  multiSelectMode = "shift-click", // 🆕 Default mode
 }) => {
   const selectInteractionRef = useRef<Select | null>(null);
   const modifyInteractionRef = useRef<Modify | null>(null);
@@ -83,18 +89,34 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
     };
   }, [map]);
 
-  // Initialize select and modify interactions
+  // 🆕 Initialize select and modify interactions with multi-select support
   useEffect(() => {
     if (!map || !vectorLayer) return;
 
-    // ✅ Select + Modify interactions with feature type filtering
-    const selectInteraction = new Select({
+    // 🆕 Configure multi-select based on mode
+    let selectConfig: any = {
       condition: click,
       layers: [vectorLayer],
       filter: isSelectableFeature,
+    };
+
+    if (multiSelectMode === "always") {
+      // Hold Shift to toggle selection
+      selectConfig.toggleCondition = shiftKeyOnly;
+      selectConfig.multi = true;
+    } else if (multiSelectMode === "custom") {
+      // Every click toggles add/remove (always multi-select)
+      selectConfig.toggleCondition = always;
+      selectConfig.multi = true;
+    }
+    // else: default single-select mode
+
+    const selectInteraction = new Select(selectConfig);
+
+    const translate = new Translate({
+      features: selectInteraction.getFeatures(),
     });
 
-    // Create a separate collection for editable features
     const editableFeatures = new Collection<Feature<Geometry>>();
     const modifyInteraction = new Modify({
       features: editableFeatures,
@@ -114,11 +136,28 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
       }
     });
 
+    translate.setActive(false);
     map.addInteraction(selectInteraction);
     map.addInteraction(modifyInteraction);
+    map.addInteraction(translate);
 
+    // 🆕 Updated select event handler for multi-select
     selectInteraction.on("select", (e) => {
-      onFeatureSelect(e.selected[0] || null);
+      const allSelectedFeatures = selectInteraction.getFeatures().getArray();
+
+      if (allSelectedFeatures.length > 1) {
+        translate.setActive(true);
+      } else {
+        translate.setActive(false);
+      }
+
+      // 🆕 Send all selected features to parent
+      if (onMultiSelectChange) {
+        onMultiSelectChange(allSelectedFeatures);
+      }
+
+      // Backward compatibility: send first feature as primary selection
+      onFeatureSelect(allSelectedFeatures[0] || null);
 
       // Clear editable features collection
       editableFeatures.clear();
@@ -147,13 +186,16 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
         map.removeInteraction(modifyInteractionRef.current);
       }
     };
-  }, [map, vectorLayer, onFeatureSelect, onSelectInteractionReady]);
+  }, [
+    map,
+    vectorLayer,
+    onFeatureSelect,
+    onSelectInteractionReady,
+    onMultiSelectChange,
+    multiSelectMode,
+  ]); // 🆕 Added deps
 
-  // CopyPaste functionality is now handled entirely through keyboard shortcuts
-  // This removes the dependency on the OpenLayers CopyPaste interaction
-  // which was causing conflicts and reliability issues
-
-  // Handle transform tool activation/deactivation
+  // Handle transform tool activation/deactivation (unchanged)
   useEffect(() => {
     if (!map || !vectorLayer) return;
 
@@ -190,15 +232,15 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
 
       // Create transform interaction with proper configuration
       const newTransformInteraction = new Transform({
-        features: transformFeaturesRef.current, // Use dedicated collection
-        layers: [vectorLayer], // Restrict to vector layer
-        translate: true, // Enable move/translate
-        translateFeature: true, // Enable direct feature translation
-        rotate: true, // Enable rotation
-        scale: true, // Enable scaling
-        stretch: true, // Enable stretching
-        keepAspectRatio: (e) => e.originalEvent.shiftKey, // Hold Shift for aspect ratio
-        hitTolerance: 3, // Better hit tolerance for selection
+        features: transformFeaturesRef.current,
+        layers: [vectorLayer],
+        translate: true,
+        translateFeature: true,
+        rotate: true,
+        scale: true,
+        stretch: true,
+        keepAspectRatio: (e) => e.originalEvent.shiftKey,
+        hitTolerance: 3,
         filter: (feature) => {
           const isMeasure = feature.get("isMeasure");
 
@@ -273,10 +315,7 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
     };
   }, [activeTool, map, vectorLayer]);
 
-  // Copy-paste tools are now handled through keyboard shortcuts only
-  // No special interaction activation needed for copy/cut/paste tools
-
-  // Handle select interaction activation/deactivation - only enable for select, transform, and copy-paste tools
+  // Handle select interaction activation/deactivation (unchanged)
   useEffect(() => {
     if (!map || !selectInteractionRef.current) return;
 

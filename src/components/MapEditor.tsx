@@ -182,31 +182,37 @@ const MapEditor: React.FC = () => {
 
   const handlePasteOperation = (
     _features: Feature<Geometry>[],
-    coordinates: number[]
+    coordinates: number[] // target center coordinate for paste
   ) => {
     const pastedFeatures: Feature<Geometry>[] = [];
 
-    clipboardState.copiedFeatures.forEach((originalFeature) => {
-      const clonedFeature = cloneFeature(originalFeature);
-      const originalGeometry = originalFeature.getGeometry();
-      if (originalGeometry) {
-        const originalExtent = originalGeometry.getExtent();
-        const originalCenter = [
-          (originalExtent[0] + originalExtent[2]) / 2,
-          (originalExtent[1] + originalExtent[3]) / 2,
-        ];
+    const originals = _features;
+    if (originals.length === 0) return;
 
-        const offsetX = coordinates[0] - originalCenter[0];
-        const offsetY = coordinates[1] - originalCenter[1];
+    // 1. Determine a reference point for the group —
+    //    here: center of bounding box of first (or you can also compute bounding box of all)
+    const refGeom = originals[0].getGeometry();
+    if (!refGeom) return;
+    const refExtent = refGeom.getExtent();
+    const refCenter: [number, number] = [
+      (refExtent[0] + refExtent[2]) / 2,
+      (refExtent[1] + refExtent[3]) / 2,
+    ];
 
-        const translatedFeature = offsetFeature(
-          clonedFeature,
-          offsetX,
-          offsetY
-        );
-        vectorSourceRef.current.addFeature(translatedFeature);
-        pastedFeatures.push(translatedFeature);
+    // 2. Compute how much to shift the *group* so refCenter goes to the user-specified coordinates
+    const offsetX = coordinates[0] - refCenter[0];
+    const offsetY = coordinates[1] - refCenter[1];
+
+    originals.forEach((originalFeature) => {
+      const clone = originalFeature.clone();
+      const geom = clone.getGeometry();
+      if (geom) {
+        // Translate geometry by the group offset
+        geom.translate(offsetX, offsetY);
+        clone.setGeometry(geom);
       }
+      vectorSourceRef.current.addFeature(clone);
+      pastedFeatures.push(clone);
     });
 
     if (pastedFeatures.length > 0) {
