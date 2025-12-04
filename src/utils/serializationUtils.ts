@@ -54,6 +54,9 @@ export const convertFeaturesToGeoJSON = (vectorSource: any): any => {
 
 export const convertGeoJSONToFeatures = (geoJSONData: any): Feature<Geometry>[] => {
   const geoJSONFormat = new GeoJSON();
+  
+  console.log("geoJSONData", geoJSONData);
+  console.log("geoJSONFormat", geoJSONFormat);
 
   try {
     const features = geoJSONFormat.readFeatures(geoJSONData, {

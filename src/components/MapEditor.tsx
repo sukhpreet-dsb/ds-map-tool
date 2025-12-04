@@ -18,7 +18,6 @@ import { useMapState } from "@/hooks/useMapState";
 import { useToolState } from "@/hooks/useToolState";
 import { useFeatureState } from "@/hooks/useFeatureState";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
-import { cloneFeature, offsetFeature } from "@/utils/interactionUtils";
 import { Select } from "ol/interaction";
 import {
   convertFeaturesToGeoJSON,
@@ -28,6 +27,8 @@ import {
 import { fitMapToFeatures, restoreMapView } from "@/utils/mapStateUtils";
 import { JobSelection } from "./JobSelection";
 import { useMapProjects } from "@/hooks/useMapProjects";
+import axios from "axios";
+import { transformExtent } from "ol/proj";
 
 // Interface for properly serializable map data
 interface SerializedMapData {
@@ -103,10 +104,13 @@ const MapEditor: React.FC = () => {
             featureProjection: "EPSG:3857",
           });
         } else if (name.endsWith(".kml")) {
+          console.log("kml : ",data);
+          
           features = new KML({ extractStyles: false }).readFeatures(data, {
             featureProjection: "EPSG:3857",
           });
         } else if (name.endsWith(".kmz")) {
+          console.log("kmz : ",data);
           const zip = await JSZip.loadAsync(file);
           const kmlFile = Object.keys(zip.files).find((f) =>
             f.toLowerCase().endsWith(".kml")
@@ -139,6 +143,7 @@ const MapEditor: React.FC = () => {
 
         await saveMapState();
       } catch (err) {
+        console.error(err);
         alert("Invalid or unsupported file format.");
       }
     };
@@ -239,6 +244,84 @@ const MapEditor: React.FC = () => {
     }
   };
 
+  const downloadBlob = (blob: Blob, fileName: string) => {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  const handleExportClick = async (format: "geojson" | "kml" | "kmz") => {
+    if (!mapRef.current) return;
+
+    try {
+      const mapData = await loadFromDb();
+
+      if (!mapData?.features || mapData.features.length === 0) {
+        alert("No features to export.");
+        return;
+      }
+
+      const fileName = `map-export-${new Date().toISOString().split("T")[0]}`;
+
+      // -------------------------------
+      // GEOJSON DOWNLOAD
+      // -------------------------------
+      if (format === "geojson") {
+        const jsonString = JSON.stringify(mapData.features, null, 2);
+        const blob = new Blob([jsonString], { type: "application/json" });
+
+        downloadBlob(blob, `${fileName}.json`);
+        return;
+      }
+
+      // Convert GeoJSON → OL Features
+      const geojsonFormat = new GeoJSON();
+      const olFeatures = geojsonFormat.readFeatures(mapData.features, {
+        dataProjection: "EPSG:4326",
+        featureProjection: "EPSG:3857",
+      });
+
+      // -------------------------------
+      // KML DOWNLOAD
+      // -------------------------------
+      const kmlFormat = new KML();
+      const kmlString = kmlFormat.writeFeatures(olFeatures, {
+        featureProjection: "EPSG:3857",  // Current display projection
+        dataProjection: "EPSG:4326"       // Export coordinates in WGS84
+      });
+
+      if (format === "kml") {
+        const blob = new Blob([kmlString], {
+          type: "application/vnd.google-earth.kml+xml",
+        });
+
+        downloadBlob(blob, `${fileName}.kml`);
+        return;
+      }
+
+      // -------------------------------
+      // KMZ DOWNLOAD (zip KML)
+      // -------------------------------
+      if (format === "kmz") {
+        const zip = new JSZip();
+        zip.file(`${fileName}.kml`, kmlString);
+
+        const kmzBlob = await zip.generateAsync({ type: "blob" });
+
+        downloadBlob(kmzBlob, `${fileName}.kmz`);
+        return;
+      }
+    } catch (error) {
+      console.error("Export failed:", error);
+      alert("Export failed. Check console.");
+    }
+  };
+
   // ✅ SAVE to isolated DB
   const saveMapState = async () => {
     if (!isProjectReadyRef.current) {
@@ -315,6 +398,7 @@ const MapEditor: React.FC = () => {
 
   // Setup auto-save listeners
   useEffect(() => {
+    console.log("currentMapView: ", currentMapView);
     if (!interactionReady || !currentProjectId || !currentDb) {
       console.log("Waiting for project to be ready...");
       return;
@@ -403,6 +487,7 @@ const MapEditor: React.FC = () => {
         activeTool={activeTool}
         selectedLegend={selectedLegend}
         onLegendSelect={handleLegendSelect}
+        onExportClick={handleExportClick}
       />
 
       <FileManager
