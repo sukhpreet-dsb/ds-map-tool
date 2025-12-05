@@ -54,7 +54,7 @@ export const convertFeaturesToGeoJSON = (vectorSource: any): any => {
 
 export const convertGeoJSONToFeatures = (geoJSONData: any): Feature<Geometry>[] => {
   const geoJSONFormat = new GeoJSON();
-  
+
   console.log("geoJSONData", geoJSONData);
   console.log("geoJSONFormat", geoJSONFormat);
 
@@ -127,4 +127,131 @@ export const recreateFeatureStyle = (_feature: Feature<Geometry>): void => {
   // The FeatureStyler will handle the actual styling via getFeatureTypeStyle
   // We just need to make sure the feature properties are preserved
   // The style will be applied automatically when the feature is rendered
+};
+
+// ✅ NEW: Strip Z-coordinates for consistency
+export const normalizeCoordinates = (coordinates: unknown): unknown => {
+  // Not an array? Just return as‑is
+  if (!Array.isArray(coordinates)) return coordinates;
+
+  // Empty array – nothing to normalize
+  if (coordinates.length === 0) return coordinates;
+
+  const first = coordinates[0];
+
+  // Base case: single coordinate [x, y, z?] → [x, y]
+  if (typeof first === "number") {
+    const arr = coordinates as number[];
+    return arr.length >= 2 ? [arr[0], arr[1]] : arr;
+  }
+
+  // Recursive case: nested arrays
+  return (coordinates as unknown[]).map((coord) =>
+    normalizeCoordinates(coord)
+  );
+};
+
+// ✅ NEW: Normalize geometry after any conversion
+export const normalizeGeometry = (geometry: any): any => {
+  if (!geometry) return geometry;
+
+  return {
+    ...geometry,
+    coordinates: normalizeCoordinates(geometry.coordinates),
+  };
+};
+
+// ✅ NEW: Normalize GeoJSON features (strip Z from all geometries)
+export const normalizeGeoJSON = (geoJSONData: any): any => {
+  if (geoJSONData.type === 'FeatureCollection') {
+    return {
+      type: 'FeatureCollection',
+      features: geoJSONData.features.map((feature: any) => ({
+        ...feature,
+        geometry: normalizeGeometry(feature.geometry),
+      })),
+    };
+  }
+
+  return {
+    ...geoJSONData,
+    geometry: normalizeGeometry(geoJSONData.geometry),
+  };
+};
+
+// ✅ NEW: Detect and preserve GeometryCollection from GeoJSON
+// export const reconstructGeometryCollection = (geoJSONData: any): any => {
+//   if (!geoJSONData.features) return geoJSONData;
+
+//   return {
+//     type: 'FeatureCollection',
+//     features: geoJSONData.features.map((feature: any) => {
+//       // If this is a MultiPolygon with custom properties indicating it was a GeometryCollection
+//       if (
+//         feature.geometry.type === 'MultiPolygon' &&
+//         (feature.properties?.isGP || feature.properties?.featureType === 'GeometryCollection')
+//       ) {
+//         // Convert MultiPolygon back to GeometryCollection
+//         const polygons = feature.geometry.coordinates.map((polygonCoords: any) => ({
+//           type: 'Polygon',
+//           coordinates: polygonCoords,
+//         }));
+
+//         return {
+//           ...feature,
+//           geometry: {
+//             type: 'GeometryCollection',
+//             geometries: polygons,
+//           },
+//         };
+//       }
+//       return feature;
+//     }),
+//   };
+// };
+
+// ✅ NEW - Handles ALL feature types (isGP, isPit, isTriangle, isTower, isJunction, etc.)
+export const reconstructGeometryCollection = (geoJSONData: any): any => {
+  if (!geoJSONData.features) return geoJSONData;
+
+  return {
+    type: 'FeatureCollection',
+    features: geoJSONData.features.map((feature: any) => {
+      const props = feature.properties || {};
+
+      // ✅ Handle isGP, isJunction, isTower (MultiPolygon → GeometryCollection)
+      if (
+        feature.geometry.type === 'MultiPolygon' &&
+        (props.isGP || props.isTower || props.isJunction || props.featureType === 'GeometryCollection')
+      ) {
+        const polygons = feature.geometry.coordinates.map((polygonCoords: any) => ({
+          type: 'Polygon',
+          coordinates: polygonCoords,
+        }));
+
+        return {
+          ...feature,
+          geometry: {
+            type: 'GeometryCollection',
+            geometries: polygons,
+          },
+        };
+      }
+
+      // ✅ DEFAULT: Return feature as-is if no special handling needed
+      return feature;
+    }),
+  };
+};
+
+
+// ✅ NEW: Unified normalization for both import paths
+export const normalizeImportedGeoJSON = (geoJSONData: any): any => {
+  // Step 1: Strip Z-coordinates
+  let normalized = normalizeGeoJSON(geoJSONData);
+
+  // Step 2: Attempt to restore GeometryCollections
+  normalized = reconstructGeometryCollection(normalized);
+
+  return normalized;
 };

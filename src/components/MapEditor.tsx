@@ -23,12 +23,11 @@ import {
   convertFeaturesToGeoJSON,
   convertGeoJSONToFeatures,
   isEmptyExtent,
+  normalizeImportedGeoJSON,
 } from "@/utils/serializationUtils";
 import { fitMapToFeatures, restoreMapView } from "@/utils/mapStateUtils";
 import { JobSelection } from "./JobSelection";
 import { useMapProjects } from "@/hooks/useMapProjects";
-import axios from "axios";
-import { transformExtent } from "ol/proj";
 
 // Interface for properly serializable map data
 interface SerializedMapData {
@@ -104,27 +103,81 @@ const MapEditor: React.FC = () => {
             featureProjection: "EPSG:3857",
           });
         } else if (name.endsWith(".kml")) {
-          console.log("kml : ",data);
-          
-          features = new KML({ extractStyles: false }).readFeatures(data, {
-            featureProjection: "EPSG:3857",
-          });
+          try {
+            console.log("kml : ", data);
+
+            // Step 1: Parse KML to OpenLayers Features with correct projections
+            const kmlFeatures = new KML({ extractStyles: false }).readFeatures(
+              data,
+              {
+                featureProjection: "EPSG:3857",
+                dataProjection: "EPSG:4326", // CRITICAL: KML is always in WGS84
+              }
+            );
+
+            // Step 2: Convert Features to GeoJSON with proper property preservation
+            const tempSource = new VectorSource();
+            tempSource.addFeatures(kmlFeatures);
+            let geoJSONData = convertFeaturesToGeoJSON(tempSource);
+            geoJSONData = normalizeImportedGeoJSON(geoJSONData);
+            console.log(
+              "KML converted and normalized to GeoJSON:",
+              geoJSONData
+            );
+
+            // Step 3: Convert GeoJSON back to Features for map display
+            features = convertGeoJSONToFeatures(geoJSONData);
+            console.log("KML features parsed and converted:", features.length);
+          } catch (error) {
+            console.error("Error parsing KML:", error);
+            alert("Failed to parse KML file. Check console for details.");
+            return;
+          }
         } else if (name.endsWith(".kmz")) {
-          console.log("kmz : ",data);
-          const zip = await JSZip.loadAsync(file);
-          const kmlFile = Object.keys(zip.files).find((f) =>
-            f.toLowerCase().endsWith(".kml")
-          );
-          if (kmlFile) {
-            const kmlText = await zip.file(kmlFile)?.async("text");
-            if (kmlText) {
-              features = new KML({ extractStyles: false }).readFeatures(
-                kmlText,
-                {
-                  featureProjection: "EPSG:3857",
-                }
-              );
+          try {
+            console.log("kmz : ", data);
+            const zip = await JSZip.loadAsync(file);
+            const kmlFile = Object.keys(zip.files).find((f) =>
+              f.toLowerCase().endsWith(".kml")
+            );
+
+            if (!kmlFile) {
+              alert("No KML file found in KMZ archive");
+              return;
             }
+
+            const kmlText = await zip.file(kmlFile)?.async("text");
+            if (!kmlText) {
+              alert("Failed to extract KML from KMZ file");
+              return;
+            }
+
+            // Step 1: Parse KML to OpenLayers Features with correct projections
+            const kmlFeatures = new KML({ extractStyles: false }).readFeatures(
+              kmlText,
+              {
+                featureProjection: "EPSG:3857",
+                dataProjection: "EPSG:4326", // CRITICAL: KML is always in WGS84
+              }
+            );
+
+            // Step 2: Convert Features to GeoJSON with proper property preservation
+            const tempSource = new VectorSource();
+            tempSource.addFeatures(kmlFeatures);
+            let geoJSONData = convertFeaturesToGeoJSON(tempSource);
+            geoJSONData = normalizeImportedGeoJSON(geoJSONData);
+            console.log(
+              "KMZ converted and normalized to GeoJSON:",
+              geoJSONData
+            );
+
+            // Step 3: Convert GeoJSON back to Features for map display
+            features = convertGeoJSONToFeatures(geoJSONData);
+            console.log("KMZ features parsed and converted:", features.length);
+          } catch (error) {
+            console.error("Error parsing KMZ:", error);
+            alert("Failed to parse KMZ file. Check console for details.");
+            return;
           }
         }
 
@@ -253,7 +306,7 @@ const MapEditor: React.FC = () => {
     link.click();
     link.remove();
     URL.revokeObjectURL(url);
-  }
+  };
 
   const handleExportClick = async (format: "geojson" | "kml" | "kmz") => {
     if (!mapRef.current) return;
@@ -291,8 +344,8 @@ const MapEditor: React.FC = () => {
       // -------------------------------
       const kmlFormat = new KML();
       const kmlString = kmlFormat.writeFeatures(olFeatures, {
-        featureProjection: "EPSG:3857",  // Current display projection
-        dataProjection: "EPSG:4326"       // Export coordinates in WGS84
+        featureProjection: "EPSG:3857", // Current display projection
+        dataProjection: "EPSG:4326", // Export coordinates in WGS84
       });
 
       if (format === "kml") {
