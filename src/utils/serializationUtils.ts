@@ -119,6 +119,9 @@ export const extractStyleMetadata = (feature: Feature<Geometry>): any => {
   if (feature.get("distance")) properties.distance = feature.get("distance");
   if (feature.get("nonEditable")) properties.nonEditable = true;
 
+  // Store name property for PropertiesPanel
+  if (feature.get("name")) properties.name = feature.get("name");
+
   return properties;
 };
 

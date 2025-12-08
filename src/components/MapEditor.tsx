@@ -28,7 +28,7 @@ import {
 import { fitMapToFeatures, restoreMapView } from "@/utils/mapStateUtils";
 import { JobSelection } from "./JobSelection";
 import { useMapProjects } from "@/hooks/useMapProjects";
-import PopupManager from "./PopupManager";
+import PropertiesPanel from "./PropertiesPanel";
 
 // Interface for properly serializable map data
 interface SerializedMapData {
@@ -515,7 +515,12 @@ const MapEditor: React.FC = () => {
         vectorSourceRef={vectorSourceRef}
       />
 
-      <PopupManager map={mapRef.current} />
+      <PropertiesPanel
+        map={mapRef.current}
+        selectedFeature={selectedFeature}
+        onClose={() => setSelectedFeature(null)}
+        onSave={saveMapState}
+      />
 
       <MapInteractions
         map={mapRef.current}
