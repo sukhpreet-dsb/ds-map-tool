@@ -87,6 +87,8 @@ const MapEditor: React.FC = () => {
   const [textDialogOpen, setTextDialogOpen] = useState(false);
   const [pendingCoordinate, setPendingCoordinate] = useState<number[] | null>(null);
   const [editingTextFeature, setEditingTextFeature] = useState<Feature<Geometry> | null>(null);
+  const [editingTextScale, setEditingTextScale] = useState(1);
+  const [editingTextRotation, setEditingTextRotation] = useState(0);
 
   // File import handler
   const handleFileChange = async (
@@ -517,21 +519,31 @@ const MapEditor: React.FC = () => {
         const point = geometry as any;
         const coordinate = point.getCoordinates();
 
+        const currentScale = selectedFeature.get("textScale") || 1;
+        const currentRotation = selectedFeature.get("textRotation") || 0;
+
         setEditingTextFeature(selectedFeature);
+        setEditingTextScale(currentScale);
+        setEditingTextRotation(currentRotation);
         setPendingCoordinate(coordinate);
         setTextDialogOpen(true);
       }
     } else if (activeTool !== "select" || !selectedFeature || !selectedFeature.get("isText")) {
       // Clear editing state when not editing a text feature
       setEditingTextFeature(null);
+      setEditingTextScale(1);
+      setEditingTextRotation(0);
     }
   }, [activeTool, selectedFeature]);
 
   // Text dialog handlers
-  const handleTextSubmit = (textContent: string) => {
+  const handleTextSubmit = (textContent: string, scale?: number, rotation?: number) => {
     if (editingTextFeature) {
-      // Update existing text feature
+      // Update existing text feature with all properties
       editingTextFeature.set("text", textContent);
+      editingTextFeature.set("textScale", scale || 1);
+      editingTextFeature.set("textRotation", rotation || 0);
+
       // Text styling handled by layer style function
       // Force re-render to update text
       if (mapRef.current) {
@@ -540,8 +552,8 @@ const MapEditor: React.FC = () => {
       // Clear selection after editing
       setSelectedFeature(null);
     } else if (pendingCoordinate && vectorSourceRef.current) {
-      // Create new text feature
-      handleTextClick(vectorSourceRef.current, pendingCoordinate, textContent);
+      // Create new text feature with scale/rotation
+      handleTextClick(vectorSourceRef.current, pendingCoordinate, textContent, scale, rotation);
     }
   };
 
@@ -549,6 +561,8 @@ const MapEditor: React.FC = () => {
     setTextDialogOpen(false);
     setPendingCoordinate(null);
     setEditingTextFeature(null);
+    setEditingTextScale(1);
+    setEditingTextRotation(0);
   };
 
   const handleRedoOperation = () => {
@@ -594,6 +608,8 @@ const MapEditor: React.FC = () => {
         onSubmit={handleTextSubmit}
         coordinate={pendingCoordinate || [0, 0]}
         initialText={editingTextFeature?.get("text") || ""}
+        initialScale={editingTextScale}
+        initialRotation={editingTextRotation}
         isEditing={!!editingTextFeature}
       />
 

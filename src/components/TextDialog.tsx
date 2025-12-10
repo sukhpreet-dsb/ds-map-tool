@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
 import { X } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { useRef, useState, useEffect } from "react";
@@ -8,23 +9,31 @@ import { useRef, useState, useEffect } from "react";
 interface TextDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (text: string) => void;
+  onSubmit: (text: string, scale?: number, rotation?: number) => void;
   coordinate: number[];
   initialText?: string;
+  initialScale?: number;
+  initialRotation?: number;
   isEditing?: boolean;
 }
 
-export function TextDialog({ isOpen, onClose, onSubmit, coordinate, initialText, isEditing = false }: TextDialogProps) {
+export function TextDialog({ isOpen, onClose, onSubmit, coordinate, initialText, initialScale, initialRotation, isEditing = false }: TextDialogProps) {
   const [text, setText] = useState("");
+  const [scale, setScale] = useState(1);
+  const [rotation, setRotation] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Set initial text when dialog opens for editing
+  // Set initial values when dialog opens for editing
   useEffect(() => {
     if (isOpen) {
       if (isEditing && initialText) {
         setText(initialText);
+        setScale(initialScale || 1);
+        setRotation(initialRotation || 0);
       } else {
         setText("");
+        setScale(1);
+        setRotation(0);
       }
       // Auto-focus input when dialog opens
       if (inputRef.current) {
@@ -35,13 +44,15 @@ export function TextDialog({ isOpen, onClose, onSubmit, coordinate, initialText,
         }
       }
     }
-  }, [isOpen, isEditing, initialText]);
+  }, [isOpen, isEditing, initialText, initialScale, initialRotation]);
 
   const handleSubmit = () => {
     const trimmedText = text.trim();
     if (trimmedText) {
-      onSubmit(trimmedText);
+      onSubmit(trimmedText, scale, rotation);
       setText("");
+      setScale(1);
+      setRotation(0);
       onClose();
     }
   };
@@ -94,6 +105,54 @@ export function TextDialog({ isOpen, onClose, onSubmit, coordinate, initialText,
                   onKeyDown={handleKeyDown}
                   className="mt-1"
                 />
+              </div>
+
+              <div>
+                <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Scale: {scale.toFixed(1)}
+                </Label>
+                <div className="flex items-center space-x-2">
+                  <Slider
+                    value={[scale]}
+                    onValueChange={(value) => setScale(value[0])}
+                    min={0.5}
+                    max={3.0}
+                    step={0.1}
+                    className="flex-1"
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setScale(1)}
+                    className="px-2 py-1 text-xs"
+                  >
+                    Reset
+                  </Button>
+                </div>
+              </div>
+
+              <div>
+                <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Rotation: {rotation}°
+                </Label>
+                <div className="flex items-center space-x-2">
+                  <Slider
+                    value={[rotation]}
+                    onValueChange={(value) => setRotation(value[0])}
+                    min={0}
+                    max={360}
+                    step={1}
+                    className="flex-1"
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setRotation(0)}
+                    className="px-2 py-1 text-xs"
+                  >
+                    Reset
+                  </Button>
+                </div>
               </div>
 
               <div className="text-sm text-gray-500 dark:text-gray-400">

@@ -36,13 +36,36 @@ npm run build
 
 DS Map Tool is an interactive map editor that combines powerful drawing capabilities with professional-grade features for creating, editing, and managing geographic data.
 
+## ✨ Current Release Highlights (exportPDF branch)
+
+### 🆕 New Features
+- **Enhanced Text Tool**: Place text labels with interactive rotation (0-360°) and scale (0.5-3.0) controls
+- **Direct Download Functionality**: Export maps directly to GeoJSON, KML, and KMZ formats
+- **Multi-Selection Support**: Select multiple features using drag selection and Shift+Click
+- **Properties Panel**: View and edit feature coordinates and metadata
+- **Enhanced KML/KMZ Handling**: Improved format support with proper EPSG:4326 projection
+
+### 🏗️ Architecture Improvements
+- **Modular Component System**: Refactored into specialized, reusable components
+- **Advanced State Management**: Custom hooks for map, tool, and feature states
+- **PGLite Database Integration**: PostgreSQL-compatible local storage with project isolation
+- **Cross-Tab Synchronization**: Real-time project updates across browser tabs
+
+### 🎯 User Experience
+- **Multi-Job Project Management**: Create, edit, and switch between multiple map projects
+- **Universal Feature Selection**: All features can be selected with appropriate edit permissions
+- **Comprehensive Undo/Redo**: Complete history tracking for all drawing operations
+- **Smart Clipboard Operations**: Copy, cut, and paste features with automatic coordinate transformation
+
 ### Core Capabilities
 - **Interactive Map Display** with OpenStreetMap and satellite view toggle
-- **Advanced Drawing Tools** for creating various geometric features
+- **Advanced Drawing Tools** for creating various geometric features including text labels
 - **Feature Management** with selection, editing, and transformation capabilities
-- **Data Persistence** with local database storage using PGLite
-- **File Operations** supporting GeoJSON, KML, and KMZ formats
-- **Collaborative Features** with clipboard operations and undo/redo functionality
+- **Multi-Job Project Management** with isolated databases for different projects
+- **Data Persistence** with local PostgreSQL-compatible storage using PGLite
+- **Enhanced File Operations** supporting GeoJSON, KML, and KMZ formats with direct download
+- **Advanced Text Manipulation** with rotate and scale capabilities for precise labeling
+- **Collaborative Features** with clipboard operations, undo/redo, and multi-selection support
 
 ## 🛠️ Available Tools & Features
 
@@ -61,21 +84,26 @@ DS Map Tool is an interactive map editor that combines powerful drawing capabili
 | **Junction Point** | Mark connection points | Identify network junctions |
 | **Legend** | Create map legends | Add descriptive labels and information |
 | **Measure** | Distance measurement tool | Calculate distances between points |
+| **Text** | Place and edit text labels | Add annotations with rotate/scale controls |
 | **Transform** | Advanced feature manipulation | Rotate, scale, and stretch features |
 
 ### Data Management Features
+- **Multi-Job Project Management**: Create, edit, and switch between multiple map projects
+- **Multi-Selection Support**: Select multiple features with drag selection and shift-click
 - **Copy/Paste Operations**: Cut, copy, and paste features with keyboard shortcuts
 - **Undo/Redo System**: Complete history tracking for all drawing operations
 - **Vertex Editing**: Delete and modify individual points in polylines
+- **Properties Panel**: View and edit feature properties including coordinates
 - **Feature Styling**: Customize appearance of all map elements
-- **Import/Export**: Support for multiple geospatial file formats
+- **Enhanced File Operations**: Import/Export and direct download of multiple geospatial formats
 
 ## 🎯 Workflow Guide
 
 ### 1. Getting Started
-1. **Launch the application** - The map loads with OpenStreetMap view
-2. **Familiarize with the interface** - Toolbar on the left, map view on the right
+1. **Launch the application** - The map loads with OpenStreetMap view and creates a default project
+2. **Familiarize with the interface** - Toolbar on the left, map view on the right, project selector at the top
 3. **Choose your base layer** - Toggle between OSM and satellite views using the layer control
+4. **Create or select a project** - Use the project selector to create new jobs or switch between existing ones
 
 ### 2. Creating Features
 1. **Select a drawing tool** from the toolbar
@@ -83,34 +111,47 @@ DS Map Tool is an interactive map editor that combines powerful drawing capabili
    - **Point tools**: Single click to place
    - **Line tools**: Click to add vertices, double-click to finish
    - **Freehand**: Click and drag to draw
+   - **Text tool**: Click to open text dialog, enter content and adjust rotation/scale
 3. **Customize appearance** using the styling options (when available)
+   - **Text features**: Use interactive sliders for rotation (0-360°) and scale (0.5-3.0)
 
 ### 3. Editing Existing Features
 1. **Switch to Select tool**
 2. **Click on any feature** to select it (all features are selectable)
-3. **Edit capabilities vary by feature type**:
-   - **Editable features**: Polyline, Freehand Line, Arrow, Legend
+3. **Multi-selection options**:
+   - **Shift+Click**: Add/remove features from selection
+   - **Drag selection**: Select multiple features within a box
+4. **Edit capabilities vary by feature type**:
+   - **Editable features**: Polyline, Freehand Line, Arrow, Legend, Text
    - **Non-editable features**: Points, Tower, Junction Point (selectable but not modifiable)
-4. **Use transformation tools** for advanced manipulation (rotate, scale, stretch)
+5. **Properties Panel**: View and edit feature coordinates and attributes
+6. **Use transformation tools** for advanced manipulation (rotate, scale, stretch)
 
 ### 4. Managing Your Data
-1. **Save your work** - Data is automatically persisted to local storage
-2. **Export your map**:
-   - Choose File → Export
-   - Select format (GeoJSON, KML, KMZ)
-   - Download your work
-3. **Import existing data**:
-   - Choose File → Import
-   - Select supported file format
-   - Features appear on the map automatically
+1. **Project Management**:
+   - **Create new projects** using the project selector
+   - **Switch between projects** with isolated databases
+   - **Edit/delete projects** with automatic data preservation
+2. **Data persistence** - All work is automatically saved to local database
+3. **Export your map**:
+   - **Download directly** using the toolbar download button
+   - **Choose format**: GeoJSON, KML, or KMZ
+   - **Enhanced formats**: Improved KML/KMZ with proper styling preservation
+4. **Import existing data**:
+   - **Drag and drop** or select files
+   - **Supported formats**: GeoJSON, KML, KMZ with EPSG:4326 projection handling
+   - **Automatic conversion** to map features with proper styling
 
 ### 5. Advanced Operations
 
-#### Copy/Paste Workflow
-1. **Select features** using the Select tool
+#### Multi-Selection & Copy/Paste Workflow
+1. **Select features** using the Select tool:
+   - **Single selection**: Click on individual features
+   - **Multi-selection**: Hold Shift and click multiple features
+   - **Drag selection**: Draw a box around multiple features
 2. **Copy** (Ctrl+C) or **Cut** (Ctrl+X) selected features
 3. **Move cursor** to desired location
-4. **Paste** (Ctrl+V) features at cursor position
+4. **Paste** (Ctrl+V) features at cursor position with automatic coordinate transformation
 
 #### Undo/Redo Operations
 1. **Make a mistake** while drawing or editing
@@ -124,6 +165,15 @@ DS Map Tool is an interactive map editor that combines powerful drawing capabili
 3. **Double-click** to finish measurement
 4. **Distance displays** automatically with appropriate units (m/km)
 
+#### Text Label Manipulation
+1. **Select Text tool** from toolbar
+2. **Click on map** to open text dialog
+3. **Enter text content** and adjust properties:
+   - **Rotation**: Use slider (0-360°) for text orientation
+   - **Scale**: Use slider (0.5-3.0) for text size
+4. **Position and confirm** - Text appears with applied transformations
+5. **Edit existing text**: Select text feature and reopen dialog for modifications
+
 ## 🏗️ Technical Architecture
 
 ### Frontend Stack
@@ -135,14 +185,18 @@ DS Map Tool is an interactive map editor that combines powerful drawing capabili
 - **Radix UI** - Accessible component library
 
 ### Key Libraries
-- **ol-ext 4.0.36** - Extended OpenLayers functionality
-- **PGLite** - PostgreSQL-compatible local database
+- **ol-ext 4.0.36** - Extended OpenLayers functionality (UndoRedo, advanced interactions)
+- **PGLite** - PostgreSQL-compatible local database for data persistence
 - **Lucide React** - Modern icon library
+- **Radix UI** - Accessible component library with comprehensive form controls
 
 ### Data Persistence
 - **Local Storage**: Basic settings and preferences
-- **PGLite Database**: Structured feature data storage
-- **Automatic Serialization**: Complex data handling and recovery
+- **PGLite Database**: PostgreSQL-compatible structured feature data storage
+- **Project Isolation**: Separate databases for each map project
+- **Advanced Serialization**: Complex feature data handling and recovery
+- **Cross-Tab Synchronization**: Real-time project updates across browser tabs
+- **Automatic Recovery**: Robust restoration of application state on startup
 
 ## 📁 Project Structure
 
@@ -151,20 +205,49 @@ src/
 ├── components/          # React components
 │   ├── MapEditor.tsx   # Main application orchestrator
 │   ├── MapInstance.tsx # Map initialization and setup
+│   ├── MapInteractions.tsx # Select, Modify, Transform interactions
 │   ├── ToolManager.tsx # Drawing tool management
 │   ├── FeatureStyler.tsx # Feature styling logic
+│   ├── FileManager.tsx # File import/export operations
+│   ├── TextDialog.tsx  # Text input dialog with rotate/scale controls
+│   ├── PropertiesPanel.tsx # Feature properties display and editing
+│   ├── JobSelection.tsx # Multi-job project management
+│   ├── CreatingJob.tsx # New project creation dialog
+│   ├── ToolBar.tsx     # UI toolbar for tool selection
+│   ├── LegendDropdown.tsx # Legend management component
+│   ├── MapViewToggle.tsx # Map view switcher
+│   ├── LoadingOverlay.tsx # Loading overlay for transitions
 │   └── ui/             # Reusable UI components
 ├── hooks/              # Custom React hooks
-│   ├── useMapState.ts  # Map state management
-│   ├── useToolState.ts # Tool selection state
-│   └── useFeatureState.ts # Feature selection and editing
+│   ├── useMapState.ts  # Map view state and layer management
+│   ├── useToolState.ts # Tool selection and legend state
+│   ├── useFeatureState.ts # Feature selection, editing, and clipboard
+│   ├── useKeyboardShortcuts.ts # Keyboard shortcuts management
+│   ├── useMapProjects.ts # Multi-job project management
+│   └── useClickHandlerManager.ts # OpenLayers event handling
 ├── utils/              # Utility functions
-│   ├── mapStateUtils.ts # Map persistence utilities
-│   ├── serializationUtils.ts # Data serialization
-│   └── featureUtils.ts # Feature type detection
+│   ├── mapStateUtils.ts # Map state management and persistence
+│   ├── serializationUtils.ts # Advanced feature serialization
+│   ├── featureUtils.ts # Feature type detection and utilities
+│   ├── styleUtils.ts   # Consistent styling functions
+│   ├── colorUtils.ts   # Color manipulation utilities
+│   ├── interactionUtils.ts # Draw interaction creation
+│   ├── featureTypeUtils.ts # Feature selection and editability
+│   └── geometryUtils.ts # Geometry conversion utilities
 ├── config/             # Configuration files
 │   └── toolConfig.ts   # Tool definitions and settings
-└── types/              # TypeScript type definitions
+├── tools/              # Tool-specific configurations
+│   └── legendsConfig.ts # Legend type configurations
+├── icons/              # Custom icon components
+│   ├── Text.ts         # Text tool icon and handler
+│   ├── Triangle.ts     # Triangle icon
+│   ├── Pit.ts          # Pit icon
+│   ├── GP.ts           # General Purpose icon
+│   ├── Tower.ts        # Tower icon
+│   ├── JunctionPoint.ts # Junction Point icon
+│   └── ToolBoxIcon.tsx # Toolbox UI icon
+├── lib/                # Shared utility functions
+└── types/              # TypeScript type definitions (including ol-ext types)
 ```
 
 ## ⌨️ Keyboard Shortcuts
@@ -212,8 +295,9 @@ npm run lint     # Run ESLint
 
 ### Export Formats
 - **GeoJSON** - For web mapping applications
-- **KML** - For Google Earth integration
+- **KML** - For Google Earth integration with enhanced styling preservation
 - **KMZ** - Compressed format with media support
+- **Direct Download** - Client-side download functionality with automatic file naming
 
 ## 🎨 Feature Types & Properties
 
@@ -225,24 +309,29 @@ npm run lint     # Run ESLint
 - **Arrows**: Directional indicators with customizable heads
 
 ### Special Features
-- **Legends**: Text-based information displays
-- **Measurements**: Distance calculations with automatic formatting
-- **Icons**: Custom SVG markers (Tower, Junction, GP, etc.)
+- **Legends**: Text-based information displays with full CRUD operations
+- **Measurements**: Distance calculations with automatic formatting and inline display
+- **Text Labels**: Place and edit text with rotation (0-360°) and scale (0.5-3.0) controls
+- **Icons**: Custom SVG markers (Tower, Junction, GP, Triangle, Pit, etc.) with click handlers
 
 ### Styling Options
 - **Colors**: Full RGB color customization
 - **Line Width**: Adjustable stroke width
 - **Opacity**: Transparency control
 - **Patterns**: Dashed, dotted, and solid line styles
-- **Icons**: Custom SVG markers with click handlers
+- **Text Styling**: 14px Arial font with white stroke outline and black fill
+- **Transform Properties**: Rotation and scale controls for text features
+- **Icons**: Custom SVG markers with integrated click handlers
 
 ## 🔒 Data Persistence & Security
 
 ### Local Storage Strategy
 - **Application Settings**: Stored in browser localStorage
-- **Map Features**: Persisted in PGLite database
+- **PGLite Database**: PostgreSQL-compatible storage for map features
+- **Project Isolation**: Separate databases for each map project
 - **User Preferences**: Automatic preference saving
 - **Session Recovery**: Restore last session on startup
+- **Cross-Tab Sync**: Real-time project updates across browser tabs
 
 ### Data Integrity
 - **Automatic Backups**: Regular data snapshots

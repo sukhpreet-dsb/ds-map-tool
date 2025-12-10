@@ -2,13 +2,12 @@ import React, { useEffect, useRef } from "react";
 import Map from "ol/Map";
 import View from "ol/View";
 import { Feature } from "ol";
-import { Style, Text } from "ol/style";
+import { Style, Text, Fill, Stroke } from "ol/style";
 import { Tile as TileLayer, Vector as VectorLayer } from "ol/layer";
 import { OSM, XYZ, Vector as VectorSource } from "ol/source";
 import { fromLonLat } from "ol/proj";
 import { defaults as defaultControls } from "ol/control";
 import { getFeatureStyle } from "./FeatureStyler";
-import { getTextStyle } from "../icons/Text";
 
 export interface MapInstanceProps {
   onMapReady: (map: Map) => void;
@@ -59,17 +58,35 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
         // Only process text features with resolution-based visibility
         if (feature.get("isText") && type === "Point") {
           const textContent = feature.get("text") || "Text";
+          const textScale = feature.get("textScale") || 1;
+          const textRotation = feature.get("textRotation") || 0;
 
           // Hide text when zoomed out beyond zoom level ~8.5 (resolution 500)
           console.log("resolution : ", resolution)
-          if (resolution > 50) {
+          if (resolution > 500) {
             return new Style({
               text: new Text({ text: '' }) // OpenLayers pattern: empty text = hidden
             });
           }
 
-          // Show text when zoomed in
-          return getTextStyle(textContent);
+          // Create style with individual scale and rotation
+          return new Style({
+            text: new Text({
+              text: textContent,
+              font: `${14 * textScale}px Arial, sans-serif`,
+              scale: textScale,
+              rotation: textRotation * Math.PI / 180,
+              fill: new Fill({ color: '#000000' }),
+              stroke: new Stroke({
+                color: '#ffffff',
+                width: 3
+              }),
+              padding: [4, 6, 4, 6],
+              textAlign: 'center',
+              textBaseline: 'middle',
+            }),
+            zIndex: 100,
+          });
         }
 
         // Handle all other feature types normally

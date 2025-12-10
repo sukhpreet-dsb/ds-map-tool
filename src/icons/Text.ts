@@ -31,11 +31,15 @@ export const getTextStyle = (textContent: string): Style => {
  * @param vectorSource - The vector source to add the feature to
  * @param coordinate - The click coordinate in map projection
  * @param textContent - The text content to display
+ * @param scale - Optional scale factor for text size (default: 1)
+ * @param rotation - Optional rotation angle in degrees (default: 0)
  */
 export const handleTextClick = (
   vectorSource: VectorSource,
   coordinate: number[],
-  textContent: string
+  textContent: string,
+  scale?: number,
+  rotation?: number
 ): void => {
   try {
     // Create point geometry for text
@@ -50,6 +54,10 @@ export const handleTextClick = (
     // Mark as text feature and editable
     textFeature.set("isText", true);
     textFeature.set("editable", true);
+
+    // Store text properties on feature
+    textFeature.set("textScale", scale || 1);
+    textFeature.set("textRotation", rotation || 0);
 
     // Style handled by layer style function to prevent double styling conflicts
     // Note: Removed direct setStyle() call - layer style function will handle text visibility
