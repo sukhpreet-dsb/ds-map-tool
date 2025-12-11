@@ -8,7 +8,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Import, Menu, Trash2 } from "lucide-react";
+import { FilePlus, Menu, Trash2, ArrowDownToLine } from "lucide-react";
 import { TOOLS } from "../tools/toolConfig";
 import { LegendDropdown } from "./LegendDropdown";
 import type { LegendType } from "@/tools/legendsConfig";
@@ -20,6 +20,7 @@ interface ToolbarProps {
   activeTool: string;
   selectedLegend?: LegendType;
   onLegendSelect: (legend: LegendType) => void;
+  onExportClick: (format: "geojson" | "kml" | "kmz") => void;
 }
 
 const Toolbar = ({
@@ -29,6 +30,7 @@ const Toolbar = ({
   activeTool,
   selectedLegend,
   onLegendSelect,
+  onExportClick,
 }: ToolbarProps) => {
   const [open, setOpen] = useState(true);
 
@@ -52,7 +54,7 @@ const Toolbar = ({
           onPointerDown={(e) => e.preventDefault()}
           onEscapeKeyDown={(e) => e.preventDefault()}
         >
-          <DropdownMenuLabel className="px-3">Tools</DropdownMenuLabel>
+          <DropdownMenuLabel className="px-3">Tool</DropdownMenuLabel>
           <DropdownMenuGroup className="my-2 px-3">
             <div className="grid grid-cols-2 gap-4">
               {TOOLS.map((tool) => {
@@ -94,15 +96,37 @@ const Toolbar = ({
         title="Import GeoJson/Kml/Kmz"
         onClick={onFileImport}
       >
-        <Import />
+        <FilePlus /> Import
       </Button>
-      <Button
+      {/* <Button
         variant="outline"
         className="cursor-pointer"
+        title="Upload GeoJson/Kml/Kmz"
+        onClick={onExportClick}
+      >
+        <ArrowDownToLine /> Download
+      </Button> */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline">
+            <ArrowDownToLine /> Download
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="w-32" align="start">
+          <DropdownMenuGroup>
+            <DropdownMenuItem onClick={() => onExportClick("geojson")}>GeoJson</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onExportClick("kml")}>Kml</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onExportClick("kmz")}>Kmz</DropdownMenuItem>
+          </DropdownMenuGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <Button
+        variant="outline"
+        className="cursor-pointer text-red-600"
         title="Delete GeoJson"
         onClick={onDeleteFeature}
       >
-        <Trash2 />
+        <Trash2 /> Delete
       </Button>
     </div>
   );

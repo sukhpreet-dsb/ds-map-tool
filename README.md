@@ -1,73 +1,396 @@
-# React + TypeScript + Vite
+# DS Map Tool
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A powerful web-based map editor built with React, TypeScript, and OpenLayers that enables advanced drawing, editing, and data management capabilities with persistent storage.
 
-Currently, two official plugins are available:
+## 🚀 Quick Start
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+### Prerequisites
+- Node.js 18+
+- npm or pnpm package manager
 
-## React Compiler
+### Installation & Setup
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd ds-map-tool
+   ```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
 
-## Expanding the ESLint configuration
+3. **Start development server**
+   ```bash
+   npm run dev
+   ```
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+4. **Open your browser** and navigate to `http://localhost:5173`
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### Build for Production
+```bash
+npm run build
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## 🗺️ Project Overview
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+DS Map Tool is an interactive map editor that combines powerful drawing capabilities with professional-grade features for creating, editing, and managing geographic data.
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## ✨ Current Release Highlights (exportPDF branch)
+
+### 🆕 New Features
+- **Enhanced Text Tool**: Place text labels with interactive rotation (0-360°) and scale (0.5-3.0) controls
+- **Direct Download Functionality**: Export maps directly to GeoJSON, KML, and KMZ formats
+- **Multi-Selection Support**: Select multiple features using drag selection and Shift+Click
+- **Properties Panel**: View and edit feature coordinates and metadata
+- **Enhanced KML/KMZ Handling**: Improved format support with proper EPSG:4326 projection
+
+### 🏗️ Architecture Improvements
+- **Modular Component System**: Refactored into specialized, reusable components
+- **Advanced State Management**: Custom hooks for map, tool, and feature states
+- **PGLite Database Integration**: PostgreSQL-compatible local storage with project isolation
+- **Cross-Tab Synchronization**: Real-time project updates across browser tabs
+
+### 🎯 User Experience
+- **Multi-Job Project Management**: Create, edit, and switch between multiple map projects
+- **Universal Feature Selection**: All features can be selected with appropriate edit permissions
+- **Comprehensive Undo/Redo**: Complete history tracking for all drawing operations
+- **Smart Clipboard Operations**: Copy, cut, and paste features with automatic coordinate transformation
+
+### Core Capabilities
+- **Interactive Map Display** with OpenStreetMap and satellite view toggle
+- **Advanced Drawing Tools** for creating various geometric features including text labels
+- **Feature Management** with selection, editing, and transformation capabilities
+- **Multi-Job Project Management** with isolated databases for different projects
+- **Data Persistence** with local PostgreSQL-compatible storage using PGLite
+- **Enhanced File Operations** supporting GeoJSON, KML, and KMZ formats with direct download
+- **Advanced Text Manipulation** with rotate and scale capabilities for precise labeling
+- **Collaborative Features** with clipboard operations, undo/redo, and multi-selection support
+
+## 🛠️ Available Tools & Features
+
+### Drawing Tools
+| Tool | Description | Use Case |
+|------|-------------|----------|
+| **Select** | Universal feature selection and editing | Select and modify existing features |
+| **Hand** | Pan navigation mode | Navigate around the map |
+| **Point** | Place point markers | Mark specific locations |
+| **Polyline** | Draw straight lines with vertex control | Create precise paths and boundaries |
+| **Line** | Draw continuous line segments | Free-form line drawing |
+| **Freehand** | Freehand drawing | Sketch irregular shapes |
+| **Arrow** | Create directional arrows | Indicate flow or direction |
+| **GP** | General purpose drawing tool | Custom marker placement |
+| **Tower** | Place tower infrastructure markers | Map communication towers |
+| **Junction Point** | Mark connection points | Identify network junctions |
+| **Legend** | Create map legends | Add descriptive labels and information |
+| **Measure** | Distance measurement tool | Calculate distances between points |
+| **Text** | Place and edit text labels | Add annotations with rotate/scale controls |
+| **Transform** | Advanced feature manipulation | Rotate, scale, and stretch features |
+
+### Data Management Features
+- **Multi-Job Project Management**: Create, edit, and switch between multiple map projects
+- **Multi-Selection Support**: Select multiple features with drag selection and shift-click
+- **Copy/Paste Operations**: Cut, copy, and paste features with keyboard shortcuts
+- **Undo/Redo System**: Complete history tracking for all drawing operations
+- **Vertex Editing**: Delete and modify individual points in polylines
+- **Properties Panel**: View and edit feature properties including coordinates
+- **Feature Styling**: Customize appearance of all map elements
+- **Enhanced File Operations**: Import/Export and direct download of multiple geospatial formats
+
+## 🎯 Workflow Guide
+
+### 1. Getting Started
+1. **Launch the application** - The map loads with OpenStreetMap view and creates a default project
+2. **Familiarize with the interface** - Toolbar on the left, map view on the right, project selector at the top
+3. **Choose your base layer** - Toggle between OSM and satellite views using the layer control
+4. **Create or select a project** - Use the project selector to create new jobs or switch between existing ones
+
+### 2. Creating Features
+1. **Select a drawing tool** from the toolbar
+2. **Click on the map** to start drawing:
+   - **Point tools**: Single click to place
+   - **Line tools**: Click to add vertices, double-click to finish
+   - **Freehand**: Click and drag to draw
+   - **Text tool**: Click to open text dialog, enter content and adjust rotation/scale
+3. **Customize appearance** using the styling options (when available)
+   - **Text features**: Use interactive sliders for rotation (0-360°) and scale (0.5-3.0)
+
+### 3. Editing Existing Features
+1. **Switch to Select tool**
+2. **Click on any feature** to select it (all features are selectable)
+3. **Multi-selection options**:
+   - **Shift+Click**: Add/remove features from selection
+   - **Drag selection**: Select multiple features within a box
+4. **Edit capabilities vary by feature type**:
+   - **Editable features**: Polyline, Freehand Line, Arrow, Legend, Text
+   - **Non-editable features**: Points, Tower, Junction Point (selectable but not modifiable)
+5. **Properties Panel**: View and edit feature coordinates and attributes
+6. **Use transformation tools** for advanced manipulation (rotate, scale, stretch)
+
+### 4. Managing Your Data
+1. **Project Management**:
+   - **Create new projects** using the project selector
+   - **Switch between projects** with isolated databases
+   - **Edit/delete projects** with automatic data preservation
+2. **Data persistence** - All work is automatically saved to local database
+3. **Export your map**:
+   - **Download directly** using the toolbar download button
+   - **Choose format**: GeoJSON, KML, or KMZ
+   - **Enhanced formats**: Improved KML/KMZ with proper styling preservation
+4. **Import existing data**:
+   - **Drag and drop** or select files
+   - **Supported formats**: GeoJSON, KML, KMZ with EPSG:4326 projection handling
+   - **Automatic conversion** to map features with proper styling
+
+### 5. Advanced Operations
+
+#### Multi-Selection & Copy/Paste Workflow
+1. **Select features** using the Select tool:
+   - **Single selection**: Click on individual features
+   - **Multi-selection**: Hold Shift and click multiple features
+   - **Drag selection**: Draw a box around multiple features
+2. **Copy** (Ctrl+C) or **Cut** (Ctrl+X) selected features
+3. **Move cursor** to desired location
+4. **Paste** (Ctrl+V) features at cursor position with automatic coordinate transformation
+
+#### Undo/Redo Operations
+1. **Make a mistake** while drawing or editing
+2. **Undo** (Ctrl+Z) to reverse the last operation
+3. **Redo** (Ctrl+Y) to restore an undone operation
+4. **History persists** across tool switches and sessions
+
+#### Distance Measurement
+1. **Select Measure tool** from toolbar
+2. **Click points** to create a measuring line
+3. **Double-click** to finish measurement
+4. **Distance displays** automatically with appropriate units (m/km)
+
+#### Text Label Manipulation
+1. **Select Text tool** from toolbar
+2. **Click on map** to open text dialog
+3. **Enter text content** and adjust properties:
+   - **Rotation**: Use slider (0-360°) for text orientation
+   - **Scale**: Use slider (0.5-3.0) for text size
+4. **Position and confirm** - Text appears with applied transformations
+5. **Edit existing text**: Select text feature and reopen dialog for modifications
+
+## 🏗️ Technical Architecture
+
+### Frontend Stack
+- **React 19.1.1** - Modern reactive UI framework
+- **TypeScript** - Type-safe development experience
+- **Vite 7.1.7** - Fast development build tool
+- **OpenLayers 10.6.1** - Professional mapping library
+- **Tailwind CSS 4.1.16** - Utility-first styling
+- **Radix UI** - Accessible component library
+
+### Key Libraries
+- **ol-ext 4.0.36** - Extended OpenLayers functionality (UndoRedo, advanced interactions)
+- **PGLite** - PostgreSQL-compatible local database for data persistence
+- **Lucide React** - Modern icon library
+- **Radix UI** - Accessible component library with comprehensive form controls
+
+### Data Persistence
+- **Local Storage**: Basic settings and preferences
+- **PGLite Database**: PostgreSQL-compatible structured feature data storage
+- **Project Isolation**: Separate databases for each map project
+- **Advanced Serialization**: Complex feature data handling and recovery
+- **Cross-Tab Synchronization**: Real-time project updates across browser tabs
+- **Automatic Recovery**: Robust restoration of application state on startup
+
+## 📁 Project Structure
+
 ```
+src/
+├── components/          # React components
+│   ├── MapEditor.tsx   # Main application orchestrator
+│   ├── MapInstance.tsx # Map initialization and setup
+│   ├── MapInteractions.tsx # Select, Modify, Transform interactions
+│   ├── ToolManager.tsx # Drawing tool management
+│   ├── FeatureStyler.tsx # Feature styling logic
+│   ├── FileManager.tsx # File import/export operations
+│   ├── TextDialog.tsx  # Text input dialog with rotate/scale controls
+│   ├── PropertiesPanel.tsx # Feature properties display and editing
+│   ├── JobSelection.tsx # Multi-job project management
+│   ├── CreatingJob.tsx # New project creation dialog
+│   ├── ToolBar.tsx     # UI toolbar for tool selection
+│   ├── LegendDropdown.tsx # Legend management component
+│   ├── MapViewToggle.tsx # Map view switcher
+│   ├── LoadingOverlay.tsx # Loading overlay for transitions
+│   └── ui/             # Reusable UI components
+├── hooks/              # Custom React hooks
+│   ├── useMapState.ts  # Map view state and layer management
+│   ├── useToolState.ts # Tool selection and legend state
+│   ├── useFeatureState.ts # Feature selection, editing, and clipboard
+│   ├── useKeyboardShortcuts.ts # Keyboard shortcuts management
+│   ├── useMapProjects.ts # Multi-job project management
+│   └── useClickHandlerManager.ts # OpenLayers event handling
+├── utils/              # Utility functions
+│   ├── mapStateUtils.ts # Map state management and persistence
+│   ├── serializationUtils.ts # Advanced feature serialization
+│   ├── featureUtils.ts # Feature type detection and utilities
+│   ├── styleUtils.ts   # Consistent styling functions
+│   ├── colorUtils.ts   # Color manipulation utilities
+│   ├── interactionUtils.ts # Draw interaction creation
+│   ├── featureTypeUtils.ts # Feature selection and editability
+│   └── geometryUtils.ts # Geometry conversion utilities
+├── config/             # Configuration files
+│   └── toolConfig.ts   # Tool definitions and settings
+├── tools/              # Tool-specific configurations
+│   └── legendsConfig.ts # Legend type configurations
+├── icons/              # Custom icon components
+│   ├── Text.ts         # Text tool icon and handler
+│   ├── Triangle.ts     # Triangle icon
+│   ├── Pit.ts          # Pit icon
+│   ├── GP.ts           # General Purpose icon
+│   ├── Tower.ts        # Tower icon
+│   ├── JunctionPoint.ts # Junction Point icon
+│   └── ToolBoxIcon.tsx # Toolbox UI icon
+├── lib/                # Shared utility functions
+└── types/              # TypeScript type definitions (including ol-ext types)
+```
+
+## ⌨️ Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| **Ctrl+C** | Copy selected features |
+| **Ctrl+X** | Cut selected features |
+| **Ctrl+V** | Paste features at cursor |
+| **Ctrl+Z** | Undo last operation |
+| **Ctrl+Y** | Redo last undone operation |
+| **Delete** | Delete selected vertices/points |
+| **1-12** | Quick tool switching (number keys) |
+
+## 🔧 Development
+
+### Available Scripts
+```bash
+npm run dev      # Start development server
+npm run build    # Build for production
+npm run preview  # Preview production build
+npm run lint     # Run ESLint
+```
+
+### Adding New Tools
+1. **Add tool configuration** to `src/config/toolConfig.ts`
+2. **Create icon component** in `src/icons/` if needed
+3. **Implement tool logic** in `ToolManager.tsx`
+4. **Add styling functions** to `FeatureStyler.tsx`
+5. **Update utilities** in `src/utils/` as needed
+
+### Code Architecture Principles
+- **Single Responsibility**: Each component has one clear purpose
+- **State Management**: Custom hooks for different types of state
+- **Type Safety**: Comprehensive TypeScript usage
+- **Performance**: Optimized for real-time map interactions
+- **Accessibility**: WCAG compliant UI components
+
+## 📊 Supported File Formats
+
+### Import Formats
+- **GeoJSON (.geojson)** - Standard geospatial data format
+- **KML (.kml)** - Google Earth format
+- **KMZ (.kmz)** - Compressed KML with images
+
+### Export Formats
+- **GeoJSON** - For web mapping applications
+- **KML** - For Google Earth integration with enhanced styling preservation
+- **KMZ** - Compressed format with media support
+- **Direct Download** - Client-side download functionality with automatic file naming
+
+## 🎨 Feature Types & Properties
+
+### Geometric Features
+- **Points**: Single location markers with custom icons
+- **Lines**: Connected point sequences with styling options
+- **Polylines**: Multi-segment lines with vertex control
+- **Freehand**: Hand-drawn irregular shapes
+- **Arrows**: Directional indicators with customizable heads
+
+### Special Features
+- **Legends**: Text-based information displays with full CRUD operations
+- **Measurements**: Distance calculations with automatic formatting and inline display
+- **Text Labels**: Place and edit text with rotation (0-360°) and scale (0.5-3.0) controls
+- **Icons**: Custom SVG markers (Tower, Junction, GP, Triangle, Pit, etc.) with click handlers
+
+### Styling Options
+- **Colors**: Full RGB color customization
+- **Line Width**: Adjustable stroke width
+- **Opacity**: Transparency control
+- **Patterns**: Dashed, dotted, and solid line styles
+- **Text Styling**: 14px Arial font with white stroke outline and black fill
+- **Transform Properties**: Rotation and scale controls for text features
+- **Icons**: Custom SVG markers with integrated click handlers
+
+## 🔒 Data Persistence & Security
+
+### Local Storage Strategy
+- **Application Settings**: Stored in browser localStorage
+- **PGLite Database**: PostgreSQL-compatible storage for map features
+- **Project Isolation**: Separate databases for each map project
+- **User Preferences**: Automatic preference saving
+- **Session Recovery**: Restore last session on startup
+- **Cross-Tab Sync**: Real-time project updates across browser tabs
+
+### Data Integrity
+- **Automatic Backups**: Regular data snapshots
+- **Error Recovery**: Graceful handling of corruption
+- **Validation**: Input sanitization and type checking
+- **Migration**: Schema versioning for data updates
+
+## 🚀 Performance Optimizations
+
+### Rendering Optimizations
+- **Virtualization**: Efficient handling of large feature sets
+- **Caching**: Aggressive caching of map tiles and features
+- **Lazy Loading**: On-demand feature loading
+- **Debouncing**: Optimized event handling
+
+### Database Performance
+- **Indexing**: Optimized database queries
+- **Batching**: Efficient bulk operations
+- **Connection Pooling**: Resource management
+- **Compression**: Reduced storage footprint
+
+## 🐛 Troubleshooting
+
+### Common Issues
+1. **Map not loading**: Check network connection and CORS settings
+2. **Tools not working**: Verify OpenLayers library loading
+3. **Data not saving**: Check browser storage permissions
+4. **Import failing**: Validate file format and structure
+
+### Performance Issues
+1. **Slow rendering**: Reduce number of features or simplify geometries
+2. **Memory usage**: Clear cache and restart browser
+3. **Network errors**: Check internet connectivity
+
+### Browser Compatibility
+- **Chrome/Edge**: Full support
+- **Firefox**: Full support
+- **Safari**: Full support with minor UI differences
+- **Mobile**: Limited touch interaction support
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 🤝 Contributing
+
+1. **Fork the repository**
+2. **Create a feature branch** (`git checkout -b feature/amazing-feature`)
+3. **Commit your changes** (`git commit -m 'Add amazing feature'`)
+4. **Push to the branch** (`git push origin feature/amazing-feature`)
+5. **Open a Pull Request**
+
+## 📞 Support
+
+For support and questions:
+- Create an issue in the GitHub repository
+- Check the documentation in `CLAUDE.md`
+- Review the code comments for detailed explanations
+
+---
+
+Built with ❤️ using modern web technologies for professional map editing and data management.

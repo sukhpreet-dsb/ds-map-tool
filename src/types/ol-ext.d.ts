@@ -170,6 +170,8 @@ declare module 'ol-ext/interaction/UndoRedo' {
      */
     getCurrentIndex(): number;
 
+    getStack(type?: string): Array<any>;
+
     /**
      * Add a custom action to the undo stack
      */

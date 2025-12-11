@@ -186,6 +186,21 @@ export const getTowerVectorStyle = (_strokeWidth = 1, fillOpacity = 0.1): Style 
 };
 
 /**
+ * Check if a feature is a Tower feature
+ */
+export const isTowerFeature = (feature: Feature<Geometry>): boolean => {
+  return feature.get("isTower") === true;
+};
+
+/**
+ * Tower utilities for feature type detection and styling
+ */
+export const towerUtils = {
+  isFeature: isTowerFeature,
+  getStyle: () => getTowerVectorStyle(1, 0.1),
+};
+
+/**
  * Convenience handler to add the tower to vector source by clicking the map.
  * - pathD: SVG path 'd' (exact string from your Tower component)
  */

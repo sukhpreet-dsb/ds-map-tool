@@ -22,7 +22,8 @@
       "WebFetch(domain:maas-log-prod.cn-wlcb.ufileos.com)",
       "WebFetch(domain:viglino.github.io)",
       "WebFetch(domain:github.com)",
-      "WebFetch(domain:raw.githubusercontent.com)"
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(node:*)"
     ],
     "deny": [],
     "ask": []

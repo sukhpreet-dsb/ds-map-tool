@@ -34,13 +34,16 @@ This is a **DS Map Tool** - a web-based map editor application built with React 
 - **UI Icons**: Lucide React
 - **Build Tool**: Vite 7.1.7
 - **Package Manager**: npm/pnpm
+- **Routing**: React Router 7.9.6
 
 ### Key Features
 - Interactive map with OSM and satellite view toggle
-- Advanced drawing tools (Point, Polyline, Line, Freehand, Arrow, GP, Tower, Junction Point, Measure)
-- File import/export support (GeoJSON, KML, KMZ)
+- Advanced drawing tools (Point, Polyline, Line, Freehand, Arrow, GP, Tower, Junction Point, Measure, Text)
+- File import/export support (GeoJSON, KML, KMZ) with enhanced KML/KMZ format handling
+- **Download functionality** - Direct download of maps in GeoJSON, KML, and KMZ formats
+- **Advanced text manipulation** - Text tool with rotate and scale capabilities for precise label placement
 - Tool selection system with toolbar
-- Universal feature selection (all features can be selected) with restricted editing (only Polyline, Freehand Line, Arrow, and Legend are editable)
+- Universal feature selection (all features can be selected) with restricted editing (only Polyline, Freehand Line, Arrow, Legend, and Text features are editable)
 - Legend creation and management
 - Transform tool for advanced feature manipulation (rotate, scale, stretch)
 - Distance measurement tool with inline text display
@@ -48,6 +51,13 @@ This is a **DS Map Tool** - a web-based map editor application built with React 
 - **Point delete functionality** in polylines with vertex manipulation
 - **Enhanced keyboard shortcuts** for improved workflow efficiency
 - **Undo/Redo functionality** with keyboard shortcuts (Ctrl+Z, Ctrl+Y) for all drawing operations
+- **Multi-Job/Project Management** - Create, edit, delete, and switch between multiple map projects with isolated databases
+- **Data persistence with PGLite** - Local PostgreSQL-compatible database for reliable data storage and retrieval
+- **Enhanced serialization utilities** - Advanced feature serialization and deserialization for complex data structures
+- **Project-based data isolation** - Each project maintains its own separate database and map state
+- **Multi-selection functionality** - Enhanced multi-selection with drag, copy, paste, and cut operations for multiple features
+- **Properties panel** - View and edit feature properties including coordinates and names
+- **Text tool** - Place and edit text labels on the map with customizable styling
 - Smooth map view transitions
 
 ### Architecture
@@ -55,16 +65,20 @@ This is a **DS Map Tool** - a web-based map editor application built with React 
 The application follows a modular, component-based architecture with clear separation of concerns:
 
 #### Core Components (`src/components/`)
-- **`MapEditor.tsx`** - Main orchestrator component that coordinates all sub-components
+- **`MapEditor.tsx`** - Main orchestrator component that coordinates all sub-components and project management
 - **`MapInstance.tsx`** - Core OpenLayers map initialization, layer setup, and view configuration
 - **`MapInteractions.tsx`** - Select, Modify, Transform, and UndoRedo interaction management
 - **`ToolManager.tsx`** - Tool activation, draw interactions, and click handler coordination
-- **`FeatureStyler.tsx`** - All feature styling logic (arrows, legends, icons, text)
+- **`FeatureStyler.tsx`** - All feature styling logic (arrows, legends, icons, text labels)
 - **`FileManager.tsx`** - File import/export operations (GeoJSON, KML, KMZ)
 - **`ToolBar.tsx`** - UI toolbar for tool selection
 - **`LegendDropdown.tsx`** - Legend creation and management component
 - **`MapViewToggle.tsx`** - Map view switcher component
 - **`LoadingOverlay.tsx`** - Loading overlay for transitions
+- **`JobSelection.tsx`** - Multi-job/project selection, creation, and management component with edit/delete functionality
+- **`CreatingJob.tsx`** - New job/project creation dialog with validation
+- **`TextDialog.tsx`** - Text input dialog for creating and editing text labels
+- **`PropertiesPanel.tsx`** - Feature properties display and editing panel
 - **`ui/`** - Reusable UI components (Button, Card, Dropdown, Toggle, ToggleGroup)
 
 #### Custom Hooks (`src/hooks/`)
@@ -73,11 +87,12 @@ The application follows a modular, component-based architecture with clear separ
 - **`useFeatureState.ts`** - Feature selection, editing state, and clipboard management
 - **`useClickHandlerManager.ts`** - OpenLayers event handler management
 - **`useKeyboardShortcuts.ts`** - Keyboard shortcuts management for cut/copy/paste and undo/redo operations
+- **`useMapProjects.ts`** - Multi-job/project management with isolated PGLite databases, project CRUD operations, and data persistence
 
 #### Configuration & Tools
 - **`src/config/toolConfig.ts`** - Tool configuration and definitions
 - **`src/tools/legendsConfig.ts`** - Legend type configurations
-- **Individual icon components** - Each icon (Triangle, Pit, GP, Tower, JunctionPoint) has its own component with integrated click handlers
+- **Individual icon components** - Each icon (Triangle, Pit, GP, Tower, JunctionPoint, Text) has its own component with integrated click handlers
 
 #### Utilities (`src/utils/`)
 - **`featureUtils.ts`** - Feature type detection and styling utilities
@@ -85,9 +100,12 @@ The application follows a modular, component-based architecture with clear separ
 - **`colorUtils.ts`** - Color manipulation utilities
 - **`interactionUtils.ts`** - Draw interaction creation utilities
 - **`featureTypeUtils.ts`** - Feature selection and editability logic
+- **`geometryUtils.ts`** - Geometry conversion utilities (Circle to Polygon approximation for GeoJSON serialization)
+- **`mapStateUtils.ts`** - Map state management and persistence utilities
+- **`serializationUtils.ts`** - Advanced feature serialization and deserialization for database storage
 
 #### Icons (`src/icons/`)
-- **Icon components** - Triangle, Pit, GP, Junction Point, Tower SVG components and click handlers
+- **Icon components** - Triangle, Pit, GP, Junction Point, Tower, Text SVG components and click handlers
 - **`ToolBoxIcon.tsx`** - Toolbox icon component
 
 #### Configuration (`src/`)
@@ -96,7 +114,7 @@ The application follows a modular, component-based architecture with clear separ
 - **`lib/`** - Shared utility functions (e.g., cn for className merging)
 
 ### Available Tools
-- **Select**: Select all features (universal selection) with editing restricted to Polyline, Freehand Line, Arrow, and Legend features
+- **Select**: Select all features (universal selection) with multi-selection support (shift-click, drag selection) and editing restricted to Polyline, Freehand Line, Arrow, Legend, and Text features
 - **Hand**: Pan navigation mode
 - **Point**: Place point markers
 - **Polyline**: Draw straight lines with vertex delete functionality
@@ -109,7 +127,7 @@ The application follows a modular, component-based architecture with clear separ
 - **Legend**: Create and manage map legends
 - **Measure**: Distance measurement tool with inline text display (dark gray dashed lines)
 - **Transform**: Advanced feature manipulation (rotate, scale, stretch) - works only on editable features
-- **Text**: Place and edit text labels (planned feature)
+- **Text**: Place and edit text labels with customizable styling, rotation, and scale controls
 
 ### Keyboard Shortcuts
 - **Ctrl+C**: Copy selected features to clipboard
@@ -154,10 +172,15 @@ The application follows a modular, component-based architecture with clear separ
    - Use existing utility functions from `styleUtils.ts` and `colorUtils.ts`
    - For new feature types, add styling functions to `FeatureStyler.tsx`
    - Measure tool uses dedicated styling with custom dark gray dashed lines and distance text labels
+   - Text features use 14px Arial font with white stroke (width 3) and black fill for optimal visibility
+   - Text scaling and rotation applied through OpenLayers Text style properties for optimal rendering performance
 
 5. **File Operations**:
    - File import/export logic is in `FileManager.tsx`
-   - Support for additional formats can be added there
+   - Download functionality is implemented in `MapEditor.tsx` with `downloadBlob` function
+   - Support for GeoJSON, KML, and KMZ formats with enhanced format handling
+   - KML/KMZ exports include proper styling and feature metadata
+   - Improved KML parsing with correct EPSG:4326 projection handling for geographic coordinates
    - The file input element is managed in `MapEditor.tsx` for better control
 
 6. **Keyboard Shortcuts & Clipboard**:
@@ -174,6 +197,29 @@ The application follows a modular, component-based architecture with clear separ
    - Undo history persists across tool switches due to singleton implementation
    - Uses ol-ext library with proper TypeScript type definitions in `src/types/ol-ext.d.ts`
 
+8. **Multi-Selection Implementation**:
+   - Multi-selection functionality is implemented in `MapInteractions.tsx` with configurable modes
+   - Supports three multi-selection modes: "shift-click" (default), "always", and "custom"
+   - Drag selection allows selecting multiple features within a selection box
+   - Multi-feature copy/paste/cut operations work seamlessly with the clipboard system
+   - Selection state is managed through callbacks for proper state synchronization
+   - Visual feedback provides clear indication of selected features and multi-selection operations
+
+9. **Data Persistence with PGLite**:
+   - PGLite database integration for local data storage with PostgreSQL compatibility
+   - Map state and feature data persistence through `mapStateUtils.ts`
+   - Advanced serialization utilities in `serializationUtils.ts` for complex feature storage
+   - Automatic data recovery and restoration capabilities
+   - Performance-optimized database operations for real-time applications
+
+10. **Multi-Job/Project Management**:
+   - Project-based data isolation with separate PGLite databases for each project
+   - Comprehensive CRUD operations through `useMapProjects.ts` hook
+   - Project metadata management with timestamps and persistent storage
+   - Dynamic database creation and deletion with proper cleanup
+   - Cross-tab synchronization using localStorage events
+   - Automatic default project initialization on first app load
+
 #### Benefits of the New Architecture
 - **Easier debugging** - Issues can be isolated to specific components
 - **Better testing** - Each component can be unit tested independently
@@ -181,16 +227,44 @@ The application follows a modular, component-based architecture with clear separ
 - **Cleaner code** - Related functionality is grouped together
 - **Type safety** - Better TypeScript support with proper interfaces and props
 
-### Current Branch: Icons2.0
+### Current Branch: exportPDF
 
-The `Icons2.0` branch includes the latest features and improvements over the main branch.
+The `exportPDF` branch includes the latest features and improvements over the main branch.
 
 ### Recent Changes
 
-#### Undo/Redo Implementation (Latest - v2.2)
+#### Enhanced Multi-Selection Functionality (Latest - v2.5)
+- **Advanced multi-selection modes** - Support for shift-click, always-on, and custom multi-selection modes
+- **Drag selection support** - Select multiple features by dragging a selection box
+- **Multi-feature operations** - Enhanced copy, paste, and cut operations for multiple selected features
+- **Improved selection feedback** - Visual feedback for multi-selection operations with proper highlighting
+- **Flexible selection modes** - Configurable multi-selection behavior through `multiSelectMode` parameter
+- **Enhanced interaction handling** - Improved event handling for complex multi-selection scenarios
+
+#### Multi-Job Project Management (v2.4)
+- **Project-based architecture** - Complete multi-job system with isolated PGLite databases for each project
+- **`useMapProjects.ts` hook** - Comprehensive project management with CRUD operations and state persistence
+- **`JobSelection.tsx` component** - Advanced project selection interface with edit/delete functionality and keyboard shortcuts
+- **`CreatingJob.tsx` component** - Streamlined project creation dialog with validation and immediate project switching
+- **Dynamic database management** - Automatic PGLite database creation, initialization, and cleanup for each project
+- **Cross-tab synchronization** - Real-time project list updates across browser tabs using localStorage events
+- **Automatic default project** - Seamless first-time user experience with default "My First Map" project
+- **Project metadata tracking** - Complete timestamp management for creation and modification tracking
+- **Integrated project switching** - Immediate project switching with proper database connection management and UI updates
+
+#### Data Persistence with PGLite (v2.3)
+- **PGLite database integration** - Implemented PostgreSQL-compatible local database for reliable data storage
+- **Advanced serialization system** - New `serializationUtils.ts` handles complex feature serialization and deserialization
+- **Map state persistence** - `mapStateUtils.ts` provides comprehensive map state management and recovery
+- **Automatic data recovery** - Robust restoration of application state and features on startup
+- **Performance optimization** - Efficient database operations optimized for real-time map interactions
+- **Enhanced data integrity** - Comprehensive error handling and validation for database operations
+- **Seamless integration** - Persistence layer integrates cleanly with existing component architecture
+
+#### Undo/Redo Implementation (v2.2)
 - **Complete undo/redo functionality** - Implemented comprehensive undo/redo system using ol-ext UndoRedo interaction
 - **Keyboard shortcuts** - Added Ctrl+Z (undo) and Ctrl+Y (redo) keyboard shortcuts
-- **All drawing operations tracked** - Point, Polyline, Line, Freehand, Arrow, GP, Tower, Junction Point, Legend tools
+- **All drawing operations tracked** - Point, Polyline, Line, Freehand, Arrow, GP, Tower, Junction Point, Legend, Text tools
 - **Singleton pattern** - UndoRedo interaction initialized once to prevent history reset on tool switches
 - **Auto-tracking** - Uses ol-ext's built-in drawing interaction tracking with `autoTrack: true`
 - **History persistence** - Undo/redo state persists across tool switches due to proper initialization guard
@@ -243,10 +317,39 @@ The `Icons2.0` branch includes the latest features and improvements over the mai
 - **Icon component architecture** - Each icon has its own React component with integrated click handlers
 - **ToolBox icon** - Dedicated toolbox UI icon component
 
+#### Text Tool Enhancement (Latest)
+- **Advanced text manipulation** - Text tool with rotate and scale capabilities for precise label placement
+- **Interactive text controls** - Real-time sliders for rotation (0-360°) and scale (0.5-3.0) in TextDialog
+- **Text drawing functionality** - Complete text tool implementation for placing and editing text labels on maps
+- **`TextDialog.tsx` component** - Enhanced modal dialog with rotation and scale controls, keyboard shortcuts (Enter to submit, Escape to cancel)
+- **`src/icons/Text.ts`** - Text tool styling and click handler with support for scale and rotation parameters
+- **Text styling system** - Features 14px Arial font with white stroke outline and black fill for visibility
+- **Position-based text placement** - Text features use Point geometry and are positioned at click coordinates
+- **Transform support** - Text features can be rotated and scaled using slider controls in the dialog
+- **Text editing support** - Full CRUD operations with preserved rotation and scale values
+- **Feature integration** - Text features marked as editable with `textScale` and `textRotation` properties
+- **Undo/Redo support** - Text operations including transform changes tracked through undo/redo system
+
+#### Enhanced Download Functionality
+- **Multi-format download support** - Direct download of maps in GeoJSON, KML, and KMZ formats
+- **Download integration** - Seamlessly integrated into toolbar with dedicated download button
+- **`downloadBlob` function** - Client-side download implementation for all file formats
+- **Enhanced KML/KMZ exports** - Improved format handling with proper styling preservation
+- **Feature metadata inclusion** - Downloads include all feature properties and styling information
+- **Automatic file naming** - Smart file naming with format-specific extensions
+- **No server dependency** - Pure client-side download functionality using Blob URLs
+
+#### Properties Panel Enhancement
+- **Feature properties display** - Show detailed information about selected features including coordinates and metadata
+- **Coordinate editing** - Edit feature positions through longitude/latitude input fields
+- **Name/attribute editing** - Edit feature names and other attributes
+- **Real-time updates** - Changes are immediately reflected on the map
+- **Geometry type support** - Works with Point, LineString, Polygon, and other geometry types
+
 #### Previous Feature Updates
 - Added Arrow tool for drawing arrows with various styles
 - Enhanced Legend component with full CRUD operations (now LegendDropdown)
-- **Updated Select tool for universal selection** - All features can now be selected, but editing is restricted to Polyline, Freehand Line, Arrow, and Legend features
+- **Updated Select tool for universal selection** - All features can now be selected, but editing is restricted to Polyline, Freehand Line, Arrow, Legend, and Text features
 - **Enhanced Transform tool** - Now respects editability restrictions and only works on editable features
 - **Fixed icon feature editability** - Pit, Triangle, GP, and Junction features are now properly non-editable while remaining selectable
 - **Unified visual selection feedback** - All selected features now have consistent blue highlighting regardless of editability
@@ -256,7 +359,8 @@ The `Icons2.0` branch includes the latest features and improvements over the mai
 - Enhanced UI with improved tooltips and visual feedback
 
 ### Version History
-- **Icons2.0** (current) - Latest features including Cut/Copy/Paste, point delete, Measure tool, icon improvements, and architecture refactoring
+- **exportPDF** (current) - Latest features including Enhanced Text tool with rotate/scale controls, Multi-format download functionality (GeoJSON, KML, KMZ), Properties panel enhancement, Enhanced Multi-Selection Functionality, Multi-Job Project Management, PGLite persistence, advanced serialization, Cut/Copy/Paste, point delete, Measure tool, icon improvements, and architecture refactoring
+- **Icons2.0** - Previous major release with Enhanced Multi-Selection Functionality, Multi-Job Project Management, and architecture improvements
 - **Icons** - Icon tools implementation
 - **Legends** - Legend component enhancements
 - **Satellite** - Arrow tool and satellite view improvements

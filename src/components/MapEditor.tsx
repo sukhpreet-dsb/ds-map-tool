@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Vector as VectorSource } from "ol/source";
 import { Feature } from "ol";
 import type { Geometry } from "ol/geom";
@@ -18,16 +18,49 @@ import { useMapState } from "@/hooks/useMapState";
 import { useToolState } from "@/hooks/useToolState";
 import { useFeatureState } from "@/hooks/useFeatureState";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
-import { cloneFeature, offsetFeature } from "@/utils/interactionUtils";
 import { Select } from "ol/interaction";
+import {
+  convertFeaturesToGeoJSON,
+  convertGeoJSONToFeatures,
+  isEmptyExtent,
+  normalizeImportedGeoJSON,
+} from "@/utils/serializationUtils";
+import { fitMapToFeatures, restoreMapView } from "@/utils/mapStateUtils";
+import { JobSelection } from "./JobSelection";
+import { useMapProjects } from "@/hooks/useMapProjects";
+import PropertiesPanel from "./PropertiesPanel";
+import { TextDialog } from "./TextDialog";
+import { handleTextClick } from "@/icons/Text";
+
+// Interface for properly serializable map data
+interface SerializedMapData {
+  features: any; // GeoJSON FeatureCollection - using any to avoid type issues
+  mapState?: {
+    center: [number, number];
+    zoom: number;
+    viewMode: "osm" | "satellite";
+  };
+}
 
 const MapEditor: React.FC = () => {
   // Core map references
   const mapRef = useRef<Map | null>(null);
   const vectorSourceRef = useRef(new VectorSource());
   const vectorLayerRef = useRef<any>(null);
+  const [interactionReady, setInteractionReady] = useState(false);
 
-  // Custom hooks for state management
+  const isProjectReadyRef = useRef(false);
+
+  const {
+    projects,
+    currentProjectId,
+    currentDb,
+    loadProject,
+    saveMapState: saveToDb,
+    loadMapState: loadFromDb,
+  } = useMapProjects();
+
+  // Custom hooks
   const {
     currentMapView,
     isTransitioning,
@@ -47,16 +80,18 @@ const MapEditor: React.FC = () => {
     clearClipboard,
   } = useFeatureState();
 
-  // Reference to select interaction for keyboard shortcuts
   const selectInteractionRef = useRef<Select | null>(null);
-
-  // Reference to undo interaction for keyboard shortcuts
   const undoRedoInteractionRef = useRef<any>(null);
-
-  // File input reference for FileManager
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // File change handler
+  // Text dialog state
+  const [textDialogOpen, setTextDialogOpen] = useState(false);
+  const [pendingCoordinate, setPendingCoordinate] = useState<number[] | null>(null);
+  const [editingTextFeature, setEditingTextFeature] = useState<Feature<Geometry> | null>(null);
+  const [editingTextScale, setEditingTextScale] = useState(1);
+  const [editingTextRotation, setEditingTextRotation] = useState(0);
+
+  // File import handler
   const handleFileChange = async (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
@@ -79,24 +114,81 @@ const MapEditor: React.FC = () => {
             featureProjection: "EPSG:3857",
           });
         } else if (name.endsWith(".kml")) {
-          features = new KML({ extractStyles: false }).readFeatures(data, {
-            featureProjection: "EPSG:3857",
-          });
+          try {
+            console.log("kml : ", data);
+
+            // Step 1: Parse KML to OpenLayers Features with correct projections
+            const kmlFeatures = new KML({ extractStyles: false }).readFeatures(
+              data,
+              {
+                featureProjection: "EPSG:3857",
+                dataProjection: "EPSG:4326", // CRITICAL: KML is always in WGS84
+              }
+            );
+
+            // Step 2: Convert Features to GeoJSON with proper property preservation
+            const tempSource = new VectorSource();
+            tempSource.addFeatures(kmlFeatures);
+            let geoJSONData = convertFeaturesToGeoJSON(tempSource);
+            geoJSONData = normalizeImportedGeoJSON(geoJSONData);
+            console.log(
+              "KML converted and normalized to GeoJSON:",
+              geoJSONData
+            );
+
+            // Step 3: Convert GeoJSON back to Features for map display
+            features = convertGeoJSONToFeatures(geoJSONData);
+            console.log("KML features parsed and converted:", features.length);
+          } catch (error) {
+            console.error("Error parsing KML:", error);
+            alert("Failed to parse KML file. Check console for details.");
+            return;
+          }
         } else if (name.endsWith(".kmz")) {
-          const zip = await JSZip.loadAsync(file);
-          const kmlFile = Object.keys(zip.files).find((f) =>
-            f.toLowerCase().endsWith(".kml")
-          );
-          if (kmlFile) {
-            const kmlText = await zip.file(kmlFile)?.async("text");
-            if (kmlText) {
-              features = new KML({ extractStyles: false }).readFeatures(
-                kmlText,
-                {
-                  featureProjection: "EPSG:3857",
-                }
-              );
+          try {
+            console.log("kmz : ", data);
+            const zip = await JSZip.loadAsync(file);
+            const kmlFile = Object.keys(zip.files).find((f) =>
+              f.toLowerCase().endsWith(".kml")
+            );
+
+            if (!kmlFile) {
+              alert("No KML file found in KMZ archive");
+              return;
             }
+
+            const kmlText = await zip.file(kmlFile)?.async("text");
+            if (!kmlText) {
+              alert("Failed to extract KML from KMZ file");
+              return;
+            }
+
+            // Step 1: Parse KML to OpenLayers Features with correct projections
+            const kmlFeatures = new KML({ extractStyles: false }).readFeatures(
+              kmlText,
+              {
+                featureProjection: "EPSG:3857",
+                dataProjection: "EPSG:4326", // CRITICAL: KML is always in WGS84
+              }
+            );
+
+            // Step 2: Convert Features to GeoJSON with proper property preservation
+            const tempSource = new VectorSource();
+            tempSource.addFeatures(kmlFeatures);
+            let geoJSONData = convertFeaturesToGeoJSON(tempSource);
+            geoJSONData = normalizeImportedGeoJSON(geoJSONData);
+            console.log(
+              "KMZ converted and normalized to GeoJSON:",
+              geoJSONData
+            );
+
+            // Step 3: Convert GeoJSON back to Features for map display
+            features = convertGeoJSONToFeatures(geoJSONData);
+            console.log("KMZ features parsed and converted:", features.length);
+          } catch (error) {
+            console.error("Error parsing KMZ:", error);
+            alert("Failed to parse KMZ file. Check console for details.");
+            return;
           }
         }
 
@@ -109,49 +201,47 @@ const MapEditor: React.FC = () => {
         vectorSourceRef.current.addFeatures(features);
 
         const extent: Extent = vectorSourceRef.current.getExtent();
-        mapRef.current?.getView().fit(extent, {
-          duration: 1000,
-          padding: [50, 50, 50, 50],
-        });
+        if (mapRef.current) {
+          fitMapToFeatures(mapRef.current, extent);
+        }
+
+        await saveMapState();
       } catch (err) {
+        console.error(err);
         alert("Invalid or unsupported file format.");
       }
     };
 
     if (name.endsWith(".kmz")) {
-      // JSZip reads blob directly, no need to use FileReader
       reader.readAsArrayBuffer(file);
     } else {
       reader.readAsText(file);
     }
   };
 
-  // Handle map initialization
+  // Map initialization
   const handleMapReady = (map: Map) => {
     mapRef.current = map;
   };
 
-  // Handle tool activation
   const handleToolActivation = (toolId: string) => {
     setActiveTool(toolId);
   };
 
-  // Handle feature deletion
   const handleDelete = () => {
     if (selectedFeature) {
       vectorSourceRef.current.removeFeature(selectedFeature);
       setSelectedFeature(null);
+      saveMapState();
     } else {
       alert("Please select a feature to delete.");
     }
   };
 
-  // Handle file import
   const handleImportClick = () => {
     fileInputRef.current?.click();
   };
 
-  // Copy-paste operation handlers
   const handleCopyOperation = (
     features: Feature<Geometry>[],
     isCut: boolean
@@ -161,85 +251,345 @@ const MapEditor: React.FC = () => {
 
   const handlePasteOperation = (
     _features: Feature<Geometry>[],
-    coordinates: number[]
+    coordinates: number[] // target center coordinate for paste
   ) => {
     const pastedFeatures: Feature<Geometry>[] = [];
 
-    clipboardState.copiedFeatures.forEach((originalFeature) => {
-      const clonedFeature = cloneFeature(originalFeature);
+    const originals = _features;
+    if (originals.length === 0) return;
 
-      // Move cloned feature to the exact coordinates provided
-      // Calculate offset needed to move feature from original position to target
-      const originalGeometry = originalFeature.getGeometry();
-      if (originalGeometry) {
-        const originalExtent = originalGeometry.getExtent();
-        const originalCenter = [
-          (originalExtent[0] + originalExtent[2]) / 2,
-          (originalExtent[1] + originalExtent[3]) / 2,
-        ];
+    // 1. Determine a reference point for the group —
+    //    here: center of bounding box of first (or you can also compute bounding box of all)
+    const refGeom = originals[0].getGeometry();
+    if (!refGeom) return;
+    const refExtent = refGeom.getExtent();
+    const refCenter: [number, number] = [
+      (refExtent[0] + refExtent[2]) / 2,
+      (refExtent[1] + refExtent[3]) / 2,
+    ];
 
-        // Calculate offset to move feature center to target coordinates
-        const offsetX = coordinates[0] - originalCenter[0];
-        const offsetY = coordinates[1] - originalCenter[1];
+    // 2. Compute how much to shift the *group* so refCenter goes to the user-specified coordinates
+    const offsetX = coordinates[0] - refCenter[0];
+    const offsetY = coordinates[1] - refCenter[1];
 
-        // Apply translation
-        const translatedFeature = offsetFeature(
-          clonedFeature,
-          offsetX,
-          offsetY
-        );
-        vectorSourceRef.current.addFeature(translatedFeature);
-        pastedFeatures.push(translatedFeature);
+    originals.forEach((originalFeature) => {
+      const clone = originalFeature.clone();
+      const geom = clone.getGeometry();
+      if (geom) {
+        // Translate geometry by the group offset
+        geom.translate(offsetX, offsetY);
+        clone.setGeometry(geom);
       }
+      vectorSourceRef.current.addFeature(clone);
+      pastedFeatures.push(clone);
     });
 
-    // Select the first pasted feature
     if (pastedFeatures.length > 0) {
       setSelectedFeature(pastedFeatures[0]);
     }
 
-    // If it was a cut operation, clear the clipboard after pasting
     if (clipboardState.isCutOperation) {
       clearClipboard();
     }
   };
 
-  // Handle select interaction reference from MapInteractions
   const handleSelectInteractionReady = (selectInteraction: Select | null) => {
     selectInteractionRef.current = selectInteraction;
   };
 
-  // Handle undo interaction reference from MapInteractions
   const handleUndoInteractionReady = (undoInteraction: any) => {
     undoRedoInteractionRef.current = undoInteraction;
-    console.log(
-      "handleUndoInteractionReady UndoInteration MapEditor : ",
-      undoInteraction
-    );
+    setInteractionReady(true);
   };
 
-  // Undo operation handler
   const handleUndoOperation = () => {
-    console.log("handleUndoOperation : ", undoRedoInteractionRef.current);
-    if (
-      undoRedoInteractionRef.current &&
-      undoRedoInteractionRef.current.hasUndo()
-    ) {
+    if (undoRedoInteractionRef.current?.hasUndo()) {
       undoRedoInteractionRef.current.undo();
     }
   };
 
-  // Redo operation handler
+  const downloadBlob = (blob: Blob, fileName: string) => {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportClick = async (format: "geojson" | "kml" | "kmz") => {
+    if (!mapRef.current) return;
+
+    try {
+      const mapData = await loadFromDb();
+
+      if (!mapData?.features || mapData.features.length === 0) {
+        alert("No features to export.");
+        return;
+      }
+
+      const fileName = `map-export-${new Date().toISOString().split("T")[0]}`;
+
+      // -------------------------------
+      // GEOJSON DOWNLOAD
+      // -------------------------------
+      if (format === "geojson") {
+        const jsonString = JSON.stringify(mapData.features, null, 2);
+        const blob = new Blob([jsonString], { type: "application/json" });
+
+        downloadBlob(blob, `${fileName}.json`);
+        return;
+      }
+
+      // Convert GeoJSON → OL Features
+      const geojsonFormat = new GeoJSON();
+      const olFeatures = geojsonFormat.readFeatures(mapData.features, {
+        dataProjection: "EPSG:4326",
+        featureProjection: "EPSG:3857",
+      });
+
+      // -------------------------------
+      // KML DOWNLOAD
+      // -------------------------------
+      const kmlFormat = new KML();
+      const kmlString = kmlFormat.writeFeatures(olFeatures, {
+        featureProjection: "EPSG:3857", // Current display projection
+        dataProjection: "EPSG:4326", // Export coordinates in WGS84
+      });
+
+      if (format === "kml") {
+        const blob = new Blob([kmlString], {
+          type: "application/vnd.google-earth.kml+xml",
+        });
+
+        downloadBlob(blob, `${fileName}.kml`);
+        return;
+      }
+
+      // -------------------------------
+      // KMZ DOWNLOAD (zip KML)
+      // -------------------------------
+      if (format === "kmz") {
+        const zip = new JSZip();
+        zip.file(`${fileName}.kml`, kmlString);
+
+        const kmzBlob = await zip.generateAsync({ type: "blob" });
+
+        downloadBlob(kmzBlob, `${fileName}.kmz`);
+        return;
+      }
+    } catch (error) {
+      console.error("Export failed:", error);
+      alert("Export failed. Check console.");
+    }
+  };
+
+  // ✅ SAVE to isolated DB
+  const saveMapState = async () => {
+    if (!isProjectReadyRef.current) {
+      console.warn("Project not ready for saving, skipping");
+      return;
+    }
+
+    if (!mapRef.current) return;
+
+    try {
+      const mapData: SerializedMapData = {
+        features: convertFeaturesToGeoJSON(vectorSourceRef.current),
+        mapState: {
+          center: mapRef.current.getView().getCenter() as [number, number],
+          zoom: mapRef.current.getView().getZoom() || 0,
+          viewMode: currentMapView,
+        },
+      };
+
+      await saveToDb(mapData);
+      console.log("Saved to isolated DB");
+    } catch (error) {
+      console.error("Failed to save map state:", error);
+    }
+  };
+
+  // ✅ LOAD from isolated DB
+  const handleLoadMapState = async () => {
+    try {
+      // Temporarily disable UndoRedo interaction to prevent it from tracking recovery operations
+      const wasUndoRedoActive = undoRedoInteractionRef.current !== null;
+      if (wasUndoRedoActive) {
+        undoRedoInteractionRef.current?.setActive(false);
+        console.log("Temporarily disabled UndoRedo interaction during recovery");
+      }
+
+      // 1. ALWAYS clear the map first!
+      // This ensures old project data is removed even if the new project is empty
+      vectorSourceRef.current.clear();
+
+      const mapData = await loadFromDb();
+      if (mapData?.features) {
+        // vectorSourceRef.current.clear();
+        const features = convertGeoJSONToFeatures(mapData.features);
+        vectorSourceRef.current.addFeatures(features);
+
+        const extent = vectorSourceRef.current.getExtent();
+        if (!isEmptyExtent(extent) && mapRef.current) {
+          fitMapToFeatures(mapRef.current, extent);
+        }
+      }
+      if (mapData?.mapState && mapRef.current) {
+        restoreMapView(mapRef.current, mapData.mapState, handleMapViewChange);
+      }
+      console.log("Map state loaded");
+
+      // Re-enable UndoRedo interaction after recovery is complete
+      if (wasUndoRedoActive) {
+        setTimeout(() => {
+          undoRedoInteractionRef.current?.setActive(true);
+          console.log("Re-enabled UndoRedo interaction after recovery");
+        }, 100);
+      }
+    } catch (error) {
+      console.error("Failed to load map state:", error);
+      // Ensure UndoRedo is re-enabled even on error
+      undoRedoInteractionRef.current?.setActive(true);
+    }
+  };
+
+  // Update ready flag
+  useEffect(() => {
+    if (currentProjectId && currentDb && interactionReady) {
+      isProjectReadyRef.current = true;
+      console.log("Project is ready for saving");
+    } else {
+      isProjectReadyRef.current = false;
+    }
+  }, [currentProjectId, currentDb, interactionReady]);
+
+  // Load map state when project changes
+  useEffect(() => {
+    if (!currentProjectId || !currentDb) {
+      console.log("Waiting for project to load...");
+      return;
+    }
+
+    console.log("Project loaded, loading map state");
+    handleLoadMapState();
+  }, [currentProjectId, currentDb]);
+
+  // Setup auto-save listeners
+  useEffect(() => {
+    console.log("currentMapView: ", currentMapView);
+    if (!interactionReady || !currentProjectId || !currentDb) {
+      console.log("Waiting for project to be ready...");
+      return;
+    }
+
+    console.log("Setting up auto-save listeners");
+
+    const onStackAdd = () => {
+      console.log("Feature added to stack");
+      saveMapState();
+    };
+    const onUndo = () => {
+      console.log("Undo operation performed");
+      saveMapState();
+    };
+    const onRedo = () => {
+      console.log("Redo operation performed");
+      saveMapState();
+    };
+
+    undoRedoInteractionRef.current?.on("stack:add", onStackAdd);
+    undoRedoInteractionRef.current?.on("undo", onUndo);
+    undoRedoInteractionRef.current?.on("redo", onRedo);
+
+    return () => {
+      undoRedoInteractionRef.current?.un("stack:add", onStackAdd);
+      undoRedoInteractionRef.current?.un("undo", onUndo);
+      undoRedoInteractionRef.current?.un("redo", onRedo);
+    };
+  }, [interactionReady, currentProjectId, currentDb, currentMapView]);
+
+  // Text tool event listener
+  useEffect(() => {
+    const handleTextToolClick = (event: CustomEvent) => {
+      const { coordinate } = event.detail;
+      setPendingCoordinate(coordinate);
+      setTextDialogOpen(true);
+    };
+
+    // Add event listener for text tool clicks
+    window.addEventListener('textToolClick', handleTextToolClick as EventListener);
+
+    return () => {
+      // Clean up event listener
+      window.removeEventListener('textToolClick', handleTextToolClick as EventListener);
+    };
+  }, []);
+
+  // Handle text feature selection for editing
+  useEffect(() => {
+    // Only handle editing when select tool is active and a text feature is selected
+    if (activeTool === "select" && selectedFeature && selectedFeature.get("isText")) {
+      const geometry = selectedFeature.getGeometry();
+      if (geometry && geometry.getType() === "Point") {
+        const point = geometry as any;
+        const coordinate = point.getCoordinates();
+
+        const currentScale = selectedFeature.get("textScale") || 1;
+        const currentRotation = selectedFeature.get("textRotation") || 0;
+
+        setEditingTextFeature(selectedFeature);
+        setEditingTextScale(currentScale);
+        setEditingTextRotation(currentRotation);
+        setPendingCoordinate(coordinate);
+        setTextDialogOpen(true);
+      }
+    } else if (activeTool !== "select" || !selectedFeature || !selectedFeature.get("isText")) {
+      // Clear editing state when not editing a text feature
+      setEditingTextFeature(null);
+      setEditingTextScale(1);
+      setEditingTextRotation(0);
+    }
+  }, [activeTool, selectedFeature]);
+
+  // Text dialog handlers
+  const handleTextSubmit = (textContent: string, scale?: number, rotation?: number) => {
+    if (editingTextFeature) {
+      // Update existing text feature with all properties
+      editingTextFeature.set("text", textContent);
+      editingTextFeature.set("textScale", scale || 1);
+      editingTextFeature.set("textRotation", rotation || 0);
+
+      // Text styling handled by layer style function
+      // Force re-render to update text
+      if (mapRef.current) {
+        mapRef.current.render();
+      }
+      // Clear selection after editing
+      setSelectedFeature(null);
+    } else if (pendingCoordinate && vectorSourceRef.current) {
+      // Create new text feature with scale/rotation
+      handleTextClick(vectorSourceRef.current, pendingCoordinate, textContent, scale, rotation);
+    }
+  };
+
+  const handleTextDialogClose = () => {
+    setTextDialogOpen(false);
+    setPendingCoordinate(null);
+    setEditingTextFeature(null);
+    setEditingTextScale(1);
+    setEditingTextRotation(0);
+  };
+
   const handleRedoOperation = () => {
-    if (
-      undoRedoInteractionRef.current &&
-      undoRedoInteractionRef.current.hasRedo()
-    ) {
+    if (undoRedoInteractionRef.current?.hasRedo()) {
       undoRedoInteractionRef.current.redo();
     }
   };
 
-  // Set up keyboard shortcuts
+  // Keyboard shortcuts
   useKeyboardShortcuts({
     map: mapRef.current,
     vectorSource: vectorSourceRef.current,
@@ -261,6 +611,24 @@ const MapEditor: React.FC = () => {
         satelliteLayerRef={satelliteLayerRef}
         vectorLayerRef={vectorLayerRef}
         vectorSourceRef={vectorSourceRef}
+      />
+
+      <PropertiesPanel
+        map={mapRef.current}
+        selectedFeature={selectedFeature}
+        onClose={() => setSelectedFeature(null)}
+        onSave={saveMapState}
+      />
+
+      <TextDialog
+        isOpen={textDialogOpen}
+        onClose={handleTextDialogClose}
+        onSubmit={handleTextSubmit}
+        coordinate={pendingCoordinate || [0, 0]}
+        initialText={editingTextFeature?.get("text") || ""}
+        initialScale={editingTextScale}
+        initialRotation={editingTextRotation}
+        isEditing={!!editingTextFeature}
       />
 
       <MapInteractions
@@ -290,6 +658,7 @@ const MapEditor: React.FC = () => {
         activeTool={activeTool}
         selectedLegend={selectedLegend}
         onLegendSelect={handleLegendSelect}
+        onExportClick={handleExportClick}
       />
 
       <FileManager
@@ -305,6 +674,13 @@ const MapEditor: React.FC = () => {
         onChange={handleFileChange}
         style={{ display: "none" }}
       />
+
+      <JobSelection
+        projects={projects}
+        currentProjectId={currentProjectId}
+        onSelectProject={loadProject}
+      />
+
       <LoadingOverlay
         isVisible={isTransitioning}
         message="Switching map view..."
