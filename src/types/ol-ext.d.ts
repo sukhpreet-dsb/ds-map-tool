@@ -85,6 +85,103 @@ declare module 'ol-ext/interaction/CopyPaste' {
   }
 }
 
+declare module 'ol-ext/control/Search' {
+  import { Control } from 'ol/control';
+  import Map from 'ol/Map';
+  import Feature from 'ol/Feature';
+
+  export interface SearchOptions {
+    className?: string;
+    target?: Element | string;
+    title?: string;
+    reverseTitle?: string;
+    placeholder?: string;
+    typing?: number;
+    minLength?: number;
+    maxItems?: number;
+    maxHistory?: number;
+    getTitle?: (feature: any) => string;
+    autocomplete?: (searchString: string, callback: (results: any[]) => void) => void | any[];
+    onselect?: (feature: any) => void;
+    centerOnSelect?: boolean;
+    zoomOnSelect?: number | boolean;
+    collapsed?: boolean;
+    noCollapse?: boolean;
+  }
+
+  export interface SelectEvent {
+    type: 'select';
+    search: any;
+    coordinate: [number, number];
+    feature?: Feature;
+  }
+
+  export default class Search extends Control {
+    constructor(options?: SearchOptions);
+    on(type: string | string[], listener: (event: SelectEvent | any) => void): void;
+    getInputField(): Element;
+    getTitle(f: any): string;
+    select(f: any, reverse?: boolean, coord?: [number, number], options?: any): void;
+    setInput(value: string, search?: boolean): void;
+    search(): void;
+    clearHistory(): void;
+    getHistory(): any[];
+    saveHistory(): void;
+    restoreHistory(): void;
+    collapse(b?: boolean): void;
+    equalFeatures(f1: any, f2: any): boolean;
+    reverseGeocode(coord: [number, number], cback?: (result: any) => void): void;
+  }
+}
+
+declare module 'ol-ext/control/SearchJSON' {
+  import Search from 'ol-ext/control/Search';
+  import Map from 'ol/Map';
+
+  export interface SearchJSONOptions extends Search.SearchOptions {
+    url?: string;
+    authentication?: string;
+    handleResponse?: (response: any) => any[];
+  }
+
+  export default class SearchJSON extends Search {
+    constructor(options?: SearchJSONOptions);
+    requestData(s: string): any;
+    handleResponse(response: any): any[];
+  }
+}
+
+declare module 'ol-ext/control/SearchNominatim' {
+  import SearchJSON from 'ol-ext/control/SearchJSON';
+  import Map from 'ol/Map';
+
+  export interface SearchNominatimOptions extends SearchJSON.SearchOptions {
+    polygon?: boolean;
+    viewbox?: [number, number, number, number];
+    bounded?: boolean;
+    url?: string;
+    className?: string;
+    title?: string;
+    placeholder?: string;
+    reverseTitle?: string;
+    collapsed?: boolean;
+    typing?: number;
+    minLength?: number;
+    maxItems?: number;
+    maxHistory?: number;
+    centerOnSelect?: boolean;
+    zoomOnSelect?: number | boolean;
+  }
+
+  export default class SearchNominatim extends SearchJSON {
+    constructor(options?: SearchNominatimOptions);
+    getTitle(f: any): string;
+    requestData(s: string): any;
+    select(f: any): void;
+    reverseGeocode(coord: [number, number], cback?: (result: any) => void): void;
+  }
+}
+
 /**
  * UndoRedo interaction from ol-ext
  * Adds undo/redo functionality to OpenLayers maps

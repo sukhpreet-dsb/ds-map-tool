@@ -31,6 +31,8 @@ import { useMapProjects } from "@/hooks/useMapProjects";
 import PropertiesPanel from "./PropertiesPanel";
 import { TextDialog } from "./TextDialog";
 import { handleTextClick } from "@/icons/Text";
+import SearchWrapper, { type SearchWrapperRef } from "./SearchWrapper";
+import type { SearchResult } from "./SearchPanel";
 
 // Interface for properly serializable map data
 interface SerializedMapData {
@@ -83,6 +85,7 @@ const MapEditor: React.FC = () => {
   const selectInteractionRef = useRef<Select | null>(null);
   const undoRedoInteractionRef = useRef<any>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const searchWrapperRef = useRef<SearchWrapperRef | null>(null);
 
   // Text dialog state
   const [textDialogOpen, setTextDialogOpen] = useState(false);
@@ -217,6 +220,13 @@ const MapEditor: React.FC = () => {
     } else {
       reader.readAsText(file);
     }
+  };
+
+  // Search location handler
+  const handleLocationSelected = (coordinate: [number, number], result: SearchResult) => {
+    console.log('Search location selected:', coordinate, result);
+    // You can add custom logic here when a location is selected
+    // For example, you could save it to the current project or add it as a feature
   };
 
   // Map initialization
@@ -612,6 +622,15 @@ const MapEditor: React.FC = () => {
         vectorLayerRef={vectorLayerRef}
         vectorSourceRef={vectorSourceRef}
       />
+
+      {/* Search Control - integrated with the map */}
+      {mapRef.current && (
+        <SearchWrapper
+          map={mapRef.current}
+          onLocationSelected={handleLocationSelected}
+          ref={searchWrapperRef}
+        />
+      )}
 
       <PropertiesPanel
         map={mapRef.current}
