@@ -31,6 +31,7 @@ export interface ToolManagerProps {
   activeTool: string;
   selectedLegend?: LegendType;
   onToolChange: (tool: string) => void;
+  onFeatureSelect?: (feature: Feature | null) => void;
 }
 
 export const ToolManager: React.FC<ToolManagerProps> = ({
@@ -39,6 +40,7 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
   activeTool,
   selectedLegend,
   onToolChange,
+  onFeatureSelect,
 }) => {
   const drawInteractionRef = useRef<Draw | null>(null);
   const { registerClickHandler, removeAllClickHandlers } =
@@ -72,7 +74,12 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
 
     switch (activeTool) {
       case "point":
-        drawInteractionRef.current = createPointDraw(vectorSource);
+        drawInteractionRef.current = createPointDraw(vectorSource, (event) => {
+          // Select the newly created point feature
+          if (onFeatureSelect && event.feature) {
+            onFeatureSelect(event.feature);
+          }
+        });
         map.addInteraction(drawInteractionRef.current);
         break;
 

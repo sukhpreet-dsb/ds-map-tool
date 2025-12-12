@@ -667,6 +667,7 @@ const MapEditor: React.FC = () => {
         vectorSource={vectorSourceRef.current}
         activeTool={activeTool}
         selectedLegend={selectedLegend}
+        onFeatureSelect={setSelectedFeature}
         onToolChange={setActiveTool}
       />
 

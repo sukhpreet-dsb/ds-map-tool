@@ -8,8 +8,7 @@ import type Polygon from "ol/geom/Polygon";
 import type GeometryCollection from "ol/geom/GeometryCollection";
 import type MultiLineString from "ol/geom/MultiLineString";
 import { getCenter } from "ol/extent";
-import { X, Edit2, Save, X as XIcon } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import { X, Edit2, Save, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -21,9 +20,15 @@ interface PropertiesPanelProps {
 }
 
 interface CoordinateState {
-  longitude: string;
-  latitude: string;
+  long: string;
+  lat: string;
   name: string;
+}
+
+interface CustomProperty {
+  id: string;
+  key: string;
+  value: string;
 }
 
 export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
@@ -32,52 +37,66 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   onClose,
   onSave,
 }) => {
+  console.log("Selected Features : ", selectedFeature)
   const [isEditing, setIsEditing] = useState(false);
   const [coordinates, setCoordinates] = useState<CoordinateState>({
-    longitude: "",
-    latitude: "",
+    long: "",
+    lat: "",
     name: "",
   });
   const [originalCoordinates, setOriginalCoordinates] =
     useState<CoordinateState>({
-      longitude: "",
-      latitude: "",
+      long: "",
+      lat: "",
       name: "",
     });
+  const [customProperties, setCustomProperties] = useState<CustomProperty[]>(
+    []
+  );
+  const [originalCustomProperties, setOriginalCustomProperties] = useState<
+    CustomProperty[]
+  >([]);
 
-  // Get feature type name
-  // const getFeatureType = (feature: Feature): string => {
-  //   if (feature.get("isArrow")) return "Arrow";
-  //   if (feature.get("islegends")) return "Legend";
-  //   if (feature.get("isMeasure")) return "Measure";
-  //   if (feature.get("isTower")) return "Tower";
-  //   if (feature.get("isTriangle")) return "Triangle";
-  //   if (feature.get("isPit")) return "Pit";
-  //   if (feature.get("isGP")) return "GP";
-  //   if (feature.get("isJunctionPoint")) return "Junction Point";
+  // Extract all properties including coordinates
+  const extractAllProperties = (feature: Feature): CustomProperty[] => {
+    const coords = extractCoordinates(feature);
+    const properties = feature.getProperties();
+    delete properties.geometry;
 
-  //   const geometry = feature.getGeometry();
-  //   if (!geometry) return "Unknown";
+    const allProperties: CustomProperty[] = [];
 
-  //   const type = geometry.getType();
-  //   switch (type) {
-  //     case "Point":
-  //       return "Point";
-  //     case "LineString":
-  //       return "Polyline";
-  //     case "Polygon":
-  //       return "Polygon";
-  //     case "Circle":
-  //       return "Circle";
-  //     default:
-  //       return type;
-  //   }
-  // };
+    // Add name, long, and lat first
+    allProperties.push(
+      { id: 'prop-name', key: 'name', value: coords.name },
+      { id: 'prop-long', key: 'long', value: coords.long },
+      { id: 'prop-lat', key: 'lat', value: coords.lat }
+    );
+
+    // Add custom properties
+    const filteredEntries = Object.entries(properties).filter(
+      ([key]) =>
+        !key.startsWith("is") &&
+        key !== "nonEditable" &&
+        key !== "name" &&
+        !key.startsWith("_")
+    );
+
+    filteredEntries.forEach(([key, value], index) => {
+      allProperties.push({
+        id: `prop-${index}-${Date.now()}`,
+        key,
+        value: String(value),
+      });
+    });
+
+    console.log(allProperties)
+    return allProperties;
+  };
 
   // Extract coordinates based on geometry type
   const extractCoordinates = (feature: Feature): CoordinateState => {
     const geometry = feature.getGeometry();
-    if (!geometry) return { longitude: "", latitude: "", name: "" };
+    if (!geometry) return { long: "", lat: "", name: "" };
 
     let lon = 0;
     let lat = 0;
@@ -121,29 +140,108 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
         break;
       }
       default:
-        return { longitude: "", latitude: "", name: "" };
+        return { long: "", lat: "", name: "" };
     }
 
     return {
-      longitude: lon.toFixed(6),
-      latitude: lat.toFixed(6),
-      name: feature.get('name') || "",
+      long: lon.toFixed(6),
+      lat: lat.toFixed(6),
+      name: feature.get("name") || "",
     };
   };
 
-  // Update coordinates when selected feature changes
+  // Update all properties when selected feature changes
   useEffect(() => {
     if (selectedFeature) {
       const coords = extractCoordinates(selectedFeature);
+      const properties = extractAllProperties(selectedFeature);
       setCoordinates(coords);
       setOriginalCoordinates(coords);
+      setCustomProperties(properties);
+      setOriginalCustomProperties(properties);
       setIsEditing(false);
     } else {
-      setCoordinates({ longitude: "", latitude: "", name: "" });
-      setOriginalCoordinates({ longitude: "", latitude: "", name: "" });
+      setCoordinates({ long: "", lat: "", name: "" });
+      setOriginalCoordinates({ long: "", lat: "", name: "" });
+      setCustomProperties([]);
+      setOriginalCustomProperties([]);
       setIsEditing(false);
     }
   }, [selectedFeature]);
+
+  // Update all properties
+  const updateAllProperties = (properties: CustomProperty[]) => {
+    if (!selectedFeature) return;
+
+    // Extract coordinates from properties
+    const nameProp = properties.find(p => p.key === 'name');
+    const longProp = properties.find(p => p.key === 'long');
+    const latProp = properties.find(p => p.key === 'lat');
+
+    // Update coordinates if they exist
+    if (longProp && latProp) {
+      const lon = parseFloat(longProp.value);
+      const lat = parseFloat(latProp.value);
+      if (!isNaN(lon) && !isNaN(lat)) {
+        updateFeatureCoordinates(lon, lat, nameProp?.value || '');
+      }
+    } else if (nameProp) {
+      // Update name if only name is provided
+      if (nameProp.value.trim()) {
+        selectedFeature.set('name', nameProp.value.trim());
+      } else {
+        selectedFeature.unset('name');
+      }
+    }
+
+    // Clear existing custom properties
+    const currentProperties = selectedFeature.getProperties();
+    Object.keys(currentProperties).forEach((key) => {
+      if (
+        !key.startsWith("is") &&
+        key !== "geometry" &&
+        key !== "name" &&
+        key !== "nonEditable" &&
+        !key.startsWith("_")
+      ) {
+        selectedFeature.unset(key);
+      }
+    });
+
+    // Set new custom properties
+    properties.forEach((prop) => {
+      if (prop.key.trim() && prop.value.trim() &&
+          !['name', 'long', 'lat'].includes(prop.key)) {
+        selectedFeature.set(prop.key.trim(), prop.value.trim());
+      }
+    });
+  };
+
+  // Custom property management functions
+  const addCustomProperty = () => {
+    const newProperty: CustomProperty = {
+      id: `prop-new-${Date.now()}`,
+      key: "",
+      value: "",
+    };
+    setCustomProperties([...customProperties, newProperty]);
+  };
+
+  const updateCustomProperty = (
+    id: string,
+    field: "key" | "value",
+    value: string
+  ) => {
+    setCustomProperties(
+      customProperties.map((prop) =>
+        prop.id === id ? { ...prop, [field]: value } : prop
+      )
+    );
+  };
+
+  const deleteCustomProperty = (id: string) => {
+    setCustomProperties(customProperties.filter((prop) => prop.id !== id));
+  };
 
   // Update feature geometry with new coordinates
   const updateFeatureCoordinates = (lon: number, lat: number, name: string) => {
@@ -264,9 +362,9 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
 
     // Update feature name
     if (name.trim()) {
-      selectedFeature.set('name', name.trim());
+      selectedFeature.set("name", name.trim());
     } else {
-      selectedFeature.unset('name');
+      selectedFeature.unset("name");
     }
 
     // Redraw the map
@@ -278,17 +376,30 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   };
 
   const handleSave = () => {
-    const lon = parseFloat(coordinates.longitude);
-    const lat = parseFloat(coordinates.latitude);
+    updateAllProperties(customProperties);
+    setOriginalCustomProperties(customProperties);
 
-    if (!isNaN(lon) && !isNaN(lat)) {
-      updateFeatureCoordinates(lon, lat, coordinates.name);
-      setOriginalCoordinates(coordinates);
+    // Update coordinates state for consistency
+    const nameProp = customProperties.find(p => p.key === 'name');
+    const longProp = customProperties.find(p => p.key === 'long');
+    const latProp = customProperties.find(p => p.key === 'lat');
 
-      // Trigger save callback if provided
-      if (onSave) {
-        onSave();
-      }
+    if (longProp && latProp) {
+      setOriginalCoordinates({
+        name: nameProp?.value || '',
+        long: longProp.value,
+        lat: latProp.value,
+      });
+      setCoordinates({
+        name: nameProp?.value || '',
+        long: longProp.value,
+        lat: latProp.value,
+      });
+    }
+
+    // Trigger save callback if provided
+    if (onSave) {
+      onSave();
     }
 
     setIsEditing(false);
@@ -296,16 +407,11 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
 
   const handleCancel = () => {
     setCoordinates(originalCoordinates);
+    setCustomProperties(originalCustomProperties);
     setIsEditing(false);
   };
 
-  const handleInputChange = (field: keyof CoordinateState, value: string) => {
-    setCoordinates((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
-  };
-
+  
   if (!selectedFeature) {
     return null;
   }
@@ -336,122 +442,83 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden p- space-y-6">
-          {!isEditing ? (
-            <Card className="border-none shadow-none rounded-none">
-              {/* Properties Section */}
-              {/* <CardHeader>
-                <CardTitle className="text-base">Properties</CardTitle>
-              </CardHeader> */}
-              <CardContent>
-                <div className="space-y-2 text-sm">
-                  {(() => {
-                    const properties = selectedFeature.getProperties();
-                    delete properties.geometry;
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-4">
+          <div className="space-y-2">
+            {!isEditing ? (
+              <div className="space-y-1">
+                {customProperties.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                    <div className="text-4xl mb-2">📋</div>
+                    <div className="text-sm font-medium">No properties</div>
+                    <div className="text-xs mt-1">Click Edit to add properties</div>
+                  </div>
+                ) : (
+                  customProperties.map((prop) => (
+                    <div
+                      key={prop.id}
+                      className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors"
+                    >
+                      <span className="font-medium text-gray-700 dark:text-gray-300 capitalize">
+                        {prop.key}:
+                      </span>
+                      <span className="text-gray-600 dark:text-gray-400 truncate ml-2">
+                        {prop.value || <span className="text-gray-400 italic">Empty</span>}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {customProperties.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500 dark:text-gray-400 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg">
+                    <div className="text-3xl mb-2">➕</div>
+                    <div className="text-sm font-medium">No properties yet</div>
+                    <div className="text-xs mt-1">Click "Add" to create your first property</div>
+                  </div>
+                ) : (
+                  customProperties.map((prop) => {
+                    const isReadOnly = ['name', 'long', 'lat'].includes(prop.key);
 
-                    const entries = Object.entries(properties).filter(
-                      ([key]) => !key.startsWith("is") && key !== "nonEditable"
-                    );
-
-                    if (entries.length === 0) {
-                      return (
-                        <div className="text-gray-500 dark:text-gray-400 italic">
-                          No additional properties
-                        </div>
-                      );
-                    }
-
-                    return entries.map(([key, value]) => (
-                      <div
-                        key={key}
-                        className="flex justify-between py-1 border-b border-gray-100 dark:border-slate-700 last:border-b-0"
-                      >
-                        <span className="font-medium text-gray-700 dark:text-gray-300">
-                          {key}:
-                        </span>
-                        <span className="text-gray-600 dark:text-gray-400 truncate ml-2">
-                          {String(value)}
-                        </span>
+                    return (
+                      <div key={prop.id} className="flex gap-2 items-center">
+                        <Input
+                          placeholder="Property name"
+                          value={prop.key}
+                          onChange={(e) =>
+                            updateCustomProperty(prop.id, "key", e.target.value)
+                          }
+                          className={`flex-1 text-sm ${isReadOnly ? 'bg-gray-50 dark:bg-slate-700' : ''}`}
+                          disabled={isReadOnly}
+                        />
+                        <Input
+                          placeholder="Value"
+                          value={prop.value}
+                          onChange={(e) =>
+                            updateCustomProperty(prop.id, "value", e.target.value)
+                          }
+                          className="flex-1 text-sm"
+                          type={prop.key === 'long' || prop.key === 'lat' ? 'number' : 'text'}
+                          step={prop.key === 'long' || prop.key === 'lat' ? 'any' : undefined}
+                        />
+                        {!isReadOnly && (
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() => deleteCustomProperty(prop.id)}
+                            className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                            aria-label="Delete property"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        )}
                       </div>
-                    ));
-                  })()}
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card className="border-none shadow-none rounded-none">
-              {/* Coordinates Section */}
-              {/* <CardHeader>
-                <CardTitle className="text-base">Coordinates</CardTitle>
-              </CardHeader> */}
-              <CardContent className="space-y-3">
-                <div>
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Name
-                  </label>
-                  {isEditing ? (
-                    <Input
-                      type="text"
-                      value={coordinates.name}
-                      onChange={(e) =>
-                        handleInputChange("name", e.target.value)
-                      }
-                      className="mt-1"
-                      placeholder="Enter feature name"
-                    />
-                  ) : (
-                    <div className="mt-1 p-2 bg-gray-50 dark:bg-slate-700 rounded text-sm">
-                      {coordinates.name || "No name"}
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Longitude
-                  </label>
-                  {isEditing ? (
-                    <Input
-                      type="number"
-                      step="any"
-                      value={coordinates.longitude}
-                      onChange={(e) =>
-                        handleInputChange("longitude", e.target.value)
-                      }
-                      className="mt-1"
-                      placeholder="-180 to 180"
-                    />
-                  ) : (
-                    <div className="mt-1 p-2 bg-gray-50 dark:bg-slate-700 rounded text-sm">
-                      {coordinates.longitude || "N/A"}
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Latitude
-                  </label>
-                  {isEditing ? (
-                    <Input
-                      type="number"
-                      step="any"
-                      value={coordinates.latitude}
-                      onChange={(e) =>
-                        handleInputChange("latitude", e.target.value)
-                      }
-                      className="mt-1"
-                      placeholder="-90 to 90"
-                    />
-                  ) : (
-                    <div className="mt-1 p-2 bg-gray-50 dark:bg-slate-700 rounded text-sm">
-                      {coordinates.latitude || "N/A"}
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                    );
+                  })
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Footer */}
@@ -485,8 +552,17 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                   onClick={handleCancel}
                   className="flex items-center gap-2"
                 >
-                  <XIcon className="h-3 w-3" />
+                  <X className="h-3 w-3" />
                   Cancel
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={addCustomProperty}
+                  className="flex items-center gap-2 ml-8"
+                >
+                  <Plus className="h-3 w-3 mr-1" />
+                  Add
                 </Button>
               </>
             )}
