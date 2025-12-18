@@ -197,6 +197,12 @@ export const getFeatureStyle = (
     return getTextStyle(textContent);
   }
 
+  // Handle icon features using utility
+  const iconStyle = getFeatureTypeStyle(feature);
+  if (iconStyle) {
+    return iconStyle;
+  }
+
   if (
     feature.get("islegends") &&
     (type === "LineString" || type === "MultiLineString")

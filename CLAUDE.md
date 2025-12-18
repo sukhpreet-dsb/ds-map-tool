@@ -28,13 +28,17 @@ This is a **DS Map Tool** - a web-based map editor application built with React 
 
 ### Technology Stack
 - **Frontend**: React 19.1.1 + TypeScript + Vite
-- **Map Library**: OpenLayers (v10.6.1) + ol-ext (v4.0.36)
+- **Map Library**: OpenLayers (v10.6.1) + ol-ext (v4.0.36) + ol-types
+- **Database**: PGLite (v0.3.14) - PostgreSQL-compatible local database
 - **Styling**: Tailwind CSS (v4.1.16)
-- **UI Components**: Radix UI components
-- **UI Icons**: Lucide React
+- **UI Components**: Radix UI components (Dialog, Dropdown, Label, Slider, Slot, Toggle, ToggleGroup)
+- **UI Icons**: Lucide React (v0.552.0)
 - **Build Tool**: Vite 7.1.7
 - **Package Manager**: npm/pnpm
 - **Routing**: React Router 7.9.6
+- **File Processing**: JSZip (v3.10.1) for KMZ support
+- **State Management**: Custom hooks with React Context patterns
+- **Search**: OpenStreetMap Nominatim API via ol-ext
 
 ### Key Features
 - Interactive map with OSM and satellite view toggle
@@ -58,6 +62,7 @@ This is a **DS Map Tool** - a web-based map editor application built with React 
 - **Multi-selection functionality** - Enhanced multi-selection with drag, copy, paste, and cut operations for multiple features
 - **Properties panel** - View and edit feature properties including coordinates and names
 - **Text tool** - Place and edit text labels on the map with customizable styling
+- **Search functionality** - Location search using Nominatim with autocomplete and geocoding capabilities
 - Smooth map view transitions
 
 ### Architecture
@@ -79,7 +84,9 @@ The application follows a modular, component-based architecture with clear separ
 - **`CreatingJob.tsx`** - New job/project creation dialog with validation
 - **`TextDialog.tsx`** - Text input dialog for creating and editing text labels
 - **`PropertiesPanel.tsx`** - Feature properties display and editing panel
-- **`ui/`** - Reusable UI components (Button, Card, Dropdown, Toggle, ToggleGroup)
+- **`SearchPanel.tsx`** - Location search panel with Nominatim integration
+- **`SearchWrapper.tsx`** - Search functionality wrapper component
+- **`ui/`** - Reusable UI components (Button, Card, Dropdown, Toggle, ToggleGroup, Input)
 
 #### Custom Hooks (`src/hooks/`)
 - **`useMapState.ts`** - Map view state, layer switching, and transition management
@@ -103,6 +110,7 @@ The application follows a modular, component-based architecture with clear separ
 - **`geometryUtils.ts`** - Geometry conversion utilities (Circle to Polygon approximation for GeoJSON serialization)
 - **`mapStateUtils.ts`** - Map state management and persistence utilities
 - **`serializationUtils.ts`** - Advanced feature serialization and deserialization for database storage
+- **`searchUtils.ts`** - Search functionality utilities including coordinate conversion and result formatting
 
 #### Icons (`src/icons/`)
 - **Icon components** - Triangle, Pit, GP, Junction Point, Tower, Text SVG components and click handlers
@@ -128,6 +136,7 @@ The application follows a modular, component-based architecture with clear separ
 - **Measure**: Distance measurement tool with inline text display (dark gray dashed lines)
 - **Transform**: Advanced feature manipulation (rotate, scale, stretch) - works only on editable features
 - **Text**: Place and edit text labels with customizable styling, rotation, and scale controls
+- **Search**: Location search with autocomplete using OpenStreetMap Nominatim API
 
 ### Keyboard Shortcuts
 - **Ctrl+C**: Copy selected features to clipboard
@@ -220,6 +229,16 @@ The application follows a modular, component-based architecture with clear separ
    - Cross-tab synchronization using localStorage events
    - Automatic default project initialization on first app load
 
+11. **Search Functionality**:
+   - Location search using OpenStreetMap Nominatim API through ol-ext SearchNominatim
+   - Autocomplete suggestions with real-time search results
+   - Coordinate conversion between WGS84 and map projections
+   - Zoom level optimization based on search result type and bounding box
+   - Search result formatting and display with detailed address information
+   - `SearchPanel.tsx` component provides search UI with result selection
+   - `SearchWrapper.tsx` component integrates search functionality with map
+   - Search utilities in `src/utils/searchUtils.ts` for coordinate handling and result processing
+
 #### Benefits of the New Architecture
 - **Easier debugging** - Issues can be isolated to specific components
 - **Better testing** - Each component can be unit tested independently
@@ -233,7 +252,17 @@ The `exportPDF` branch includes the latest features and improvements over the ma
 
 ### Recent Changes
 
-#### Enhanced Multi-Selection Functionality (Latest - v2.5)
+#### Search Functionality Implementation (Latest - v2.6)
+- **Location search with Nominatim** - Integrated OpenStreetMap Nominatim API for place search and geocoding
+- **Autocomplete search** - Real-time search suggestions with comprehensive place data
+- **Smart zoom control** - Automatic zoom level adjustment based on search result type and bounding box
+- **SearchPanel component** - Dedicated search UI with result list and detailed information display
+- **SearchWrapper component** - Integration layer that connects search functionality with map instance
+- **Coordinate conversion utilities** - Seamless conversion between WGS84 coordinates and map projections
+- **Search result formatting** - Enhanced display of search results with address details and place metadata
+- **ol-ext SearchNominatim integration** - Leveraged ol-ext library for robust search functionality
+
+#### Enhanced Multi-Selection Functionality (v2.5)
 - **Advanced multi-selection modes** - Support for shift-click, always-on, and custom multi-selection modes
 - **Drag selection support** - Select multiple features by dragging a selection box
 - **Multi-feature operations** - Enhanced copy, paste, and cut operations for multiple selected features
@@ -359,7 +388,7 @@ The `exportPDF` branch includes the latest features and improvements over the ma
 - Enhanced UI with improved tooltips and visual feedback
 
 ### Version History
-- **exportPDF** (current) - Latest features including Enhanced Text tool with rotate/scale controls, Multi-format download functionality (GeoJSON, KML, KMZ), Properties panel enhancement, Enhanced Multi-Selection Functionality, Multi-Job Project Management, PGLite persistence, advanced serialization, Cut/Copy/Paste, point delete, Measure tool, icon improvements, and architecture refactoring
+- **exportPDF** (current) - Latest features including Search functionality with Nominatim integration, Enhanced Text tool with rotate/scale controls, Multi-format download functionality (GeoJSON, KML, KMZ), Properties panel enhancement, Enhanced Multi-Selection Functionality, Multi-Job Project Management, PGLite persistence, advanced serialization, Cut/Copy/Paste, point delete, Measure tool, icon improvements, and architecture refactoring
 - **Icons2.0** - Previous major release with Enhanced Multi-Selection Functionality, Multi-Job Project Management, and architecture improvements
 - **Icons** - Icon tools implementation
 - **Legends** - Legend component enhancements
