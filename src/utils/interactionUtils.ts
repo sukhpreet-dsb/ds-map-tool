@@ -210,8 +210,6 @@ export const createMeasureDraw = (
     source,
     style,
     featureProperties: {
-      islegends: true,
-      legendType: legendTypeId,
       isMeasure: true,
     },
     onDrawEnd: handleDrawEnd,

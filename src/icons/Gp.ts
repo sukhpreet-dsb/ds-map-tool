@@ -92,9 +92,6 @@ export const handleGPClick = (
     gpFeature.set("isGP", true);
     gpFeature.set("nonEditable", true);
 
-    // Apply styles (array of styles that target sub-geometries)
-    gpFeature.setStyle(getGPStyles());
-
     // Add to vector source (single feature = selectable as one unit)
     vectorSource.addFeature(gpFeature);
   } catch (error) {

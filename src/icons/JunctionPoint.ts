@@ -96,9 +96,6 @@ export const handleJunctionClick = (
     junctionFeature.set("isJunction", true);
     junctionFeature.set("nonEditable", true);
 
-    // Apply styles
-    junctionFeature.setStyle(getJunctionStyles());
-
     // Add to vector source
     vectorSource.addFeature(junctionFeature);
   } catch (error) {

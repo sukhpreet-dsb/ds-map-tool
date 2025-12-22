@@ -23,16 +23,17 @@ export function TogglingObject() {
       </SheetTrigger>
       <SheetContent side="left" className="w-60">
         <SheetHeader>
-          <SheetTitle>Toggle</SheetTitle>
+          <SheetTitle>Layers</SheetTitle>
         </SheetHeader>
         <div className="px-4 divide-transparent divide-y-12">
           {TOOLS.slice(3).map((tool) => {
             const Icon = tool.icon;
+            console.log("ID XXX : ",tool.id)
             return (
               <div key={tool.id} className="flex items-center gap-4 ">
                 <Checkbox
                   id={tool.id}
-                  defaultChecked
+                  checked={!hiddenTypes[tool.id]}
                   onClick={() => toggleFeature(tool.id)}
                 />
                 <Icon className="size-4 -mr-2" />

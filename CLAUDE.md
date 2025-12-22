@@ -31,7 +31,7 @@ This is a **DS Map Tool** - a web-based map editor application built with React 
 - **Map Library**: OpenLayers (v10.6.1) + ol-ext (v4.0.36) + ol-types
 - **Database**: PGLite (v0.3.14) - PostgreSQL-compatible local database
 - **Styling**: Tailwind CSS (v4.1.16)
-- **UI Components**: Radix UI components (Dialog, Dropdown, Label, Slider, Slot, Toggle, ToggleGroup)
+- **UI Components**: Radix UI components (Dialog, Dropdown, Label, Slider, Slot, Toggle, ToggleGroup, Sheet, Checkbox)
 - **UI Icons**: Lucide React (v0.552.0)
 - **Build Tool**: Vite 7.1.7
 - **Package Manager**: npm/pnpm
@@ -60,9 +60,12 @@ This is a **DS Map Tool** - a web-based map editor application built with React 
 - **Enhanced serialization utilities** - Advanced feature serialization and deserialization for complex data structures
 - **Project-based data isolation** - Each project maintains its own separate database and map state
 - **Multi-selection functionality** - Enhanced multi-selection with drag, copy, paste, and cut operations for multiple features
-- **Properties panel** - View and edit feature properties including coordinates and names
+- **Properties panel** - View and edit feature properties including coordinates, names, and custom properties with full edit/save workflow
 - **Text tool** - Place and edit text labels on the map with customizable styling
 - **Search functionality** - Location search using Nominatim with autocomplete and geocoding capabilities
+- **Toggling Objects** - Show/hide different feature types on the map through a slide-out panel interface
+- **Feature name display** - Automatic display of feature names as text labels above Point geometry features
+- **Auto-open Properties Panel** - Automatically opens Properties Panel when creating new Point features for immediate editing
 - Smooth map view transitions
 
 ### Architecture
@@ -83,10 +86,11 @@ The application follows a modular, component-based architecture with clear separ
 - **`JobSelection.tsx`** - Multi-job/project selection, creation, and management component with edit/delete functionality
 - **`CreatingJob.tsx`** - New job/project creation dialog with validation
 - **`TextDialog.tsx`** - Text input dialog for creating and editing text labels
-- **`PropertiesPanel.tsx`** - Feature properties display and editing panel
+- **`PropertiesPanel.tsx`** - Feature properties display and editing panel with custom properties management
 - **`SearchPanel.tsx`** - Location search panel with Nominatim integration
 - **`SearchWrapper.tsx`** - Search functionality wrapper component
-- **`ui/`** - Reusable UI components (Button, Card, Dropdown, Toggle, ToggleGroup, Input)
+- **`TogglingObject.tsx`** - Slide-out panel for showing/hiding different feature types on the map
+- **`ui/`** - Reusable UI components (Button, Card, Dropdown, Toggle, ToggleGroup, Input, Sheet, Checkbox)
 
 #### Custom Hooks (`src/hooks/`)
 - **`useMapState.ts`** - Map view state, layer switching, and transition management
@@ -95,6 +99,7 @@ The application follows a modular, component-based architecture with clear separ
 - **`useClickHandlerManager.ts`** - OpenLayers event handler management
 - **`useKeyboardShortcuts.ts`** - Keyboard shortcuts management for cut/copy/paste and undo/redo operations
 - **`useMapProjects.ts`** - Multi-job/project management with isolated PGLite databases, project CRUD operations, and data persistence
+- **`useToggleObjects.ts`** - Feature visibility management using useSyncExternalStore for reactive state synchronization
 
 #### Configuration & Tools
 - **`src/config/toolConfig.ts`** - Tool configuration and definitions
@@ -183,6 +188,8 @@ The application follows a modular, component-based architecture with clear separ
    - Measure tool uses dedicated styling with custom dark gray dashed lines and distance text labels
    - Text features use 14px Arial font with white stroke (width 3) and black fill for optimal visibility
    - Text scaling and rotation applied through OpenLayers Text style properties for optimal rendering performance
+   - Point features automatically display names via `shouldShowName()` and `getNameTextStyle()` functions
+   - Name styling: 14px Arial, black fill, white stroke (width 3), positioned -15px above point with z-index 100
 
 5. **File Operations**:
    - File import/export logic is in `FileManager.tsx`
@@ -239,6 +246,38 @@ The application follows a modular, component-based architecture with clear separ
    - `SearchWrapper.tsx` component integrates search functionality with map
    - Search utilities in `src/utils/searchUtils.ts` for coordinate handling and result processing
 
+12. **Toggling Objects Feature**:
+   - Feature visibility control system using `useToggleObjects.ts` hook with `useSyncExternalStore` pattern
+   - `TogglingObject.tsx` component provides slide-out panel interface (Radix UI Sheet)
+   - Global state management allows reactive updates across all map components
+   - Visibility toggling applies null styles to hidden features while preserving data
+   - Supports all drawing tools: Point, Polyline, Freehand, Arrow, GP, Tower, Junction, Triangle, Pit, Measure, Text, Legends
+   - Panel triggered via "Open" button positioned at bottom-left of map (absolute left-2 bottom-2)
+   - Each feature type has checkbox with icon and label for intuitive control
+   - `MapInstance.tsx` checks `hiddenTypes` state and returns empty styles for hidden features
+
+13. **Feature Name Display**:
+   - Automatic name display for Point geometry features via `shouldShowName()` and `getNameTextStyle()` in `FeatureStyler.tsx`
+   - Text styling: 14px Arial font with black fill and white stroke (width 3) for optimal contrast
+   - Positioned -15px above point with z-index 100 to appear above other features
+   - Excludes features with own text systems (arrows, text features, legends, measure)
+   - Names retrieved from feature's `name` property
+   - Integrated into `getFeatureStyle()` function returning combined styles array
+   - Works seamlessly with icon features (GP, Tower, Junction, Triangle, Pit)
+   - Respects toggling system - names hidden when parent feature type is hidden
+
+14. **Enhanced Properties Panel**:
+   - Unified property system consolidating name, coordinates, and custom properties via `extractAllProperties()`
+   - Custom properties management with add, update, and delete operations
+   - Edit/Save/Cancel workflow with state backup for rollback capability
+   - Protected properties (name, long, lat) have read-only keys but editable values
+   - Custom properties are fully editable key-value pairs
+   - Coordinate updates support all geometry types (Point, LineString, Polygon, GeometryCollection, MultiLineString)
+   - Auto-open functionality when new Point features created via `onFeatureSelect` callback in `ToolManager.tsx`
+   - Enhanced UI with Lucide icons (Edit2, Save, X, Plus, Trash2) and dark mode support
+   - Empty state messages for better UX
+   - Each property has unique ID: 'prop-name', 'prop-long', 'prop-lat', or `prop-${index}-${Date.now()}`
+
 #### Benefits of the New Architecture
 - **Easier debugging** - Issues can be isolated to specific components
 - **Better testing** - Each component can be unit tested independently
@@ -252,7 +291,27 @@ The `exportPDF` branch includes the latest features and improvements over the ma
 
 ### Recent Changes
 
-#### Search Functionality Implementation (Latest - v2.6)
+#### Toggling Objects & Enhanced Features (Latest - v2.7)
+- **Toggling Objects Feature** - Comprehensive visibility control system for showing/hiding feature types
+- **`TogglingObject.tsx` component** - Slide-out panel interface using Radix UI Sheet with checkboxes for each tool
+- **`useToggleObjects.ts` hook** - Global state management using `useSyncExternalStore` for reactive visibility control
+- **Feature visibility control** - Hide/show Point, Polyline, Freehand, Arrow, GP, Tower, Junction, Triangle, Pit, Measure, Text, and Legends
+- **Seamless integration** - Visibility checks in `MapInstance.tsx` apply null styles to hidden features while preserving data
+- **Automatic name display for Point features** - Point geometry features automatically show their names as text labels above the icon
+- **`shouldShowName()` function** - Determines which features should display names (Point geometries excluding arrows, text, legends, measure)
+- **`getNameTextStyle()` function** - Creates consistent name text styling (14px Arial, black fill, white stroke, -15px offset, z-index 100)
+- **Name integration** - Names seamlessly integrate with icon features (GP, Tower, Junction, Triangle, Pit)
+- **Enhanced Properties Panel** - Major upgrade with custom properties management and improved edit workflow
+- **Custom properties CRUD** - Add, update, and delete unlimited custom key-value pairs for any feature
+- **Unified property system** - `extractAllProperties()` consolidates name, coordinates, and custom properties
+- **Edit/Save/Cancel workflow** - Full state management with backup and rollback capability
+- **Auto-open on Point drop** - Properties Panel automatically opens when new Point features are created
+- **Enhanced UI elements** - Modern interface with Lucide icons (Edit2, Save, X, Plus, Trash2) and dark mode support
+- **Protected and custom properties** - Protected properties (name, long, lat) with read-only keys; custom properties fully editable
+- **New UI components** - Added Radix UI Sheet and Checkbox components for enhanced user interface
+- **Icon styling improvements** - Refined icon rendering to properly integrate with name display system
+
+#### Search Functionality Implementation (v2.6)
 - **Location search with Nominatim** - Integrated OpenStreetMap Nominatim API for place search and geocoding
 - **Autocomplete search** - Real-time search suggestions with comprehensive place data
 - **Smart zoom control** - Automatic zoom level adjustment based on search result type and bounding box
@@ -338,12 +397,13 @@ The `exportPDF` branch includes the latest features and improvements over the ma
 - **TypeScript improvements** - All type errors resolved and enhanced type safety
 - **Configuration restructuring** - Moved tool config to `src/config/` for better organization
 
-#### Icon Tools Implementation
+#### Icon Tools Implementation (Updated in v2.7)
 - **Tower tool** - Place tower markers with custom SVG icons
 - **Junction Point tool** - Place junction/connectivity points
 - **GP (General Purpose) tool** - General purpose drawing tool with icon support
 - **Triangle and Pit icons** - Additional icon-based drawing tools
 - **Icon component architecture** - Each icon has its own React component with integrated click handlers
+- **Icon styling improvements** - Refined icon rendering to properly integrate with automatic name display system
 - **ToolBox icon** - Dedicated toolbox UI icon component
 
 #### Text Tool Enhancement (Latest)
@@ -368,10 +428,13 @@ The `exportPDF` branch includes the latest features and improvements over the ma
 - **Automatic file naming** - Smart file naming with format-specific extensions
 - **No server dependency** - Pure client-side download functionality using Blob URLs
 
-#### Properties Panel Enhancement
+#### Properties Panel Enhancement (Updated in v2.7)
 - **Feature properties display** - Show detailed information about selected features including coordinates and metadata
 - **Coordinate editing** - Edit feature positions through longitude/latitude input fields
 - **Name/attribute editing** - Edit feature names and other attributes
+- **Custom properties management** - Add, update, and delete unlimited custom key-value pairs for any feature
+- **Edit/Save/Cancel workflow** - Full state management with backup for rollback capability
+- **Auto-open on Point drop** - Automatically opens when new Point features are created for immediate editing
 - **Real-time updates** - Changes are immediately reflected on the map
 - **Geometry type support** - Works with Point, LineString, Polygon, and other geometry types
 
@@ -388,7 +451,7 @@ The `exportPDF` branch includes the latest features and improvements over the ma
 - Enhanced UI with improved tooltips and visual feedback
 
 ### Version History
-- **exportPDF** (current) - Latest features including Search functionality with Nominatim integration, Enhanced Text tool with rotate/scale controls, Multi-format download functionality (GeoJSON, KML, KMZ), Properties panel enhancement, Enhanced Multi-Selection Functionality, Multi-Job Project Management, PGLite persistence, advanced serialization, Cut/Copy/Paste, point delete, Measure tool, icon improvements, and architecture refactoring
+- **exportPDF** (current) - Latest features including **Toggling Objects (v2.7)** with feature visibility control, **Automatic name display for Point features**, **Enhanced Properties Panel with custom properties management**, **Auto-open Properties Panel on Point drop**, Search functionality with Nominatim integration (v2.6), Enhanced Text tool with rotate/scale controls, Multi-format download functionality (GeoJSON, KML, KMZ), Enhanced Multi-Selection Functionality (v2.5), Multi-Job Project Management (v2.4), PGLite persistence (v2.3), advanced serialization, Undo/Redo (v2.2), Cut/Copy/Paste (v2.1), point delete, Measure tool (v2.0), icon improvements, and architecture refactoring
 - **Icons2.0** - Previous major release with Enhanced Multi-Selection Functionality, Multi-Job Project Management, and architecture improvements
 - **Icons** - Icon tools implementation
 - **Legends** - Legend component enhancements
