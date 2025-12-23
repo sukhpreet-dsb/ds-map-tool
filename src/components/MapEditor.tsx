@@ -34,6 +34,7 @@ import { handleTextClick } from "@/icons/Text";
 import SearchWrapper, { type SearchWrapperRef } from "./SearchWrapper";
 import type { SearchResult } from "./SearchPanel";
 import { TogglingObject } from "./TogglingObject";
+import axios from "axios";
 
 // Interface for properly serializable map data
 interface SerializedMapData {
@@ -397,6 +398,45 @@ const MapEditor: React.FC = () => {
     }
   };
 
+  // PDF Export - Send GeoJSON file to /download endpoint
+  const handlePdfExport = async () => {
+    if (!mapRef.current) return;
+
+    try {
+      const mapData = await loadFromDb();
+
+      if (!mapData?.features || mapData.features.length === 0) {
+        alert("No features to export.");
+        return;
+      }
+
+      // Convert GeoJSON to Blob
+      const geojsonBlob = new Blob([JSON.stringify(mapData.features, null, 2)], {
+        type: "application/json",
+      });
+
+      // Create FormData and append the file
+      const formData = new FormData();
+      formData.append("file", geojsonBlob, "map-export.geojson");
+
+      // Send file to /download endpoint
+      const response = await axios.post("http://localhost:8000/download", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+        responseType: "blob", // Expecting PDF blob response
+      });
+
+      // Download the PDF file
+      const blob = new Blob([response.data], { type: "application/pdf" });
+      const fileName = `map-export-${new Date().toISOString().split("T")[0]}.pdf`;
+      downloadBlob(blob, fileName);
+    } catch (error) {
+      console.error("PDF export failed:", error);
+      alert("PDF export failed. Check console for details.");
+    }
+  };
+
   // ✅ SAVE to isolated DB
   const saveMapState = async () => {
     if (!isProjectReadyRef.current) {
@@ -680,6 +720,7 @@ const MapEditor: React.FC = () => {
         selectedLegend={selectedLegend}
         onLegendSelect={handleLegendSelect}
         onExportClick={handleExportClick}
+        onPdfExport={handlePdfExport}
       />
 
       <FileManager
