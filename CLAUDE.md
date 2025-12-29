@@ -37,6 +37,7 @@ This is a **DS Map Tool** - a web-based map editor application built with React 
 - **Package Manager**: npm/pnpm
 - **Routing**: React Router 7.9.6
 - **File Processing**: JSZip (v3.10.1) for KMZ support
+- **PDF Generation**: jsPDF (v3.0.4) for client-side PDF export
 - **State Management**: Custom hooks with React Context patterns
 - **Search**: OpenStreetMap Nominatim API via ol-ext
 
@@ -45,6 +46,7 @@ This is a **DS Map Tool** - a web-based map editor application built with React 
 - Advanced drawing tools (Point, Polyline, Line, Freehand, Arrow, GP, Tower, Junction Point, Measure, Text)
 - File import/export support (GeoJSON, KML, KMZ) with enhanced KML/KMZ format handling
 - **Download functionality** - Direct download of maps in GeoJSON, KML, and KMZ formats
+- **PDF Export** - High-quality map export to PDF with DragBox area selection, configurable page sizes (A0-A5), and resolution options (72-3600 DPI) with real-time progress tracking
 - **Advanced text manipulation** - Text tool with rotate and scale capabilities for precise label placement
 - Tool selection system with toolbar
 - Universal feature selection (all features can be selected) with restricted editing (only Polyline, Freehand Line, Arrow, Legend, and Text features are editable)
@@ -82,14 +84,16 @@ The application follows a modular, component-based architecture with clear separ
 - **`ToolBar.tsx`** - UI toolbar for tool selection
 - **`LegendDropdown.tsx`** - Legend creation and management component
 - **`MapViewToggle.tsx`** - Map view switcher component
-- **`LoadingOverlay.tsx`** - Loading overlay for transitions
-- **`JobSelection.tsx`** - Multi-job/project selection, creation, and management component with edit/delete functionality
-- **`CreatingJob.tsx`** - New job/project creation dialog with validation
+- **`LoadingOverlay.tsx`** - Loading overlay for transitions and job switching with backdrop blur
+- **`JobSelection.tsx`** - Multi-job/project selection, creation, and management component with edit/delete functionality and loading states
+- **`CreatingJob.tsx`** - New job/project creation dialog with validation and inline loading overlay
 - **`TextDialog.tsx`** - Text input dialog for creating and editing text labels
 - **`PropertiesPanel.tsx`** - Feature properties display and editing panel with custom properties management
 - **`SearchPanel.tsx`** - Location search panel with Nominatim integration
 - **`SearchWrapper.tsx`** - Search functionality wrapper component
 - **`TogglingObject.tsx`** - Slide-out panel for showing/hiding different feature types on the map
+- **`PdfExportDialog.tsx`** - PDF export dialog with page size, resolution selection, and real-time progress tracking
+- **`DragBoxInstruction.tsx`** - Interactive overlay for DragBox area selection guidance
 - **`ui/`** - Reusable UI components (Button, Card, Dropdown, Toggle, ToggleGroup, Input, Sheet, Checkbox)
 
 #### Custom Hooks (`src/hooks/`)
@@ -116,6 +120,7 @@ The application follows a modular, component-based architecture with clear separ
 - **`mapStateUtils.ts`** - Map state management and persistence utilities
 - **`serializationUtils.ts`** - Advanced feature serialization and deserialization for database storage
 - **`searchUtils.ts`** - Search functionality utilities including coordinate conversion and result formatting
+- **`pdfExportUtils.ts`** - PDF export functionality with canvas rendering, aspect ratio preservation, format optimization, and progress tracking
 
 #### Icons (`src/icons/`)
 - **Icon components** - Triangle, Pit, GP, Junction Point, Tower, Text SVG components and click handlers
@@ -123,7 +128,8 @@ The application follows a modular, component-based architecture with clear separ
 
 #### Configuration (`src/`)
 - **`config/`** - Tool configuration and definitions (moved from `src/tools/`)
-- **`types/`** - TypeScript type definitions (including ol-ext types)
+- **`types/`** - TypeScript type definitions (including ol-ext types, PDF export types)
+  - **`pdf.ts`** - PDF export configuration types (PageSize, Resolution, PageDimensions, PdfExportConfig)
 - **`lib/`** - Shared utility functions (e.g., cn for className merging)
 
 ### Available Tools
@@ -278,6 +284,31 @@ The application follows a modular, component-based architecture with clear separ
    - Empty state messages for better UX
    - Each property has unique ID: 'prop-name', 'prop-long', 'prop-lat', or `prop-${index}-${Date.now()}`
 
+15. **PDF Export System**:
+   - Client-side PDF generation using jsPDF library with high-quality map rendering
+   - **DragBox interaction** for interactive area selection - users draw a rectangle to define export bounds
+   - **PdfExportDialog component** provides configuration interface with page size (A0-A5) and resolution (72-3600 DPI) options
+   - **DragBoxInstruction component** displays visual guidance overlay during area selection
+   - **pdfExportUtils.ts** contains core export logic with `exportMapToPdf()` function
+   - **Progress tracking system** with stage-based updates: preparing → rendering → creating → complete
+   - **Canvas size management** with automatic scaling for large dimensions (max 12192px)
+   - **Aspect ratio preservation** between selected extent and PDF page size
+   - **Format optimization** - JPEG for high-resolution exports (≥300 DPI), PNG for lower resolutions
+   - **Map state preservation** - Original map view restored after export
+   - **3-minute timeout** for rendering operations to handle large/complex maps
+   - **White background fill** for professional PDF output
+   - **Performance hints** - Page sizes labeled with speed indicators (A5 "fast", A0 "slow")
+   - **Resolution options**: 72 DPI (fastest), 150, 300 (standard), 600 (high), 1200 (ultra, default), 2400 (maximum), 3600 DPI (maximum quality, very slow)
+   - Export workflow: Click PDF button → DragBox area selection → Configure dialog → Progress tracking → Download
+
+16. **Visual Feedback Enhancements**:
+   - **LoadingOverlay** component used for job switching with "Switching job..." message
+   - **JobSelection** component displays loading state with Loader2 spinner during project switches
+   - **CreatingJob** component shows inline loading overlay during job creation with backdrop blur
+   - **Disabled states** prevent multiple submissions during async operations
+   - **Full-screen overlays** with z-50 positioning for critical operations
+   - **Lucide Loader2 icon** provides consistent spinning animation across all loading states
+
 #### Benefits of the New Architecture
 - **Easier debugging** - Issues can be isolated to specific components
 - **Better testing** - Each component can be unit tested independently
@@ -291,7 +322,27 @@ The `exportPDF` branch includes the latest features and improvements over the ma
 
 ### Recent Changes
 
-#### Toggling Objects & Enhanced Features (Latest - v2.7)
+#### PDF Export & Visual Feedback (Latest - v2.8)
+- **PDF Export Functionality** - Complete client-side PDF generation system with high-quality map rendering
+- **`PdfExportDialog.tsx` component** - Comprehensive dialog with page size (A0-A5), resolution (72-3600 DPI), and real-time progress tracking
+- **`DragBoxInstruction.tsx` component** - Interactive overlay guiding users through area selection process
+- **DragBox area selection** - OpenLayers DragBox interaction for selecting specific map regions to export
+- **3600 DPI support** - Maximum quality export option added alongside existing resolution options
+- **Progress tracking system** - Stage-based progress bar with percentage display (preparing → rendering → creating → complete)
+- **`pdfExportUtils.ts` utility** - Core export functionality with canvas rendering, aspect ratio preservation, and format optimization
+- **PDF types system** - Complete TypeScript definitions in `src/types/pdf.ts` for PageSize, Resolution, and export configuration
+- **Canvas size management** - Automatic scaling for large dimensions with 12192px maximum and aspect ratio preservation
+- **Format optimization** - Smart JPEG/PNG selection based on resolution (JPEG for ≥300 DPI exports)
+- **Map state preservation** - Automatic restoration of original view after export completion
+- **Performance hints** - User-friendly labels indicating export speed for different page sizes
+- **Visual feedback for job operations** - Enhanced loading states during project creation and switching
+- **LoadingOverlay enhancements** - Full-screen overlay with backdrop blur for job switching transitions
+- **JobSelection loading states** - Loader2 spinner in dropdown trigger with disabled state during switches
+- **CreatingJob inline overlay** - Centered loading indicator with "Creating job..." message in dialog
+- **jsPDF integration** - Added jsPDF (v3.0.4) and @types/jspdf (v2.0.0) dependencies for PDF generation
+- **Export workflow** - Seamless user experience: PDF button → DragBox selection → Configuration → Progress → Download
+
+#### Toggling Objects & Enhanced Features (v2.7)
 - **Toggling Objects Feature** - Comprehensive visibility control system for showing/hiding feature types
 - **`TogglingObject.tsx` component** - Slide-out panel interface using Radix UI Sheet with checkboxes for each tool
 - **`useToggleObjects.ts` hook** - Global state management using `useSyncExternalStore` for reactive visibility control
@@ -451,7 +502,7 @@ The `exportPDF` branch includes the latest features and improvements over the ma
 - Enhanced UI with improved tooltips and visual feedback
 
 ### Version History
-- **exportPDF** (current) - Latest features including **Toggling Objects (v2.7)** with feature visibility control, **Automatic name display for Point features**, **Enhanced Properties Panel with custom properties management**, **Auto-open Properties Panel on Point drop**, Search functionality with Nominatim integration (v2.6), Enhanced Text tool with rotate/scale controls, Multi-format download functionality (GeoJSON, KML, KMZ), Enhanced Multi-Selection Functionality (v2.5), Multi-Job Project Management (v2.4), PGLite persistence (v2.3), advanced serialization, Undo/Redo (v2.2), Cut/Copy/Paste (v2.1), point delete, Measure tool (v2.0), icon improvements, and architecture refactoring
+- **exportPDF** (current) - Latest features including **PDF Export (v2.8)** with DragBox area selection, configurable page sizes and resolutions (72-3600 DPI), progress tracking, and visual feedback enhancements for job operations; **Toggling Objects (v2.7)** with feature visibility control, **Automatic name display for Point features**, **Enhanced Properties Panel with custom properties management**, **Auto-open Properties Panel on Point drop**, Search functionality with Nominatim integration (v2.6), Enhanced Text tool with rotate/scale controls, Multi-format download functionality (GeoJSON, KML, KMZ), Enhanced Multi-Selection Functionality (v2.5), Multi-Job Project Management (v2.4), PGLite persistence (v2.3), advanced serialization, Undo/Redo (v2.2), Cut/Copy/Paste (v2.1), point delete, Measure tool (v2.0), icon improvements, and architecture refactoring
 - **Icons2.0** - Previous major release with Enhanced Multi-Selection Functionality, Multi-Job Project Management, and architecture improvements
 - **Icons** - Icon tools implementation
 - **Legends** - Legend component enhancements
