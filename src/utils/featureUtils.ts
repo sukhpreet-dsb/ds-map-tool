@@ -1,6 +1,7 @@
 import { Feature } from "ol";
 import type { FeatureLike } from "ol/Feature";
 import { Geometry } from "ol/geom";
+import { Style, Icon } from "ol/style";
 import { isTriangleFeature, triangleUtils } from "@/icons/Triangle";
 import { isPitFeature, pitUtils } from "@/icons/Pit";
 import { isGPFeature, gpUtils } from "@/icons/Gp";
@@ -111,6 +112,22 @@ export const getFeatureTypeStyle = (feature: FeatureLike) => {
 
   if (isFeatureType(feature, "tower")) {
     return towerUtils.getStyle();
+  }
+
+  // Handle custom icon features from icon picker
+  if (feature.get("isIcon")) {
+    const iconPath = feature.get("iconPath");
+    if (iconPath) {
+      return new Style({
+        image: new Icon({
+          src: iconPath,
+          scale: 0.5,
+          anchor: [0.5, 0.5],
+          anchorXUnits: "fraction",
+          anchorYUnits: "fraction",
+        }),
+      });
+    }
   }
 
   return null;

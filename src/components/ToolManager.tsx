@@ -225,6 +225,12 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
         );
         break;
 
+      case "icons":
+        // Trigger custom event to open icon picker dialog
+        const iconPickerEvent = new CustomEvent('iconPickerOpen');
+        window.dispatchEvent(iconPickerEvent);
+        break;
+
       case "measure":
         // Use the measure legend configuration
         const measureLegend = getLegendById("measure");

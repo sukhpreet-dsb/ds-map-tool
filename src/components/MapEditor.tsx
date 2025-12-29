@@ -37,6 +37,8 @@ import { TogglingObject } from "./TogglingObject";
 import { PdfExportDialog } from "./PdfExportDialog";
 import { DragBoxInstruction } from "./DragBoxInstruction";
 import { exportMapToPdf, type PdfExportConfig } from "@/utils/pdfExportUtils";
+import { IconPickerDialog } from "./IconPickerDialog";
+import { handleIconClick } from "@/icons/IconPicker";
 
 // Interface for properly serializable map data
 interface SerializedMapData {
@@ -97,6 +99,9 @@ const MapEditor: React.FC = () => {
   const [editingTextFeature, setEditingTextFeature] = useState<Feature<Geometry> | null>(null);
   const [editingTextScale, setEditingTextScale] = useState(1);
   const [editingTextRotation, setEditingTextRotation] = useState(0);
+
+  // Icon picker dialog state
+  const [iconPickerOpen, setIconPickerOpen] = useState(false);
 
   // PDF export dialog state
   const [pdfDialogOpen, setPdfDialogOpen] = useState(false);
@@ -622,6 +627,21 @@ const MapEditor: React.FC = () => {
     };
   }, []);
 
+  // Icon picker event listener
+  useEffect(() => {
+    const handleIconPickerOpen = () => {
+      setIconPickerOpen(true);
+    };
+
+    // Add event listener for icon picker open
+    window.addEventListener('iconPickerOpen', handleIconPickerOpen);
+
+    return () => {
+      // Clean up event listener
+      window.removeEventListener('iconPickerOpen', handleIconPickerOpen);
+    };
+  }, []);
+
   // Handle text feature selection for editing
   useEffect(() => {
     // Only handle editing when select tool is active and a text feature is selected
@@ -675,6 +695,34 @@ const MapEditor: React.FC = () => {
     setEditingTextFeature(null);
     setEditingTextScale(1);
     setEditingTextRotation(0);
+  };
+
+  const handleIconSelect = (iconPath: string) => {
+    if (!mapRef.current) return;
+
+    // Switch to select tool immediately to prevent dialog from reopening
+    setActiveTool('select');
+
+    // Register a one-time click handler to place the icon
+    const handleMapClick = (evt: any) => {
+      const coordinate = evt.coordinate;
+      handleIconClick(vectorSourceRef.current, coordinate, iconPath);
+
+      // Save map state after adding icon
+      saveMapState();
+
+      // Remove the click listener after placing the icon
+      mapRef.current?.un('click', handleMapClick);
+    };
+
+    // Add the click listener
+    mapRef.current.on('click', handleMapClick);
+  };
+
+  const handleIconPickerClose = () => {
+    setIconPickerOpen(false);
+    // Switch back to select tool to prevent dialog from reopening
+    setActiveTool('select');
   };
 
   const handleRedoOperation = () => {
@@ -732,6 +780,12 @@ const MapEditor: React.FC = () => {
         initialScale={editingTextScale}
         initialRotation={editingTextRotation}
         isEditing={!!editingTextFeature}
+      />
+
+      <IconPickerDialog
+        isOpen={iconPickerOpen}
+        onClose={handleIconPickerClose}
+        onSelectIcon={handleIconSelect}
       />
 
       <PdfExportDialog
