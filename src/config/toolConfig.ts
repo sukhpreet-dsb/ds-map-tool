@@ -151,6 +151,13 @@ export const TOOLS_CONFIG: Record<string, ToolConfig> = {
     selectDisabled: true,
     modifyDisabled: false,
   },
+  split: {
+    id: "split",
+    name: "Split",
+    description: "Split LineString features by clicking on them",
+    selectDisabled: true,
+    modifyDisabled: true,
+  },
 };
 
 /**

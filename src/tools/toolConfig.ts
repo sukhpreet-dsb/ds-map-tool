@@ -10,7 +10,8 @@ import {
   Minus,
   Move,
   RulerDimensionLine,
-  MapPin
+  MapPin,
+  Scissors
 } from "lucide-react";
 
 export const TOOLS = [
@@ -93,6 +94,11 @@ export const TOOLS = [
     id: 'icons',
     name: 'Icons',
     icon: MapPin,
+  },
+  {
+    id: 'split',
+    name: 'Split',
+    icon: Scissors,
   },
 
 ];

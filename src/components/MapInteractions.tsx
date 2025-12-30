@@ -4,6 +4,7 @@ import { Collection } from "ol";
 import { click, altKeyOnly, shiftKeyOnly, always } from "ol/events/condition";
 import Transform from "ol-ext/interaction/Transform";
 import UndoRedo from "ol-ext/interaction/UndoRedo";
+import Split from "ol-ext/interaction/Split";
 import type Map from "ol/Map";
 import type VectorLayer from "ol/layer/Vector";
 import { Vector as VectorSource } from "ol/source";
@@ -14,6 +15,10 @@ import {
   isEditableFeature,
 } from "@/utils/featureTypeUtils";
 import { recalculateMeasureDistances } from "@/utils/interactionUtils";
+import {
+  isSplittableFeature,
+  copyFeatureProperties,
+} from "@/utils/splitUtils";
 
 export interface MapInteractionsProps {
   map: Map | null;
@@ -52,6 +57,7 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
     null
   );
   const undoRedoInteractionRef = useRef<UndoRedo | null>(null);
+  const splitInteractionRef = useRef<Split | null>(null);
 
   // Initialize UndoRedo interaction - only initialize once when map and vectorLayer are available
   useEffect(() => {
@@ -315,14 +321,57 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
     };
   }, [activeTool, map, vectorLayer]);
 
-  // Handle select interaction activation/deactivation (unchanged)
+  // Handle split tool activation/deactivation
+  useEffect(() => {
+    if (!map || !vectorLayer) return;
+
+    if (activeTool === "split") {
+      // Disable select and modify during split
+      selectInteractionRef.current?.setActive(false);
+      modifyInteractionRef.current?.setActive(false);
+
+      const vectorSource = vectorLayer.getSource();
+      if (!vectorSource) return;
+
+      const splitInteraction = new Split({
+        sources: vectorSource,
+        filter: isSplittableFeature,
+        cursor: "crosshair",
+        snapDistance: 25,
+      });
+
+      // Handle split events - copy properties to new features
+      splitInteraction.on("aftersplit", (e) => {
+        copyFeatureProperties(e.original, e.features);
+      });
+
+      map.addInteraction(splitInteraction as any);
+      splitInteractionRef.current = splitInteraction;
+    } else {
+      // Remove split interaction when switching away
+      if (splitInteractionRef.current) {
+        map.removeInteraction(splitInteractionRef.current as any);
+        splitInteractionRef.current = null;
+      }
+    }
+
+    return () => {
+      // Cleanup split interaction
+      if (splitInteractionRef.current) {
+        map.removeInteraction(splitInteractionRef.current as any);
+        splitInteractionRef.current = null;
+      }
+    };
+  }, [activeTool, map, vectorLayer]);
+
+  // Handle select interaction activation/deactivation
   useEffect(() => {
     if (!map || !selectInteractionRef.current) return;
 
-    const selectEnabledTools = ["select", "transform", "copy", "cut"];
+    const selectEnabledTools = ["select", "transform", "copy"];
 
     if (selectEnabledTools.includes(activeTool)) {
-      // Enable selection for select, transform, copy, and cut tools
+      // Enable selection for select, transform, and copy tools
       selectInteractionRef.current.setActive(true);
     } else {
       // Disable selection for all other tools (drawing, navigation, icon tools, etc.)
