@@ -213,7 +213,6 @@ export const handleTowerClickFromSvg = (
 ) => {
   try {
     const feat = createFeatureFromSvgPath(pathD, coordinate, viewBoxSize, scale);
-    feat.setStyle(getTowerVectorStyle(1, 0.1));
     vectorSource.addFeature(feat);
   } catch (err) {
     console.error("handleTowerClickFromSvg error:", err);

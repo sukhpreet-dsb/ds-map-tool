@@ -66,9 +66,6 @@ export const handlePitClick = (
     pitFeature.set("isPit", true);
     pitFeature.set("nonEditable", true);
 
-    // Apply pit style
-    pitFeature.setStyle(getPitStyle());
-
     // Add to vector source
     vectorSource.addFeature(pitFeature);
   } catch (error) {

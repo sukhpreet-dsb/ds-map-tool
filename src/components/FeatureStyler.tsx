@@ -130,6 +130,50 @@ export const getArrowStyle = (feature: FeatureLike) => {
   ];
 };
 
+/**
+ * Check if a feature should display its name
+ * Only Point features should show names
+ */
+const shouldShowName = (feature: FeatureLike): boolean => {
+  // Skip features that already have their own text display systems
+  if (feature.get("isArrow") ||
+      feature.get("isText") ||
+      feature.get("islegends") ||
+      feature.get("isMeasure")) {
+    return false;
+  }
+
+  // Only show names on Point geometry
+  const geometry = feature.getGeometry();
+  return geometry?.getType() === "Point";
+};
+
+
+/**
+ * Create text style for feature names (Point features only)
+ */
+const getNameTextStyle = (feature: FeatureLike): Style | null => {
+  const name = feature.get("name");
+  if (!name) return null;
+
+  const geometry = feature.getGeometry();
+  if (!geometry || geometry.getType() !== "Point") return null;
+
+  return new Style({
+    text: new Text({
+      text: String(name),
+      font: "14px Arial, sans-serif",
+      fill: new Fill({ color: "#000000" }),
+      stroke: new Stroke({ color: "#ffffff", width: 3 }),
+      textAlign: "center",
+      textBaseline: "middle",
+      offsetY: -15, // Position text above the point
+    }),
+    geometry: geometry as Point,
+    zIndex: 100, // High z-index to ensure text appears above features
+  });
+};
+
 // ✅ Custom feature styles (used for GeoJSON, KML, and KMZ)
 export const getFeatureStyle = (
   feature: FeatureLike,
@@ -199,6 +243,33 @@ export const getFeatureStyle = (
       })
     );
     return styles;
+  }
+
+  // Handle name display for Point and icon features
+  if (shouldShowName(feature)) {
+    const baseStyle = type === "LineString" || type === "MultiLineString"
+      ? createLineStyle("#00ff00", 4)
+      : type === "Point" || type === "MultiPoint"
+      ? createPointStyle({
+          radius: 6,
+          fillColor: "#ff0000",
+          strokeColor: "#ffffff",
+          strokeWidth: 2,
+        })
+      : getFeatureTypeStyle(feature) || new Style();
+
+    const nameTextStyle = getNameTextStyle(feature);
+
+    if (nameTextStyle) {
+      // If baseStyle is already an array, append text style
+      if (Array.isArray(baseStyle)) {
+        return [...baseStyle, nameTextStyle];
+      }
+      // Otherwise, convert to array
+      return [baseStyle, nameTextStyle];
+    }
+
+    return baseStyle;
   }
 
   if (type === "LineString" || type === "MultiLineString") {

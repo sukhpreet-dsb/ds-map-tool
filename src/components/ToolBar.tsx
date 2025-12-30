@@ -21,6 +21,7 @@ interface ToolbarProps {
   selectedLegend?: LegendType;
   onLegendSelect: (legend: LegendType) => void;
   onExportClick: (format: "geojson" | "kml" | "kmz") => void;
+  onPdfExportClick: () => void;
 }
 
 const Toolbar = ({
@@ -31,6 +32,7 @@ const Toolbar = ({
   selectedLegend,
   onLegendSelect,
   onExportClick,
+  onPdfExportClick,
 }: ToolbarProps) => {
   const [open, setOpen] = useState(true);
 
@@ -98,18 +100,10 @@ const Toolbar = ({
       >
         <FilePlus /> Import
       </Button>
-      {/* <Button
-        variant="outline"
-        className="cursor-pointer"
-        title="Upload GeoJson/Kml/Kmz"
-        onClick={onExportClick}
-      >
-        <ArrowDownToLine /> Download
-      </Button> */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline">
-            <ArrowDownToLine /> Download
+            <ArrowDownToLine /> Export
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent className="w-32" align="start">
@@ -117,6 +111,7 @@ const Toolbar = ({
             <DropdownMenuItem onClick={() => onExportClick("geojson")}>GeoJson</DropdownMenuItem>
             <DropdownMenuItem onClick={() => onExportClick("kml")}>Kml</DropdownMenuItem>
             <DropdownMenuItem onClick={() => onExportClick("kmz")}>Kmz</DropdownMenuItem>
+            <DropdownMenuItem onClick={onPdfExportClick}>PDF</DropdownMenuItem>
           </DropdownMenuGroup>
         </DropdownMenuContent>
       </DropdownMenu>

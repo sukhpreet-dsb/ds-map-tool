@@ -48,9 +48,6 @@ export const handleTriangleClick = (
     triangleFeature.set("isTriangle", true);
     triangleFeature.set("nonEditable", true);
 
-    // Apply triangle style
-    triangleFeature.setStyle(getTriangleStyle());
-
     // Add to vector source
     vectorSource.addFeature(triangleFeature);
 

@@ -18,7 +18,7 @@ import { useMapState } from "@/hooks/useMapState";
 import { useToolState } from "@/hooks/useToolState";
 import { useFeatureState } from "@/hooks/useFeatureState";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
-import { Select } from "ol/interaction";
+import { Select, DragBox } from "ol/interaction";
 import {
   convertFeaturesToGeoJSON,
   convertGeoJSONToFeatures,
@@ -31,6 +31,14 @@ import { useMapProjects } from "@/hooks/useMapProjects";
 import PropertiesPanel from "./PropertiesPanel";
 import { TextDialog } from "./TextDialog";
 import { handleTextClick } from "@/icons/Text";
+import SearchWrapper, { type SearchWrapperRef } from "./SearchWrapper";
+import type { SearchResult } from "./SearchPanel";
+import { TogglingObject } from "./TogglingObject";
+import { PdfExportDialog } from "./PdfExportDialog";
+import { DragBoxInstruction } from "./DragBoxInstruction";
+import { exportMapToPdf, type PdfExportConfig } from "@/utils/pdfExportUtils";
+import { IconPickerDialog } from "./IconPickerDialog";
+import { handleIconClick } from "@/icons/IconPicker";
 
 // Interface for properly serializable map data
 interface SerializedMapData {
@@ -83,6 +91,7 @@ const MapEditor: React.FC = () => {
   const selectInteractionRef = useRef<Select | null>(null);
   const undoRedoInteractionRef = useRef<any>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const searchWrapperRef = useRef<SearchWrapperRef | null>(null);
 
   // Text dialog state
   const [textDialogOpen, setTextDialogOpen] = useState(false);
@@ -90,6 +99,16 @@ const MapEditor: React.FC = () => {
   const [editingTextFeature, setEditingTextFeature] = useState<Feature<Geometry> | null>(null);
   const [editingTextScale, setEditingTextScale] = useState(1);
   const [editingTextRotation, setEditingTextRotation] = useState(0);
+
+  // Icon picker dialog state
+  const [iconPickerOpen, setIconPickerOpen] = useState(false);
+
+  // PDF export dialog state
+  const [pdfDialogOpen, setPdfDialogOpen] = useState(false);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [isDragBoxActive, setIsDragBoxActive] = useState(false);
+  const [selectedExtent, setSelectedExtent] = useState<Extent | null>(null);
+  const dragBoxRef = useRef<DragBox | null>(null);
 
   // File import handler
   const handleFileChange = async (
@@ -217,6 +236,13 @@ const MapEditor: React.FC = () => {
     } else {
       reader.readAsText(file);
     }
+  };
+
+  // Search location handler
+  const handleLocationSelected = (coordinate: [number, number], result: SearchResult) => {
+    console.log('Search location selected:', coordinate, result);
+    // You can add custom logic here when a location is selected
+    // For example, you could save it to the current project or add it as a feature
   };
 
   // Map initialization
@@ -386,6 +412,79 @@ const MapEditor: React.FC = () => {
     }
   };
 
+  // PDF Export - Client-side with jsPDF
+  const handlePdfExportClick = () => {
+    if (!mapRef.current) {
+      alert('Map not ready for export');
+      return;
+    }
+
+    // Activate DragBox selection mode
+    setIsDragBoxActive(true);
+    setSelectedExtent(null);
+
+    // Initialize DragBox interaction if not already created
+    if (!dragBoxRef.current) {
+      const dragBox = new DragBox();
+
+      dragBox.on('boxend', () => {
+        const extent = dragBox.getGeometry().getExtent();
+        setSelectedExtent(extent);
+        setIsDragBoxActive(false);
+
+        // Remove DragBox interaction
+        if (mapRef.current) {
+          mapRef.current.removeInteraction(dragBox);
+        }
+        dragBoxRef.current = null;
+
+        // Open PDF dialog with selected extent
+        setPdfDialogOpen(true);
+      });
+
+      dragBox.on('boxstart', () => {
+        // Clear previous selection when starting new drag
+        setSelectedExtent(null);
+      });
+
+      dragBoxRef.current = dragBox;
+      mapRef.current.addInteraction(dragBox);
+    } else {
+      // Re-add if already exists
+      mapRef.current.addInteraction(dragBoxRef.current);
+    }
+  };
+
+  const handlePdfExport = async (
+    config: PdfExportConfig,
+    onProgress: (progress: import("@/utils/pdfExportUtils").ExportProgress) => void
+  ) => {
+    if (!mapRef.current) {
+      alert('Map not ready for export');
+      return;
+    }
+
+    if (!selectedExtent) {
+      alert('No area selected for export');
+      return;
+    }
+
+    setIsExportingPdf(true);
+
+    try {
+      const pdfBlob = await exportMapToPdf(mapRef.current, config, onProgress, selectedExtent);
+      const fileName = `map-export-${new Date().toISOString().split('T')[0]}.pdf`;
+      downloadBlob(pdfBlob, fileName);
+      setPdfDialogOpen(false);
+      setSelectedExtent(null); // Clear selection after export
+    } catch (error) {
+      console.error('PDF export failed:', error);
+      alert(`PDF export failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
+
   // ✅ SAVE to isolated DB
   const saveMapState = async () => {
     if (!isProjectReadyRef.current) {
@@ -528,6 +627,21 @@ const MapEditor: React.FC = () => {
     };
   }, []);
 
+  // Icon picker event listener
+  useEffect(() => {
+    const handleIconPickerOpen = () => {
+      setIconPickerOpen(true);
+    };
+
+    // Add event listener for icon picker open
+    window.addEventListener('iconPickerOpen', handleIconPickerOpen);
+
+    return () => {
+      // Clean up event listener
+      window.removeEventListener('iconPickerOpen', handleIconPickerOpen);
+    };
+  }, []);
+
   // Handle text feature selection for editing
   useEffect(() => {
     // Only handle editing when select tool is active and a text feature is selected
@@ -583,6 +697,34 @@ const MapEditor: React.FC = () => {
     setEditingTextRotation(0);
   };
 
+  const handleIconSelect = (iconPath: string) => {
+    if (!mapRef.current) return;
+
+    // Switch to select tool immediately to prevent dialog from reopening
+    setActiveTool('select');
+
+    // Register a one-time click handler to place the icon
+    const handleMapClick = (evt: any) => {
+      const coordinate = evt.coordinate;
+      handleIconClick(vectorSourceRef.current, coordinate, iconPath);
+
+      // Save map state after adding icon
+      saveMapState();
+
+      // Remove the click listener after placing the icon
+      mapRef.current?.un('click', handleMapClick);
+    };
+
+    // Add the click listener
+    mapRef.current.on('click', handleMapClick);
+  };
+
+  const handleIconPickerClose = () => {
+    setIconPickerOpen(false);
+    // Switch back to select tool to prevent dialog from reopening
+    setActiveTool('select');
+  };
+
   const handleRedoOperation = () => {
     if (undoRedoInteractionRef.current?.hasRedo()) {
       undoRedoInteractionRef.current.redo();
@@ -613,6 +755,15 @@ const MapEditor: React.FC = () => {
         vectorSourceRef={vectorSourceRef}
       />
 
+      {/* Search Control - integrated with the map */}
+      {mapRef.current && (
+        <SearchWrapper
+          map={mapRef.current}
+          onLocationSelected={handleLocationSelected}
+          ref={searchWrapperRef}
+        />
+      )}
+
       <PropertiesPanel
         map={mapRef.current}
         selectedFeature={selectedFeature}
@@ -631,6 +782,21 @@ const MapEditor: React.FC = () => {
         isEditing={!!editingTextFeature}
       />
 
+      <IconPickerDialog
+        isOpen={iconPickerOpen}
+        onClose={handleIconPickerClose}
+        onSelectIcon={handleIconSelect}
+      />
+
+      <PdfExportDialog
+        isOpen={pdfDialogOpen}
+        onClose={() => setPdfDialogOpen(false)}
+        onExport={handlePdfExport}
+        isExporting={isExportingPdf}
+      />
+
+      <DragBoxInstruction isActive={isDragBoxActive} />
+
       <MapInteractions
         map={mapRef.current}
         vectorLayer={vectorLayerRef.current}
@@ -648,6 +814,7 @@ const MapEditor: React.FC = () => {
         vectorSource={vectorSourceRef.current}
         activeTool={activeTool}
         selectedLegend={selectedLegend}
+        onFeatureSelect={setSelectedFeature}
         onToolChange={setActiveTool}
       />
 
@@ -659,6 +826,7 @@ const MapEditor: React.FC = () => {
         selectedLegend={selectedLegend}
         onLegendSelect={handleLegendSelect}
         onExportClick={handleExportClick}
+        onPdfExportClick={handlePdfExportClick}
       />
 
       <FileManager
@@ -685,10 +853,13 @@ const MapEditor: React.FC = () => {
         isVisible={isTransitioning}
         message="Switching map view..."
       />
+
       <MapViewToggle
         currentView={currentMapView}
         onViewChange={handleMapViewChange}
       />
+      
+      <TogglingObject />
     </div>
   );
 };

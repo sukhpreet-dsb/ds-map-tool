@@ -8,6 +8,7 @@ import { OSM, XYZ, Vector as VectorSource } from "ol/source";
 import { fromLonLat } from "ol/proj";
 import { defaults as defaultControls } from "ol/control";
 import { getFeatureStyle } from "./FeatureStyler";
+import { useHiddenFeatures } from "@/hooks/useToggleObjects";
 
 export interface MapInstanceProps {
   onMapReady: (map: Map) => void;
@@ -25,13 +26,16 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
   vectorSourceRef,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
+  const { hiddenTypes } = useHiddenFeatures();
 
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
     // Create OSM layer
     const osmLayer = new TileLayer({
-      source: new OSM(),
+      source: new OSM({
+        crossOrigin: 'anonymous',
+      }),
       visible: true,
     });
 
@@ -42,6 +46,7 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
         attributions: "Tiles © Esri",
         maxZoom: 18,
         minZoom: 0,
+        crossOrigin: 'anonymous',
       }),
       visible: false,
     });
@@ -52,7 +57,38 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
 
     const vectorLayer = new VectorLayer({
       source: vectorSourceRef.current,
-      style: (feature, resolution) => {
+    });
+
+    // Store vector layer reference
+    vectorLayerRef.current = vectorLayer;
+
+    const map = new Map({
+      target: mapContainerRef.current,
+      layers: [osmLayer, satelliteLayer, vectorLayer],
+      view: new View({
+        center: fromLonLat([78.9629, 21.5937]),
+        zoom: 5,
+        maxZoom: 30,
+        minZoom: 0,
+        smoothExtentConstraint: true,
+      }),
+      controls: defaultControls({
+        zoom: false,
+        attribution: false,
+        rotate: false,
+      }),
+    });
+
+    onMapReady(map);
+
+    return () => {
+      map.setTarget(undefined);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (vectorLayerRef.current) {
+      vectorLayerRef.current.setStyle((feature, resolution) => {
         const type = feature.getGeometry()?.getType();
 
         // Only process text features with resolution-based visibility
@@ -62,8 +98,7 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
           const textRotation = feature.get("textRotation") || 0;
 
           // Hide text when zoomed out beyond zoom level ~8.5 (resolution 500)
-          console.log("resolution : ", resolution)
-          if (resolution > 500) {
+          if (hiddenTypes["text"]) {
             return new Style({
               text: new Text({ text: '' }) // OpenLayers pattern: empty text = hidden
             });
@@ -88,38 +123,24 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
             zIndex: 100,
           });
         }
+        
+        if (hiddenTypes["pit"] && feature.get("isPit") && type === "MultiLineString") return new Style({stroke: null,})
+        if (hiddenTypes["tower"] && feature.get("isTower") && type === "GeometryCollection") return new Style({stroke: null,})
+        if (hiddenTypes["junction"] && feature.get("isJunction") && type === "GeometryCollection") return new Style({stroke: null,})
+        if (hiddenTypes["gp"] && feature.get("isGP") && type === "GeometryCollection") return new Style({stroke: null,})
+        if (hiddenTypes["triangle"] && feature.get("isTriangle") && type === "Polygon") return new Style({stroke: null,})
+        if (hiddenTypes["measure"] && feature.get("isMeasure") && (type === "LineString" || type === "MultiLineString")) return new Style({stroke: null,})
+        if (hiddenTypes["arrow"] && feature.get("isArrow") && (type === "LineString" || type === "MultiLineString")) return new Style({stroke: null,})
+        if (hiddenTypes["freehand"] && feature.get("isFreehand") && (type === "LineString" || type === "MultiLineString")) return new Style({stroke: null,})
+        if (hiddenTypes["polyline"] && feature.get("isPolyline") && (type === "LineString" || type === "MultiLineString")) return new Style({stroke: null,})
+        if (hiddenTypes["legends"] && feature.get("islegends") && (type === "LineString" || type === "MultiLineString")) return new Style({stroke: null,})
+        if (hiddenTypes["point"] && feature.get("isPoint")  && type === "Point") return new Style({stroke: null,})
 
         // Handle all other feature types normally
         return getFeatureStyle(feature);
-      },
-    });
-
-    // Store vector layer reference
-    vectorLayerRef.current = vectorLayer;
-
-    const map = new Map({
-      target: mapContainerRef.current,
-      layers: [osmLayer, satelliteLayer, vectorLayer],
-      view: new View({
-        center: fromLonLat([78.9629, 21.5937]),
-        zoom: 5,
-        maxZoom: 19,
-        minZoom: 0,
-        smoothExtentConstraint: true,
-      }),
-      controls: defaultControls({
-        zoom: false,
-        attribution: false,
-        rotate: false,
-      }),
-    });
-
-    onMapReady(map);
-
-    return () => {
-      map.setTarget(undefined);
-    };
-  }, []);
+      });
+    }
+  }, [hiddenTypes]);
 
   return <div id="map" className="relative w-full h-screen" ref={mapContainerRef} />;
 };
