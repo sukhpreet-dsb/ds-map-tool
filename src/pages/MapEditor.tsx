@@ -39,8 +39,8 @@ import { DragBoxInstruction } from "../components/DragBoxInstruction";
 import { exportMapToPdf, type PdfExportConfig } from "@/utils/pdfExportUtils";
 import { IconPickerDialog } from "../components/IconPickerDialog";
 import { handleIconClick } from "@/icons/IconPicker";
-import { MergePropertiesDialog } from "./MergePropertiesDialog";
-import { type MergeRequestDetail } from "./MapInteractions";
+import { MergePropertiesDialog } from "@/components/MergePropertiesDialog";
+import { type MergeRequestDetail } from "@/components/MapInteractions";
 import { performMerge } from "@/utils/splitUtils";
 
 // Interface for properly serializable map data
