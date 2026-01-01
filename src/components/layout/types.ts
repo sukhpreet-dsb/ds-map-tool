@@ -16,6 +16,7 @@ export interface LayoutCanvasProps {
   activeTool: ToolType
   onToolChange: (tool: ToolType) => void
   onSelect: (object: fabric.FabricObject | null) => void
+  initialData?: object // Fabric.js JSON data to load on init
 }
 
 export interface LayoutPropertiesPanelProps {

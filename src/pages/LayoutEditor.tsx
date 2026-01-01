@@ -7,15 +7,24 @@ import {
   type ToolType,
 } from "@/components/layout"
 import { ArrowLeft } from "lucide-react"
-import { Link } from "react-router"
+import { Link, useParams, useNavigate } from "react-router"
 import { useLayoutStore } from "@/stores/layoutStore"
 
 export default function LayoutEditor() {
+  const { layoutId } = useParams<{ layoutId: string }>()
+  const navigate = useNavigate()
   const [activeTool, setActiveTool] = useState<ToolType>('select')
   const [selectedObject, setSelectedObject] = useState<fabric.FabricObject | null>(null)
+  const [currentLayoutId, setCurrentLayoutId] = useState<string | null>(layoutId ?? null)
   const fabricRef = useRef<fabric.Canvas | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
   const addLayout = useLayoutStore((state) => state.addLayout)
+  const updateLayout = useLayoutStore((state) => state.updateLayout)
+  const getLayout = useLayoutStore((state) => state.getLayout)
+
+  // Get the current layout if editing existing
+  const currentLayout = currentLayoutId ? getLayout(currentLayoutId) : null
 
   // Delete keyboard shortcut
   useEffect(() => {
@@ -142,17 +151,26 @@ export default function LayoutEditor() {
     // Serialize canvas data
     const canvasData = canvas.toJSON()
 
-    // Generate a default name with timestamp
-    const name = `Layout ${new Date().toLocaleString()}`
-
-    // Save to store
-    const layoutId = addLayout({
-      name,
-      canvasData,
-      previewImage,
-    })
-
-    console.log('Layout saved with ID:', layoutId)
+    if (currentLayoutId && currentLayout) {
+      // Update existing layout
+      updateLayout(currentLayoutId, {
+        canvasData,
+        previewImage,
+      })
+      console.log('Layout updated:', currentLayoutId)
+    } else {
+      // Create new layout
+      const name = `Layout ${new Date().toLocaleString()}`
+      const newId = addLayout({
+        name,
+        canvasData,
+        previewImage,
+      })
+      setCurrentLayoutId(newId)
+      // Update URL to reflect the new layout ID
+      navigate(`/layout/${newId}`, { replace: true })
+      console.log('Layout saved with ID:', newId)
+    }
   }
 
   // Ctrl+S keyboard shortcut for save
@@ -174,16 +192,18 @@ export default function LayoutEditor() {
       <header className="h-14 border-b border-border bg-background flex items-center justify-between px-4 z-20 shadow-sm">
         <div className="flex items-center gap-4">
           <Link
-            to="/"
+            to="/layouts"
             className="p-2 hover:bg-muted rounded-full transition-colors"
-            title="Back to Home"
+            title="Back to Layouts"
           >
             <ArrowLeft className="w-5 h-5 text-muted-foreground" />
           </Link>
           <div>
-            <h1 className="font-bold text-sm md:text-base">Layout Editor</h1>
+            <h1 className="font-bold text-sm md:text-base">
+              {currentLayout ? currentLayout.name : 'New Layout'}
+            </h1>
             <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-              Canvas Mode
+              {currentLayout ? 'Editing' : 'Canvas Mode'}
             </span>
           </div>
         </div>
@@ -217,6 +237,7 @@ export default function LayoutEditor() {
           activeTool={activeTool}
           onToolChange={setActiveTool}
           onSelect={setSelectedObject}
+          initialData={currentLayout?.canvasData}
         />
 
         <LayoutPropertiesPanel
