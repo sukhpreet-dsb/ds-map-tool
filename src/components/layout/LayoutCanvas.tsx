@@ -1,6 +1,7 @@
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useCallback } from "react"
 import * as fabric from "fabric"
 import type { LayoutCanvasProps } from "./types"
+import { PAGE_SIZES } from "./types"
 
 export function LayoutCanvas({
   fabricRef,
@@ -8,11 +9,27 @@ export function LayoutCanvas({
   onToolChange,
   onSelect,
   initialData,
+  pageSize,
+  zoom,
+  onZoomChange,
 }: LayoutCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  // Initialize Canvas
+  const dimensions = PAGE_SIZES[pageSize]
+  const scale = zoom / 100
+
+  // Handle mouse wheel zoom
+  const handleWheel = useCallback((e: WheelEvent) => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault()
+      const delta = e.deltaY > 0 ? -5 : 5
+      const newZoom = Math.min(Math.max(zoom + delta, 10), 200)
+      onZoomChange(newZoom)
+    }
+  }, [zoom, onZoomChange])
+
+  // Initialize Canvas with fixed dimensions
   useEffect(() => {
     if (!canvasRef.current || !containerRef.current) return
 
@@ -21,10 +38,10 @@ export function LayoutCanvas({
       fabricRef.current.dispose()
     }
 
-    // Create new canvas
+    // Create new canvas with fixed page dimensions
     const canvas = new fabric.Canvas(canvasRef.current, {
-      width: containerRef.current.clientWidth,
-      height: containerRef.current.clientHeight,
+      width: dimensions.width,
+      height: dimensions.height,
       backgroundColor: '#ffffff',
       selection: true,
     })
@@ -41,22 +58,33 @@ export function LayoutCanvas({
     canvas.on('selection:updated', handleSelection)
     canvas.on('selection:cleared', () => onSelect(null))
 
-    // Handle resizing
-    const resizeObserver = new ResizeObserver(() => {
-      if (containerRef.current && canvas) {
-        canvas.setDimensions({
-          width: containerRef.current.clientWidth,
-          height: containerRef.current.clientHeight,
-        })
-      }
-    })
-    resizeObserver.observe(containerRef.current)
-
     return () => {
-      resizeObserver.disconnect()
       canvas.dispose()
     }
-  }, [])
+  }, [pageSize])
+
+  // Add wheel zoom listener
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+
+    container.addEventListener('wheel', handleWheel, { passive: false })
+    return () => {
+      container.removeEventListener('wheel', handleWheel)
+    }
+  }, [handleWheel])
+
+  // Update canvas dimensions when page size changes
+  useEffect(() => {
+    const canvas = fabricRef.current
+    if (!canvas) return
+
+    canvas.setDimensions({
+      width: dimensions.width,
+      height: dimensions.height,
+    })
+    canvas.requestRenderAll()
+  }, [pageSize, dimensions])
 
   // Load initial data when it changes
   useEffect(() => {
@@ -152,12 +180,37 @@ export function LayoutCanvas({
     }
   }, [activeTool, onToolChange])
 
+  // Calculate scaled dimensions for the wrapper
+  const scaledWidth = dimensions.width * scale
+  const scaledHeight = dimensions.height * scale
+
   return (
     <div
       ref={containerRef}
-      className="w-full h-full bg-[repeating-linear-gradient(0deg,transparent,transparent_19px,#e5e7eb_19px,#e5e7eb_20px),repeating-linear-gradient(90deg,transparent,transparent_19px,#e5e7eb_19px,#e5e7eb_20px)] shadow-inner"
+      className="w-full h-full overflow-auto bg-neutral-200"
+      style={{ padding: '40px' }}
     >
-      <canvas ref={canvasRef} />
+      {/* Wrapper to maintain scroll area based on scaled size */}
+      <div
+        className="flex items-center justify-center"
+        style={{
+          minWidth: scaledWidth + 80, // Add padding for scroll area
+          minHeight: scaledHeight + 80,
+        }}
+      >
+        {/* Scaled canvas container */}
+        <div
+          className="shadow-2xl"
+          style={{
+            width: dimensions.width,
+            height: dimensions.height,
+            transform: `scale(${scale})`,
+            transformOrigin: 'center center',
+          }}
+        >
+          <canvas ref={canvasRef} />
+        </div>
+      </div>
     </div>
   )
 }

@@ -5,9 +5,18 @@ import {
   LayoutCanvas,
   LayoutPropertiesPanel,
   SaveLayoutDialog,
+  ZoomControls,
+  PAGE_SIZES,
   type ToolType,
+  type PageSize,
 } from "@/components/layout";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ChevronDown } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Link, useParams, useNavigate } from "react-router";
 import { useLayoutStore } from "@/stores/layoutStore";
 
@@ -22,6 +31,8 @@ export default function LayoutEditor() {
   );
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [editingName, setEditingName] = useState("");
+  const [pageSize, setPageSize] = useState<PageSize>("A4");
+  const [zoom, setZoom] = useState(100);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
   // Sync URL param to state when navigating between layouts
@@ -262,17 +273,34 @@ export default function LayoutEditor() {
           </div>
         </div>
 
-        <div className="text-xs text-muted-foreground hidden sm:block">
-          Use{" "}
-          <kbd className="px-1 py-0.5 bg-muted rounded border border-border">
-            Del
-          </kbd>{" "}
-          to remove selected objects
+        {/* Page Size Selector */}
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Page Size:</span>
+          <DropdownMenu>
+            <DropdownMenuTrigger className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium bg-muted hover:bg-muted/80 rounded-md transition-colors">
+              {pageSize}
+              <ChevronDown className="w-4 h-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {(Object.keys(PAGE_SIZES) as PageSize[]).map((size) => (
+                <DropdownMenuItem
+                  key={size}
+                  onClick={() => setPageSize(size)}
+                  className={pageSize === size ? "bg-accent" : ""}
+                >
+                  <span className="font-medium">{size}</span>
+                  <span className="ml-2 text-xs text-muted-foreground">
+                    {PAGE_SIZES[size].label.replace(`${size} `, "")}
+                  </span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </header>
 
       {/* Main Canvas Area */}
-      <div className="flex-1 relative bg-muted/20">
+      <div className="flex-1 relative bg-muted/20 overflow-hidden">
         <LayoutToolbar
           activeTool={activeTool}
           onToolChange={setActiveTool}
@@ -296,6 +324,14 @@ export default function LayoutEditor() {
           onToolChange={setActiveTool}
           onSelect={setSelectedObject}
           initialData={currentLayout?.canvasData}
+          pageSize={pageSize}
+          zoom={zoom}
+          onZoomChange={setZoom}
+        />
+
+        <ZoomControls
+          zoom={zoom}
+          onZoomChange={setZoom}
         />
 
         <LayoutPropertiesPanel

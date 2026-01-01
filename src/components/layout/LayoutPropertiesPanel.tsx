@@ -32,11 +32,7 @@ export function LayoutPropertiesPanel({ selectedObject, onChange }: LayoutProper
   }
 
   if (!selectedObject) {
-    return (
-      <div className="absolute top-4 right-4 z-10 w-64 bg-background/80 backdrop-blur-sm border border-border p-6 rounded-2xl text-center shadow-lg">
-        <p className="text-muted-foreground text-sm font-medium">Select an object to edit properties</p>
-      </div>
-    )
+    return 
   }
 
   const isText = selectedObject.type === 'i-text' || selectedObject.type === 'text'
