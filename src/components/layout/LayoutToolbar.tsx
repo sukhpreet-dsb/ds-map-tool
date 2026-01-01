@@ -10,6 +10,7 @@ import {
   Eraser,
   ImagePlus,
   Save,
+  Download,
 } from "lucide-react"
 import {
   Tooltip,
@@ -36,6 +37,7 @@ export function LayoutToolbar({
   onClear,
   onImportImage,
   onSaveLayout,
+  onDownloadPdf,
 }: LayoutToolbarProps) {
   return (
     <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
@@ -84,6 +86,18 @@ export function LayoutToolbar({
             </button>
           </TooltipTrigger>
           <TooltipContent side="right">Save Layout (Ctrl+S)</TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={onDownloadPdf}
+              className="w-10 h-10 flex items-center justify-center rounded-xl transition-all hover:bg-blue-500/10 hover:text-blue-600"
+            >
+              <Download className="w-5 h-5" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="right">Download PDF</TooltipContent>
         </Tooltip>
 
         <Tooltip>

@@ -27,6 +27,7 @@ export interface LayoutToolbarProps {
   onClear: () => void
   onImportImage: () => void
   onSaveLayout: () => void
+  onDownloadPdf: () => void
 }
 
 export interface LayoutCanvasProps {

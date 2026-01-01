@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import * as fabric from "fabric";
+import { jsPDF } from "jspdf";
 import {
   LayoutToolbar,
   LayoutCanvas,
@@ -212,6 +213,41 @@ export default function LayoutEditor() {
     }
   };
 
+  const handleDownloadPdf = () => {
+    const canvas = fabricRef.current;
+    if (!canvas) return;
+
+    // Deselect objects to remove selection handles from export
+    canvas.discardActiveObject();
+    canvas.requestRenderAll();
+
+    // Export canvas to data URL (includes background image)
+    const dataUrl = canvas.toDataURL({
+      format: "jpeg",
+      quality: 0.95,
+      multiplier: 2, // Higher resolution for better PDF quality
+    });
+
+    // Create PDF with correct page size (portrait orientation)
+    // jsPDF uses mm units and standard page format names
+    const pdf = new jsPDF({
+      orientation: "portrait",
+      unit: "mm",
+      format: pageSize.toLowerCase(),
+    });
+
+    // Get PDF page dimensions in mm
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = pdf.internal.pageSize.getHeight();
+
+    // Add image to fill the entire page
+    pdf.addImage(dataUrl, "JPEG", 0, 0, pdfWidth, pdfHeight);
+
+    // Generate filename
+    const fileName = editingName.trim() || "layout";
+    pdf.save(`${fileName}.pdf`);
+  };
+
   const saveLayoutWithName = (name: string) => {
     const canvas = fabricRef.current;
     if (!canvas) return;
@@ -310,6 +346,7 @@ export default function LayoutEditor() {
           onClear={handleClear}
           onImportImage={handleImportImage}
           onSaveLayout={handleSaveLayout}
+          onDownloadPdf={handleDownloadPdf}
         />
 
         <input
