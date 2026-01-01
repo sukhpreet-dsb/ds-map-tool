@@ -4,6 +4,7 @@ import {
   LayoutToolbar,
   LayoutCanvas,
   LayoutPropertiesPanel,
+  SaveLayoutDialog,
   type ToolType,
 } from "@/components/layout"
 import { ArrowLeft } from "lucide-react"
@@ -16,6 +17,7 @@ export default function LayoutEditor() {
   const [activeTool, setActiveTool] = useState<ToolType>('select')
   const [selectedObject, setSelectedObject] = useState<fabric.FabricObject | null>(null)
   const [currentLayoutId, setCurrentLayoutId] = useState<string | null>(layoutId ?? null)
+  const [showSaveDialog, setShowSaveDialog] = useState(false)
   const fabricRef = useRef<fabric.Canvas | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -128,6 +130,19 @@ export default function LayoutEditor() {
     const canvas = fabricRef.current
     if (!canvas) return
 
+    if (currentLayoutId && currentLayout) {
+      // Update existing layout directly
+      saveLayoutWithName(currentLayout.name)
+    } else {
+      // Show dialog for new layout
+      setShowSaveDialog(true)
+    }
+  }
+
+  const saveLayoutWithName = (name: string) => {
+    const canvas = fabricRef.current
+    if (!canvas) return
+
     // Deselect all objects before generating preview
     canvas.discardActiveObject()
     canvas.requestRenderAll()
@@ -154,13 +169,13 @@ export default function LayoutEditor() {
     if (currentLayoutId && currentLayout) {
       // Update existing layout
       updateLayout(currentLayoutId, {
+        name,
         canvasData,
         previewImage,
       })
       console.log('Layout updated:', currentLayoutId)
     } else {
       // Create new layout
-      const name = `Layout ${new Date().toLocaleString()}`
       const newId = addLayout({
         name,
         canvasData,
@@ -245,6 +260,14 @@ export default function LayoutEditor() {
           onChange={handlePropertyChange}
         />
       </div>
+
+      <SaveLayoutDialog
+        isOpen={showSaveDialog}
+        onClose={() => setShowSaveDialog(false)}
+        onSave={saveLayoutWithName}
+        initialName={currentLayout?.name}
+        isEditing={!!currentLayout}
+      />
     </div>
   )
 }
