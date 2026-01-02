@@ -43,6 +43,11 @@ export const useLayoutStore = create<LayoutStore>()(
       pendingLayoutId: null,
 
       addLayout: (layout) => {
+        const currentLayouts = get().layouts
+        if (currentLayouts.length >= 3) {
+          console.warn('Maximum layout limit (3) reached')
+          return ''
+        }
         const id = generateId()
         const now = Date.now()
         const newLayout: Layout = {

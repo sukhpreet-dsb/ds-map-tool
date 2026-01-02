@@ -18,6 +18,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Link, useParams, useNavigate } from "react-router";
 import { useLayoutStore } from "@/stores/layoutStore";
 import { useShallow } from "zustand/react/shallow";
@@ -28,6 +36,7 @@ export default function LayoutEditor() {
 
   // Zustand store - use useShallow to prevent infinite re-renders
   const {
+    layouts,
     addLayout,
     updateLayout,
     getLayout,
@@ -37,6 +46,7 @@ export default function LayoutEditor() {
     clearPendingBackground,
   } = useLayoutStore(
     useShallow((state) => ({
+      layouts: state.layouts,
       addLayout: state.addLayout,
       updateLayout: state.updateLayout,
       getLayout: state.getLayout,
@@ -55,6 +65,7 @@ export default function LayoutEditor() {
     layoutId ?? null
   );
   const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [showLimitWarning, setShowLimitWarning] = useState(false);
   const [editingName, setEditingName] = useState("");
   const [pageSize, setPageSize] = useState<PageSize>("A4");
   const [zoom, setZoom] = useState(100);
@@ -96,9 +107,8 @@ export default function LayoutEditor() {
   useEffect(() => {
     if (currentLayout) {
       setEditingName(currentLayout.name);
-      if (currentLayout.backgroundImage) {
-        setBackgroundImage(currentLayout.backgroundImage);
-      }
+      // Don't set backgroundImage here - the map image is already in canvasData
+      // Setting it would cause a duplicate because LayoutCanvas would add it again
     } else {
       // Reset for new layout
       setEditingName("New Layout");
@@ -207,8 +217,12 @@ export default function LayoutEditor() {
   const handleSaveLayout = () => {
     if (currentLayoutId && currentLayout) {
       saveLayoutWithName(currentLayout.name);
-    }
-    else {
+    } else {
+      // Check if limit reached for new layouts
+      if (layouts.length >= 3) {
+        setShowLimitWarning(true);
+        return;
+      }
       setShowSaveDialog(true);
     }
   };
@@ -274,6 +288,10 @@ export default function LayoutEditor() {
       updateLayout(currentLayoutId, layoutData);
     } else {
       const newId = addLayout(layoutData as any);
+      if (!newId) {
+        setShowLimitWarning(true);
+        return;
+      }
       setCurrentLayoutId(newId);
       navigate(`/layout/${newId}`, { replace: true });
     }
@@ -384,6 +402,25 @@ export default function LayoutEditor() {
         initialName={currentLayout?.name}
         isEditing={!!currentLayout}
       />
+
+      <Dialog open={showLimitWarning} onOpenChange={setShowLimitWarning}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Layout Limit Reached</DialogTitle>
+            <DialogDescription>
+              Maximum layout limit (3) reached. Please delete an existing layout before creating a new one.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <button
+              onClick={() => setShowLimitWarning(false)}
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-sm font-medium"
+            >
+              OK
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

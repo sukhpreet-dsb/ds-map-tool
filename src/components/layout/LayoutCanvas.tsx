@@ -30,7 +30,7 @@ export function LayoutCanvas({
     }
   }, [zoom, onZoomChange])
 
-  // Initialize Canvas with fixed dimensions
+  // Initialize Canvas once on mount
   useEffect(() => {
     if (!canvasRef.current || !containerRef.current) return
 
@@ -39,7 +39,7 @@ export function LayoutCanvas({
       fabricRef.current.dispose()
     }
 
-    // Create new canvas with fixed page dimensions
+    // Create new canvas with initial page dimensions
     const canvas = new fabric.Canvas(canvasRef.current, {
       width: dimensions.width,
       height: dimensions.height,
@@ -62,7 +62,8 @@ export function LayoutCanvas({
     return () => {
       canvas.dispose()
     }
-  }, [pageSize])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // Only run once on mount - dimension updates handled separately
 
   // Add wheel zoom listener
   useEffect(() => {
@@ -87,7 +88,7 @@ export function LayoutCanvas({
     canvas.requestRenderAll()
   }, [pageSize, dimensions])
 
-  // Handle background image (Fabric.js v6+ API)
+  // Handle map image as a selectable/movable object
   useEffect(() => {
     const canvas = fabricRef.current;
     if (!canvas || !backgroundImage) return;
@@ -100,6 +101,14 @@ export function LayoutCanvas({
 
       const currentCanvas = fabricRef.current;
       if (!currentCanvas.width || !currentCanvas.height || !img.width || !img.height) return;
+
+      // Remove any existing map image (identified by custom property)
+      const existingMapImage = currentCanvas.getObjects().find(
+        (obj) => (obj as fabric.FabricObject & { isMapImage?: boolean }).isMapImage
+      );
+      if (existingMapImage) {
+        currentCanvas.remove(existingMapImage);
+      }
 
       // Scale image to cover the canvas while maintaining aspect ratio
       const canvasAspect = currentCanvas.width / currentCanvas.height;
@@ -125,12 +134,17 @@ export function LayoutCanvas({
         left: currentCanvas.width / 2,
       });
 
-      // Fabric.js v6+: Set backgroundImage property directly
-      currentCanvas.backgroundImage = img;
+      // Mark this as the map image for identification
+      (img as fabric.FabricImage & { isMapImage?: boolean }).isMapImage = true;
+
+      // Add as regular object (selectable and movable)
+      currentCanvas.add(img);
+      // Send to back so other objects are on top
+      currentCanvas.sendObjectToBack(img);
       currentCanvas.requestRenderAll();
     }).catch((err) => {
       if (!isCancelled) {
-        console.error('Failed to load background image:', err);
+        console.error('Failed to load map image:', err);
       }
     });
 

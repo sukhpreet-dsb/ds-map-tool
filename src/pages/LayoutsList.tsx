@@ -33,18 +33,28 @@ export default function LayoutsList() {
           <div>
             <h1 className="font-bold text-sm md:text-base">Saved Layouts</h1>
             <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-              {layouts.length} layout{layouts.length !== 1 ? 's' : ''}
+              {layouts.length} of 3 layout{layouts.length !== 1 ? 's' : ''}
             </span>
           </div>
         </div>
 
-        <Link
-          to="/layout"
-          className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
-        >
-          <Plus className="w-4 h-4" />
-          New Layout
-        </Link>
+        {layouts.length < 3 ? (
+          <Link
+            to="/layout"
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
+          >
+            <Plus className="w-4 h-4" />
+            New Layout
+          </Link>
+        ) : (
+          <span
+            className="flex items-center gap-2 px-4 py-2 bg-muted text-muted-foreground rounded-lg text-sm font-medium cursor-not-allowed"
+            title="Maximum 3 layouts allowed"
+          >
+            <Plus className="w-4 h-4" />
+            Limit Reached
+          </span>
+        )}
       </header>
 
       {/* Content */}
