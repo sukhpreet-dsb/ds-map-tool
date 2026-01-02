@@ -20,15 +20,40 @@ export function LayoutCanvas({
   const dimensions = PAGE_SIZES[pageSize]
   const scale = zoom / 100
 
-  // Handle mouse wheel zoom
+  // Handle mouse wheel zoom (Ctrl for canvas, Shift for selected map image)
   const handleWheel = useCallback((e: WheelEvent) => {
+    const canvas = fabricRef.current
+
+    // Shift + scroll: Zoom selected map image
+    if (e.shiftKey && canvas) {
+      const activeObject = canvas.getActiveObject()
+      if (activeObject && (activeObject as fabric.FabricImage & { isMapImage?: boolean }).isMapImage) {
+        e.preventDefault()
+        const scaleFactor = e.deltaY > 0 ? 0.95 : 1.05 // 5% zoom per scroll step
+        const currentScaleX = activeObject.scaleX || 1
+        const currentScaleY = activeObject.scaleY || 1
+
+        // Limit scale between 10% and 500%
+        const newScaleX = Math.min(Math.max(currentScaleX * scaleFactor, 0.1), 5)
+        const newScaleY = Math.min(Math.max(currentScaleY * scaleFactor, 0.1), 5)
+
+        activeObject.set({
+          scaleX: newScaleX,
+          scaleY: newScaleY,
+        })
+        canvas.requestRenderAll()
+        return
+      }
+    }
+
+    // Ctrl/Cmd + scroll: Canvas zoom
     if (e.ctrlKey || e.metaKey) {
       e.preventDefault()
       const delta = e.deltaY > 0 ? -5 : 5
       const newZoom = Math.min(Math.max(zoom + delta, 10), 200)
       onZoomChange(newZoom)
     }
-  }, [zoom, onZoomChange])
+  }, [zoom, onZoomChange, fabricRef])
 
   // Initialize Canvas once on mount
   useEffect(() => {
