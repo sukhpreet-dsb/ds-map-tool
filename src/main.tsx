@@ -1,10 +1,10 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import { PGlite } from '@electric-sql/pglite'
-import { live } from '@electric-sql/pglite/live'
-import './index.css'
-import App from './App.tsx'
-import { BrowserRouter } from 'react-router'
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import { PGlite } from "@electric-sql/pglite";
+import { live } from "@electric-sql/pglite/live";
+import "./index.css";
+import { router } from "./App.tsx";
+import { RouterProvider } from "react-router";
 
 const initializeApp = async () => {
   try {
@@ -15,23 +15,23 @@ const initializeApp = async () => {
 
     // Initialize default project in localStorage
     const initializeDefaultProject = async () => {
-      const stored = localStorage.getItem('mapProjects')
+      const stored = localStorage.getItem("mapProjects");
 
       if (!stored) {
         // Create default project entry
         const defaultProject = {
-          id: 'default-project',
-          name: 'My First Map',
+          id: "default-project",
+          name: "My First Map",
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-        }
+        };
 
-        localStorage.setItem('mapProjects', JSON.stringify([defaultProject]))
+        localStorage.setItem("mapProjects", JSON.stringify([defaultProject]));
 
         // Initialize default project's database
-        const projectDb = await PGlite.create('idb://project_default-project', {
-          extensions: { live }
-        })
+        const projectDb = await PGlite.create("idb://project_default-project", {
+          extensions: { live },
+        });
 
         await projectDb.query(`
           CREATE TABLE IF NOT EXISTS map_state (
@@ -40,26 +40,24 @@ const initializeApp = async () => {
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
           )
-        `)
+        `);
 
-        console.log('Default project initialized')
+        console.log("Default project initialized");
       }
-    }
+    };
 
-    await initializeDefaultProject()
+    await initializeDefaultProject();
 
-    createRoot(document.getElementById('root')!).render(
+    createRoot(document.getElementById("root")!).render(
       <StrictMode>
-        <BrowserRouter>
-          <App />
-        </BrowserRouter>
+        <RouterProvider router={router} />
       </StrictMode>
-    )
+    );
 
-    console.log('App initialized with default database')
+    console.log("App initialized with default database");
   } catch (error) {
-    console.error('Failed to initialize app:', error)
+    console.error("Failed to initialize app:", error);
   }
-}
+};
 
-initializeApp()
+initializeApp();
