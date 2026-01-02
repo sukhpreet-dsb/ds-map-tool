@@ -1,11 +1,14 @@
+import { useRef } from "react"
 import { Link, useNavigate } from "react-router"
-import { useLayoutStore } from "@/stores/layoutStore"
-import { ArrowLeft, Trash2, Plus, Layout } from "lucide-react"
+import { useLayoutStore, type Layout as LayoutType } from "@/stores/layoutStore"
+import { ArrowLeft, Trash2, Plus, Layout, Download, Upload } from "lucide-react"
 
 export default function LayoutsList() {
   const navigate = useNavigate()
   const layouts = useLayoutStore((state) => state.layouts)
   const deleteLayout = useLayoutStore((state) => state.deleteLayout)
+  const addLayout = useLayoutStore((state) => state.addLayout)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleOpenLayout = (id: string) => {
     navigate(`/layout/${id}`)
@@ -18,8 +21,77 @@ export default function LayoutsList() {
     }
   }
 
+  const handleDownloadLayout = (e: React.MouseEvent, layout: LayoutType) => {
+    e.stopPropagation()
+    const exportData = {
+      name: layout.name,
+      canvasData: layout.canvasData,
+      createdAt: layout.createdAt,
+      updatedAt: layout.updatedAt,
+    }
+    const jsonString = JSON.stringify(exportData, null, 2)
+    const blob = new Blob([jsonString], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${layout.name.replace(/[^a-z0-9]/gi, '-')}-canvas.json`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleImportLayout = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      try {
+        const jsonData = JSON.parse(event.target?.result as string)
+
+        // Validate required fields
+        if (!jsonData.canvasData) {
+          alert('Invalid layout file: missing canvas data')
+          return
+        }
+
+        const newLayoutId = addLayout({
+          name: jsonData.name || `Imported ${new Date().toLocaleDateString()}`,
+          canvasData: jsonData.canvasData,
+          previewImage: '', // Will be regenerated when opened
+        })
+
+        if (newLayoutId) {
+          navigate(`/layout/${newLayoutId}`)
+        } else {
+          alert('Failed to import layout. Maximum 3 layouts allowed.')
+        }
+      } catch {
+        alert('Invalid JSON file')
+      }
+    }
+    reader.readAsText(file)
+
+    // Reset input so same file can be selected again
+    e.target.value = ''
+  }
+
   return (
     <div className="min-h-screen bg-background">
+      {/* Hidden file input for import */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".json"
+        onChange={handleImportLayout}
+        className="hidden"
+      />
+
       {/* Header */}
       <header className="h-14 border-b border-border bg-background flex items-center justify-between px-4 sticky top-0 z-10 shadow-sm">
         <div className="flex items-center gap-4">
@@ -98,6 +170,15 @@ export default function LayoutsList() {
                       </div>
                     )}
 
+                    {/* Download button */}
+                    <button
+                      onClick={(e) => handleDownloadLayout(e, layout)}
+                      className="absolute top-2 right-10 p-2 bg-background/80 backdrop-blur-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-blue-500/10 hover:text-blue-500"
+                      title="Download canvas data"
+                    >
+                      <Download className="w-4 h-4" />
+                    </button>
+
                     {/* Delete button */}
                     <button
                       onClick={(e) => handleDeleteLayout(e, layout.id)}
@@ -123,6 +204,23 @@ export default function LayoutsList() {
                   </div>
                 </div>
               ))}
+
+            {/* Import Layout Card */}
+            {layouts.length < 3 && (
+              <div
+                onClick={handleImportClick}
+                className="group relative bg-card border-2 border-dashed border-border rounded-xl overflow-hidden cursor-pointer hover:border-primary/50 hover:bg-muted/20 transition-all"
+              >
+                <div className="aspect-4/3 flex flex-col items-center justify-center gap-3">
+                  <div className="w-14 h-14 rounded-full bg-muted/50 flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+                    <Upload className="w-7 h-7 text-muted-foreground group-hover:text-primary transition-colors" />
+                  </div>
+                  <span className="text-sm font-medium text-muted-foreground group-hover:text-primary transition-colors">
+                    Import Layout
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </main>
