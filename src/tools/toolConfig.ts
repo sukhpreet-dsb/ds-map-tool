@@ -12,7 +12,8 @@ import {
   RulerDimensionLine,
   MapPin,
   Scissors,
-  Spline
+  Spline,
+  CopySlash,
 } from "lucide-react";
 
 export const TOOLS = [
@@ -106,7 +107,11 @@ export const TOOLS = [
     name: 'Merge',
     icon: Spline,
   },
-
+  {
+    id: 'offset',
+    name: 'Offset',
+    icon: CopySlash,
+  },
 ];
 
 export const DEFAULT_TOOL = "hand";

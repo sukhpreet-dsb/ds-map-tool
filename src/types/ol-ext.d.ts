@@ -358,3 +358,81 @@ declare module 'ol-ext/interaction/Split' {
     setActive(active: boolean): void;
   }
 }
+
+/**
+ * Offset interaction from ol-ext
+ * Creates parallel copies of LineString features by dragging
+ */
+declare module 'ol-ext/interaction/Offset' {
+  import { Interaction } from 'ol/interaction';
+  import { Vector as VectorSource } from 'ol/source';
+  import { Collection } from 'ol';
+  import Feature from 'ol/Feature';
+  import VectorLayer from 'ol/layer/Vector';
+  import { EventsKey } from 'ol/events';
+  import { Style } from 'ol/style';
+
+  export interface OffsetOptions {
+    /**
+     * A source to offset features from
+     */
+    source?: VectorSource;
+
+    /**
+     * A collection of features to offset
+     */
+    features?: Collection<Feature>;
+
+    /**
+     * Vector layers to offset features from
+     */
+    layers?: VectorLayer<VectorSource>[];
+
+    /**
+     * A filter function that returns true for features that can be offset
+     */
+    filter?: (feature: Feature) => boolean;
+
+    /**
+     * Style for the offset preview line
+     */
+    style?: Style | Style[];
+  }
+
+  export interface OffsetEvent {
+    /**
+     * Event type
+     */
+    type: 'offsetting' | 'offsetend';
+
+    /**
+     * The feature being offset
+     */
+    feature: Feature;
+
+    /**
+     * The offset distance in map units
+     */
+    offset: number;
+
+    /**
+     * The new offset feature (available on offsetend)
+     */
+    coordinate?: number[];
+  }
+
+  export default class Offset extends Interaction {
+    constructor(options?: OffsetOptions);
+
+    /**
+     * Attach event listener for offset events
+     */
+    on(type: 'offsetting' | 'offsetend', listener: (event: OffsetEvent) => void): EventsKey;
+    on(type: string | string[], listener: (event: any) => void): EventsKey;
+
+    /**
+     * Set the interaction active state
+     */
+    setActive(active: boolean): void;
+  }
+}

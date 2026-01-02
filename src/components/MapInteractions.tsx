@@ -5,6 +5,7 @@ import { click, altKeyOnly, shiftKeyOnly, always } from "ol/events/condition";
 import Transform from "ol-ext/interaction/Transform";
 import UndoRedo from "ol-ext/interaction/UndoRedo";
 import Split from "ol-ext/interaction/Split";
+import Offset from "ol-ext/interaction/Offset";
 import type Map from "ol/Map";
 import type VectorLayer from "ol/layer/Vector";
 import { Vector as VectorSource } from "ol/source";
@@ -21,6 +22,7 @@ import {
   isMergeableFeature,
   getLineEndpoints,
   findNearbyEndpoint,
+  isOffsettableFeature,
 } from "@/utils/splitUtils";
 
 // Custom event interface for merge requests
@@ -73,6 +75,7 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
   const mergeModifyInteractionRef = useRef<Modify | null>(null);
   const mergeSelectInteractionRef = useRef<Select | null>(null);
   const mergeSnapInteractionRef = useRef<Snap | null>(null);
+  const offsetInteractionRef = useRef<Offset | null>(null);
 
   // Initialize UndoRedo interaction - only initialize once when map and vectorLayer are available
   useEffect(() => {
@@ -535,6 +538,76 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
       }
     };
   }, [activeTool, map, vectorLayer, onFeatureSelect]);
+
+  // Handle offset tool activation/deactivation
+  useEffect(() => {
+    if (!map || !vectorLayer) return;
+
+    if (activeTool === "offset") {
+      // Disable select and modify during offset
+      selectInteractionRef.current?.setActive(false);
+      modifyInteractionRef.current?.setActive(false);
+
+      const vectorSource = vectorLayer.getSource();
+      if (!vectorSource) return;
+
+      const offsetInteraction = new Offset({
+        source: vectorSource,
+        filter: isOffsettableFeature,
+      });
+
+      // Handle offset events - copy properties to new offset feature
+      offsetInteraction.on("offsetend", (e) => {
+        const originalFeature = e.feature;
+        if (!originalFeature) return;
+
+        // Copy properties from original to the newly created offset feature
+        // The offset interaction creates a new feature automatically
+        // We need to find it in the source (it's the last added feature)
+        const features = vectorSource.getFeatures();
+        const newFeature = features[features.length - 1];
+
+        if (newFeature && newFeature !== originalFeature) {
+          // Copy all properties except geometry
+          const properties = originalFeature.getProperties();
+          const { geometry, ...otherProps } = properties;
+
+          Object.entries(otherProps).forEach(([key, value]) => {
+            newFeature.set(key, value);
+          });
+
+          // Append "(offset)" to name if exists
+          const originalName = originalFeature.get("name");
+          if (originalName) {
+            newFeature.set("name", `${originalName} (offset)`);
+          }
+
+          // Recalculate distance for measure features
+          if (originalFeature.get("isMeasure")) {
+            newFeature.set("isMeasure", true);
+            recalculateMeasureDistances([newFeature]);
+          }
+        }
+      });
+
+      map.addInteraction(offsetInteraction as any);
+      offsetInteractionRef.current = offsetInteraction;
+    } else {
+      // Remove offset interaction when switching away
+      if (offsetInteractionRef.current) {
+        map.removeInteraction(offsetInteractionRef.current as any);
+        offsetInteractionRef.current = null;
+      }
+    }
+
+    return () => {
+      // Cleanup offset interaction
+      if (offsetInteractionRef.current) {
+        map.removeInteraction(offsetInteractionRef.current as any);
+        offsetInteractionRef.current = null;
+      }
+    };
+  }, [activeTool, map, vectorLayer]);
 
   // Handle select interaction activation/deactivation
   useEffect(() => {

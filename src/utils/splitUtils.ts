@@ -26,6 +26,13 @@ export const isSplittableFeature = (feature: Feature<Geometry>): boolean => {
 };
 
 /**
+ * Check if a feature can be offset (parallel copy)
+ * Reuses same criteria as splittable: LineString features except Arrow
+ * DRY: Alias to isSplittableFeature since criteria is identical
+ */
+export const isOffsettableFeature = isSplittableFeature;
+
+/**
  * Copy all properties from original feature to split features
  * Preserves styling, names, and custom properties
  * For measure features, recalculates distance for each split segment

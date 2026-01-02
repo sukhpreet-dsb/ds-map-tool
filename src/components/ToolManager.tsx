@@ -264,6 +264,11 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
         // No draw interaction needed here
         break;
 
+      case "offset":
+        // Offset interaction is managed in MapInteractions.tsx
+        // No draw interaction needed here
+        break;
+
       default:
         break;
     }
