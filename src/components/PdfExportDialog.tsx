@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -9,10 +10,11 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2 } from "lucide-react";
+import { Loader2, Layout, X } from "lucide-react";
 import type { PdfExportConfig, PageSize, Resolution } from "@/types/pdf";
 import { PAGE_SIZE_OPTIONS, RESOLUTION_OPTIONS } from "@/types/pdf";
-import type { ExportProgress } from "@/utils/pdfExportUtils";
+import type { ExportProgress, MapImageExportResult } from "@/utils/mapImageExport";
+import { useLayoutStore } from "@/stores/layoutStore";
 
 interface PdfExportDialogProps {
   isOpen: boolean;
@@ -20,7 +22,7 @@ interface PdfExportDialogProps {
   onExport: (
     config: PdfExportConfig,
     onProgress: (progress: ExportProgress) => void
-  ) => void;
+  ) => Promise<MapImageExportResult>;
   isExporting: boolean;
 }
 
@@ -30,18 +32,54 @@ export function PdfExportDialog({
   onExport,
   isExporting,
 }: PdfExportDialogProps) {
+  const navigate = useNavigate();
   const [pageSize, setPageSize] = useState<PageSize>("a4");
   const [resolution, setResolution] = useState<Resolution>(1200);
-  const [keepVectorLayerConstant, setKeepVectorLayerConstant] = useState(false);
+  const [keepVectorLayerConstant, setKeepVectorLayerConstant] = useState(true);
   const [progress, setProgress] = useState<ExportProgress | null>(null);
+  const [selectedLayoutId, setSelectedLayoutId] = useState<string>("");
 
-  const handleExport = () => {
+  const layouts = useLayoutStore((state) => state.layouts);
+  const setPendingBackground = useLayoutStore((state) => state.setPendingBackground);
+  const selectedLayout = layouts.find((l) => l.id === selectedLayoutId);
+
+  const handleExport = async () => {
     setProgress({
       stage: "preparing",
       message: "Starting export...",
       percent: 0,
     });
-    onExport({ pageSize, resolution, keepVectorLayerConstant }, setProgress);
+
+    try {
+      const result = await onExport(
+        {
+          pageSize,
+          resolution,
+          keepVectorLayerConstant,
+          layoutId: selectedLayoutId || undefined,
+        },
+        setProgress
+      );
+
+      // Store the image in Zustand
+      setPendingBackground(
+        result.dataURL,
+        pageSize,
+        selectedLayoutId || null
+      );
+
+      // Navigate to layout editor
+      const targetPath = selectedLayoutId
+        ? `/layout/${selectedLayoutId}`
+        : "/layout";
+      navigate(targetPath);
+
+      setProgress(null);
+      onClose();
+    } catch (error) {
+      console.error("Export failed:", error);
+      setProgress(null);
+    }
   };
 
   const handleClose = () => {
@@ -55,7 +93,7 @@ export function PdfExportDialog({
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>PDF Export Settings</DialogTitle>
+          <DialogTitle>Export to Layout Editor</DialogTitle>
         </DialogHeader>
 
         <div className="grid gap-4 py-4">
@@ -120,6 +158,54 @@ export function PdfExportDialog({
             </Label>
           </div>
 
+          {/* Layout Overlay Selector */}
+          <div className="grid gap-2">
+            <Label htmlFor="layout-select">Layout Overlay (optional)</Label>
+            <select
+              id="layout-select"
+              value={selectedLayoutId}
+              onChange={(e) => setSelectedLayoutId(e.target.value)}
+              disabled={isExporting}
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+            >
+              <option value="">No layout</option>
+              {layouts.map((layout) => (
+                <option key={layout.id} value={layout.id}>
+                  {layout.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Layout Preview */}
+          {selectedLayout && (
+            <div className="grid gap-2">
+              <div className="flex items-center justify-between">
+                <Label>Layout Preview</Label>
+                <button
+                  onClick={() => setSelectedLayoutId("")}
+                  className="p-1 hover:bg-muted rounded transition-colors"
+                  title="Clear selection"
+                >
+                  <X className="w-4 h-4 text-muted-foreground" />
+                </button>
+              </div>
+              <div className="relative border border-border rounded-lg overflow-hidden bg-[repeating-linear-gradient(45deg,#f0f0f0_0px,#f0f0f0_10px,#ffffff_10px,#ffffff_20px)]">
+                {selectedLayout.previewImage ? (
+                  <img
+                    src={selectedLayout.previewImage}
+                    alt={selectedLayout.name}
+                    className="w-full h-32 object-contain"
+                  />
+                ) : (
+                  <div className="w-full h-32 flex items-center justify-center">
+                    <Layout className="w-8 h-8 text-muted-foreground/50" />
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Progress Bar */}
           {isExporting && progress && (
             <div className="grid gap-2">
@@ -150,7 +236,7 @@ export function PdfExportDialog({
                 Exporting...
               </>
             ) : (
-              "Export PDF"
+              "Export to Layout"
             )}
           </Button>
         </div>

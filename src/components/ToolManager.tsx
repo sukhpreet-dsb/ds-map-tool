@@ -254,6 +254,21 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
         }
         break;
 
+      case "split":
+        // Split interaction is managed in MapInteractions.tsx
+        // No draw interaction needed here
+        break;
+
+      case "merge":
+        // Merge interaction is managed in MapInteractions.tsx
+        // No draw interaction needed here
+        break;
+
+      case "offset":
+        // Offset interaction is managed in MapInteractions.tsx
+        // No draw interaction needed here
+        break;
+
       default:
         break;
     }

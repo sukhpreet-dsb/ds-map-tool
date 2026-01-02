@@ -10,6 +10,7 @@ export interface PdfExportConfig {
   pageSize: PageSize;
   resolution: Resolution;
   keepVectorLayerConstant?: boolean; // If true, vector features stay at original size while base layer zooms
+  layoutId?: string; // ID of saved layout to overlay on the PDF
 }
 
 // Page dimensions in millimeters [width, height]

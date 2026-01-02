@@ -7,13 +7,13 @@ import type Map from "ol/Map";
 import GeoJSON from "ol/format/GeoJSON";
 import KML from "ol/format/KML";
 import JSZip from "jszip";
-import { MapViewToggle } from "./MapViewToggle";
-import { LoadingOverlay } from "./LoadingOverlay";
-import Toolbar from "./ToolBar";
-import FileManager from "./FileManager";
-import MapInstance from "./MapInstance";
-import MapInteractions from "./MapInteractions";
-import ToolManager from "./ToolManager";
+import { MapViewToggle } from "../components/MapViewToggle";
+import { LoadingOverlay } from "../components/LoadingOverlay";
+import Toolbar from "../components/ToolBar";
+import FileManager from "../components/FileManager";
+import MapInstance from "../components/MapInstance";
+import MapInteractions from "../components/MapInteractions";
+import ToolManager from "../components/ToolManager";
 import { useMapState } from "@/hooks/useMapState";
 import { useToolState } from "@/hooks/useToolState";
 import { useFeatureState } from "@/hooks/useFeatureState";
@@ -26,19 +26,23 @@ import {
   normalizeImportedGeoJSON,
 } from "@/utils/serializationUtils";
 import { fitMapToFeatures, restoreMapView } from "@/utils/mapStateUtils";
-import { JobSelection } from "./JobSelection";
+import { JobSelection } from "../components/JobSelection";
 import { useMapProjects } from "@/hooks/useMapProjects";
-import PropertiesPanel from "./PropertiesPanel";
-import { TextDialog } from "./TextDialog";
+import PropertiesPanel from "../components/PropertiesPanel";
+import { TextDialog } from "../components/TextDialog";
 import { handleTextClick } from "@/icons/Text";
-import SearchWrapper, { type SearchWrapperRef } from "./SearchWrapper";
-import type { SearchResult } from "./SearchPanel";
-import { TogglingObject } from "./TogglingObject";
-import { PdfExportDialog } from "./PdfExportDialog";
-import { DragBoxInstruction } from "./DragBoxInstruction";
-import { exportMapToPdf, type PdfExportConfig } from "@/utils/pdfExportUtils";
-import { IconPickerDialog } from "./IconPickerDialog";
+import SearchWrapper, { type SearchWrapperRef } from "../components/SearchWrapper";
+import type { SearchResult } from "../components/SearchPanel";
+import { TogglingObject } from "../components/TogglingObject";
+import { PdfExportDialog } from "../components/PdfExportDialog";
+import { DragBoxInstruction } from "../components/DragBoxInstruction";
+import { exportMapToImage, type MapImageExportResult, type ExportProgress } from "@/utils/mapImageExport";
+import { IconPickerDialog } from "../components/IconPickerDialog";
 import { handleIconClick } from "@/icons/IconPicker";
+import { MergePropertiesDialog } from "@/components/MergePropertiesDialog";
+import { type MergeRequestDetail } from "@/components/MapInteractions";
+import { performMerge } from "@/utils/splitUtils";
+import type { PdfExportConfig } from "@/types/pdf";
 
 // Interface for properly serializable map data
 interface SerializedMapData {
@@ -77,7 +81,9 @@ const MapEditor: React.FC = () => {
     handleMapViewChange,
   } = useMapState();
 
-  const { activeTool, selectedLegend, setActiveTool, handleLegendSelect } =
+  const {
+    activeTool, selectedLegend, setActiveTool, handleLegendSelect
+  } =
     useToolState();
 
   const {
@@ -102,6 +108,10 @@ const MapEditor: React.FC = () => {
 
   // Icon picker dialog state
   const [iconPickerOpen, setIconPickerOpen] = useState(false);
+
+  // Merge properties dialog state
+  const [mergeDialogOpen, setMergeDialogOpen] = useState(false);
+  const [pendingMerge, setPendingMerge] = useState<MergeRequestDetail | null>(null);
 
   // PDF export dialog state
   const [pdfDialogOpen, setPdfDialogOpen] = useState(false);
@@ -261,7 +271,7 @@ const MapEditor: React.FC = () => {
       saveMapState();
     } else {
       alert("Please select a feature to delete.");
-    }
+    };
   };
 
   const handleImportClick = () => {
@@ -457,31 +467,28 @@ const MapEditor: React.FC = () => {
 
   const handlePdfExport = async (
     config: PdfExportConfig,
-    onProgress: (progress: import("@/utils/pdfExportUtils").ExportProgress) => void
-  ) => {
+    onProgress: (progress: ExportProgress) => void
+  ): Promise<MapImageExportResult> => {
     if (!mapRef.current) {
-      alert('Map not ready for export');
-      return;
+      throw new Error('Map not ready for export');
     }
 
     if (!selectedExtent) {
-      alert('No area selected for export');
-      return;
+      throw new Error('No area selected for export');
     }
 
     setIsExportingPdf(true);
 
     try {
-      const pdfBlob = await exportMapToPdf(mapRef.current, config, onProgress, selectedExtent);
-      const fileName = `map-export-${new Date().toISOString().split('T')[0]}.pdf`;
-      downloadBlob(pdfBlob, fileName);
-      setPdfDialogOpen(false);
-      setSelectedExtent(null); // Clear selection after export
+      const imageResult = await exportMapToImage(mapRef.current, config, onProgress, selectedExtent);
+      return imageResult;
     } catch (error) {
       console.error('PDF export failed:', error);
-      alert(`PDF export failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw error;
     } finally {
       setIsExportingPdf(false);
+      setPdfDialogOpen(false);
+      setSelectedExtent(null);
     }
   };
 
@@ -642,6 +649,20 @@ const MapEditor: React.FC = () => {
     };
   }, []);
 
+  // Merge request event listener
+  useEffect(() => {
+    const handleMergeRequest = (event: CustomEvent<MergeRequestDetail>) => {
+      setPendingMerge(event.detail);
+      setMergeDialogOpen(true);
+    };
+
+    window.addEventListener('mergeRequest', handleMergeRequest as EventListener);
+
+    return () => {
+      window.removeEventListener('mergeRequest', handleMergeRequest as EventListener);
+    };
+  }, []);
+
   // Handle text feature selection for editing
   useEffect(() => {
     // Only handle editing when select tool is active and a text feature is selected
@@ -725,6 +746,39 @@ const MapEditor: React.FC = () => {
     setActiveTool('select');
   };
 
+  // Merge dialog handlers
+  const handleMergeConfirm = (selectedProperties: Record<string, any>) => {
+    if (!pendingMerge) return;
+
+    const { feature1, feature2, feature1Endpoint, feature2Endpoint, vectorSource } = pendingMerge;
+
+    // Perform merge with selected properties
+    const mergedFeature = performMerge(
+      vectorSource,
+      feature1,
+      feature2,
+      feature1Endpoint,
+      feature2Endpoint,
+      selectedProperties
+    );
+
+    if (mergedFeature) {
+      // Select the merged feature
+      setSelectedFeature(mergedFeature);
+      // Save map state
+      saveMapState();
+    }
+
+    // Close dialog and clear pending merge
+    setMergeDialogOpen(false);
+    setPendingMerge(null);
+  };
+
+  const handleMergeDialogClose = () => {
+    setMergeDialogOpen(false);
+    setPendingMerge(null);
+  };
+
   const handleRedoOperation = () => {
     if (undoRedoInteractionRef.current?.hasRedo()) {
       undoRedoInteractionRef.current.redo();
@@ -786,6 +840,14 @@ const MapEditor: React.FC = () => {
         isOpen={iconPickerOpen}
         onClose={handleIconPickerClose}
         onSelectIcon={handleIconSelect}
+      />
+
+      <MergePropertiesDialog
+        isOpen={mergeDialogOpen}
+        onClose={handleMergeDialogClose}
+        onConfirm={handleMergeConfirm}
+        feature1={pendingMerge?.feature1 || null}
+        feature2={pendingMerge?.feature2 || null}
       />
 
       <PdfExportDialog

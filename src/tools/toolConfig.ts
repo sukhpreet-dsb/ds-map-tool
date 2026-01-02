@@ -10,7 +10,10 @@ import {
   Minus,
   Move,
   RulerDimensionLine,
-  MapPin
+  MapPin,
+  Scissors,
+  Spline,
+  CopySlash,
 } from "lucide-react";
 
 export const TOOLS = [
@@ -94,7 +97,21 @@ export const TOOLS = [
     name: 'Icons',
     icon: MapPin,
   },
-
+  {
+    id: 'split',
+    name: 'Split',
+    icon: Scissors,
+  },
+  {
+    id: 'merge',
+    name: 'Merge',
+    icon: Spline,
+  },
+  {
+    id: 'offset',
+    name: 'Offset',
+    icon: CopySlash,
+  },
 ];
 
 export const DEFAULT_TOOL = "hand";
