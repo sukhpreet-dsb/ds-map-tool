@@ -118,6 +118,21 @@ export function LayoutCanvas({
     canvas.requestRenderAll()
   }, [pageSize, orientation, dimensions.width, dimensions.height])
 
+  // Apply Fabric.js viewport zoom for high-quality rendering (instead of CSS transform)
+  useEffect(() => {
+    const canvas = fabricRef.current
+    if (!canvas) return
+
+    // Use Fabric.js setZoom for native high-quality rendering
+    canvas.setZoom(scale)
+    // Update canvas element dimensions to match zoomed size for proper scrolling
+    canvas.setDimensions({
+      width: dimensions.width * scale,
+      height: dimensions.height * scale,
+    })
+    canvas.requestRenderAll()
+  }, [zoom, scale, dimensions.width, dimensions.height])
+
   // Handle map image as a selectable/movable object
   useEffect(() => {
     const canvas = fabricRef.current;
@@ -295,14 +310,13 @@ export function LayoutCanvas({
           minHeight: scaledHeight + 80,
         }}
       >
-        {/* Scaled canvas container */}
+        {/* Canvas container - Fabric.js handles zoom internally for high-quality rendering */}
         <div
           className="shadow-2xl"
           style={{
-            width: dimensions.width,
-            height: dimensions.height,
-            transform: `scale(${scale})`,
-            transformOrigin: 'center center',
+            width: scaledWidth,
+            height: scaledHeight,
+            // No CSS transform needed - Fabric.js setZoom handles zoom with proper re-rendering
           }}
         >
           <canvas ref={canvasRef} />

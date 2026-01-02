@@ -12,6 +12,8 @@ import {
   type PageSize,
   type Orientation,
 } from "@/components/layout";
+import { getFabricExportSettings } from "@/utils/canvasExportUtils";
+import { RESOLUTION_OPTIONS, type Resolution, PAGE_SIZES as PDF_PAGE_SIZES } from "@/types/pdf";
 import { ArrowLeft, ChevronDown } from "lucide-react";
 import {
   DropdownMenu,
@@ -71,6 +73,7 @@ export default function LayoutEditor() {
   const [pageSize, setPageSize] = useState<PageSize>("A4");
   const [orientation, setOrientation] = useState<Orientation>("portrait");
   const [zoom, setZoom] = useState(100);
+  const [pdfResolution, setPdfResolution] = useState<Resolution>(3600);
   const [backgroundImage, setBackgroundImage] = useState<string | undefined>(
     undefined
   );
@@ -231,21 +234,36 @@ export default function LayoutEditor() {
 
   const handleDownloadPdf = () => {
     const canvas = fabricRef.current;
-    if (!canvas) return;
+    if (!canvas || !canvas.width || !canvas.height) return;
 
     // Deselect objects to remove selection handles from export
     canvas.discardActiveObject();
     canvas.requestRenderAll();
 
-    // Export canvas to data URL (includes background image)
+    // Get page dimensions in mm based on orientation
+    const pageSizeLower = pageSize.toLowerCase() as keyof typeof PDF_PAGE_SIZES;
+    const pageDims = PDF_PAGE_SIZES[pageSizeLower];
+    const [pageWidthMm, pageHeightMm] = orientation === 'landscape'
+      ? [pageDims.height, pageDims.width]
+      : [pageDims.width, pageDims.height];
+
+    // Calculate export settings using shared utility (DRY approach)
+    const exportSettings = getFabricExportSettings({
+      resolution: pdfResolution,
+      canvasWidthPx: canvas.width,
+      canvasHeightPx: canvas.height,
+      pageWidthMm,
+      pageHeightMm,
+    });
+
+    // Export canvas to data URL with calculated quality settings
     const dataUrl = canvas.toDataURL({
-      format: "jpeg",
-      quality: 0.95,
-      multiplier: 2, // Higher resolution for better PDF quality
+      format: exportSettings.format,
+      quality: exportSettings.quality,
+      multiplier: exportSettings.multiplier,
     });
 
     // Create PDF with correct page size and orientation
-    // jsPDF uses mm units and standard page format names
     const pdf = new jsPDF({
       orientation: orientation,
       unit: "mm",
@@ -257,7 +275,8 @@ export default function LayoutEditor() {
     const pdfHeight = pdf.internal.pageSize.getHeight();
 
     // Add image to fill the entire page
-    pdf.addImage(dataUrl, "JPEG", 0, 0, pdfWidth, pdfHeight);
+    const imageFormat = exportSettings.format.toUpperCase() as 'JPEG' | 'PNG';
+    pdf.addImage(dataUrl, imageFormat, 0, 0, pdfWidth, pdfHeight);
 
     // Generate filename
     const fileName = editingName.trim() || "layout";
