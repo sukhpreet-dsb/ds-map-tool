@@ -282,17 +282,38 @@ const MapEditor: React.FC = () => {
   };
 
   const handleDelete = () => {
-    if (selectedFeature) {
-      vectorSourceRef.current.removeFeature(selectedFeature);
+    // Get all selected features from the select interaction
+    const selectedFeatures = selectInteractionRef.current?.getFeatures();
+
+    if (selectedFeatures && selectedFeatures.getLength() > 0) {
+      // Get a copy of the array before clearing
+      const featuresArray = selectedFeatures.getArray().slice();
+
+      // Clear selection first
+      selectedFeatures.clear();
       setSelectedFeature(null);
+
+      // Remove all selected features
+      featuresArray.forEach(feature => {
+        vectorSourceRef.current.removeFeature(feature);
+      });
+
       saveMapState();
     } else {
       alert("Please select a feature to delete.");
-    };
+    }
   };
 
   const handleImportClick = () => {
     fileInputRef.current?.click();
+  };
+
+  const handleClearSelection = () => {
+    setSelectedFeature(null);
+  };
+
+  const handleDeleteFromKeyboard = () => {
+    saveMapState();
   };
 
   const handleCopyOperation = (
@@ -878,6 +899,8 @@ const MapEditor: React.FC = () => {
     onSetActiveTool: setActiveTool,
     onUndoOperation: handleUndoOperation,
     onRedoOperation: handleRedoOperation,
+    onClearSelection: handleClearSelection,
+    onDeleteOperation: handleDeleteFromKeyboard,
     disabled: false,
   });
 
@@ -958,6 +981,10 @@ const MapEditor: React.FC = () => {
         onPasteFeatures={handlePasteOperation}
         onSelectInteractionReady={handleSelectInteractionReady}
         onUndoInteractionReady={handleUndoInteractionReady}
+        onMultiSelectChange={(features) => {
+          // Set the first feature as primary selection for properties panel
+          setSelectedFeature(features[0] || null);
+        }}
       />
 
       <ToolManager
