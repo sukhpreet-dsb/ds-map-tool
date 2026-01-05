@@ -40,8 +40,9 @@ import { exportMapToImage, type MapImageExportResult, type ExportProgress } from
 import { IconPickerDialog } from "../components/IconPickerDialog";
 import { MergePropertiesDialog } from "@/components/MergePropertiesDialog";
 import { type MergeRequestDetail } from "@/components/MapInteractions";
-import { performMerge } from "@/utils/splitUtils";
+import { performMerge, createOffsetLineString } from "@/utils/splitUtils";
 import type { PdfExportConfig } from "@/types/pdf";
+import { OffsetDialog, type OffsetDirection } from "@/components/OffsetDialog";
 
 // Interface for properly serializable map data
 interface SerializedMapData {
@@ -117,6 +118,10 @@ const MapEditor: React.FC = () => {
   // Merge properties dialog state
   const [mergeDialogOpen, setMergeDialogOpen] = useState(false);
   const [pendingMerge, setPendingMerge] = useState<MergeRequestDetail | null>(null);
+
+  // Offset dialog state
+  const [offsetDialogOpen, setOffsetDialogOpen] = useState(false);
+  const [offsetFeature, setOffsetFeature] = useState<Feature<Geometry> | null>(null);
 
   // PDF export dialog state
   const [pdfDialogOpen, setPdfDialogOpen] = useState(false);
@@ -679,6 +684,20 @@ const MapEditor: React.FC = () => {
     };
   }, []);
 
+  // Offset request event listener
+  useEffect(() => {
+    const handleOffsetRequest = (event: CustomEvent<{ feature: Feature<Geometry>; vectorSource: VectorSource<Feature<Geometry>> }>) => {
+      setOffsetFeature(event.detail.feature);
+      setOffsetDialogOpen(true);
+    };
+
+    window.addEventListener('offsetRequest', handleOffsetRequest as EventListener);
+
+    return () => {
+      window.removeEventListener('offsetRequest', handleOffsetRequest as EventListener);
+    };
+  }, []);
+
   // Handle text feature selection for editing
   useEffect(() => {
     // Only handle editing when select tool is active and a text feature is selected
@@ -791,6 +810,57 @@ const MapEditor: React.FC = () => {
     setPendingMerge(null);
   };
 
+  // Offset dialog handlers
+  const handleOffsetConfirm = (direction: OffsetDirection, distance: number) => {
+    if (!offsetFeature) return;
+
+    const vectorSource = vectorSourceRef.current;
+
+    // Create offset(s) based on direction
+    if (direction === "left") {
+      const offsetLeft = createOffsetLineString(offsetFeature, distance);
+      if (offsetLeft) {
+        vectorSource.addFeature(offsetLeft);
+      }
+    } else if (direction === "right") {
+      const offsetRight = createOffsetLineString(offsetFeature, -distance);
+      if (offsetRight) {
+        vectorSource.addFeature(offsetRight);
+      }
+    } else if (direction === "both") {
+      const offsetLeft = createOffsetLineString(offsetFeature, distance);
+      const offsetRight = createOffsetLineString(offsetFeature, -distance);
+      if (offsetLeft) {
+        vectorSource.addFeature(offsetLeft);
+      }
+      if (offsetRight) {
+        // Update name to distinguish from left offset
+        const name = offsetRight.get("name");
+        if (name && name.includes("(offset)")) {
+          offsetRight.set("name", name.replace("(offset)", "(offset right)"));
+        }
+        vectorSource.addFeature(offsetRight);
+      }
+      // Update left offset name for clarity
+      if (offsetLeft) {
+        const name = offsetLeft.get("name");
+        if (name && name.includes("(offset)")) {
+          offsetLeft.set("name", name.replace("(offset)", "(offset left)"));
+        }
+      }
+    }
+
+    // Save state to database after creating offsets
+    if (isProjectReadyRef.current && currentDb) {
+      saveMapState();
+    }
+  };
+
+  const handleOffsetDialogClose = () => {
+    setOffsetDialogOpen(false);
+    setOffsetFeature(null);
+  };
+
   const handleRedoOperation = () => {
     if (undoRedoInteractionRef.current?.hasRedo()) {
       undoRedoInteractionRef.current.redo();
@@ -860,6 +930,13 @@ const MapEditor: React.FC = () => {
         onConfirm={handleMergeConfirm}
         feature1={pendingMerge?.feature1 || null}
         feature2={pendingMerge?.feature2 || null}
+      />
+
+      <OffsetDialog
+        isOpen={offsetDialogOpen}
+        onClose={handleOffsetDialogClose}
+        onConfirm={handleOffsetConfirm}
+        feature={offsetFeature}
       />
 
       <PdfExportDialog
