@@ -172,6 +172,13 @@ export const TOOLS_CONFIG: Record<string, ToolConfig> = {
     selectDisabled: true,
     modifyDisabled: true,
   },
+  icons: {
+    id: "icons",
+    name: "Icons",
+    requiresClickHandler: true,
+    clickHandlerKey: "IconClickHandler",
+    description: "Requires selected icon to be active",
+  },
 };
 
 /**

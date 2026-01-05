@@ -38,7 +38,6 @@ import { PdfExportDialog } from "../components/PdfExportDialog";
 import { DragBoxInstruction } from "../components/DragBoxInstruction";
 import { exportMapToImage, type MapImageExportResult, type ExportProgress } from "@/utils/mapImageExport";
 import { IconPickerDialog } from "../components/IconPickerDialog";
-import { handleIconClick } from "@/icons/IconPicker";
 import { MergePropertiesDialog } from "@/components/MergePropertiesDialog";
 import { type MergeRequestDetail } from "@/components/MapInteractions";
 import { performMerge } from "@/utils/splitUtils";
@@ -82,9 +81,15 @@ const MapEditor: React.FC = () => {
   } = useMapState();
 
   const {
-    activeTool, selectedLegend, setActiveTool, handleLegendSelect
-  } =
-    useToolState();
+    activeTool,
+    selectedLegend,
+    selectedIconPath,
+    setActiveTool,
+    handleLegendSelect,
+    handleIconSelect: handleIconSelectFromHook,
+  } = useToolState();
+
+  const skipNextPickerOpen = useRef(false);
 
   const {
     selectedFeature,
@@ -261,6 +266,13 @@ const MapEditor: React.FC = () => {
   };
 
   const handleToolActivation = (toolId: string) => {
+    // Special handling for icons tool - if already active, dispatch event to reopen picker
+    if (toolId === "icons" && activeTool === "icons") {
+      const iconPickerEvent = new CustomEvent('iconPickerOpen');
+      window.dispatchEvent(iconPickerEvent);
+      return;
+    }
+
     setActiveTool(toolId);
   };
 
@@ -634,9 +646,13 @@ const MapEditor: React.FC = () => {
     };
   }, []);
 
-  // Icon picker event listener
+  // Icon picker event listener with guard
   useEffect(() => {
     const handleIconPickerOpen = () => {
+      if (skipNextPickerOpen.current) {
+        skipNextPickerOpen.current = false;
+        return;
+      }
       setIconPickerOpen(true);
     };
 
@@ -721,29 +737,25 @@ const MapEditor: React.FC = () => {
   const handleIconSelect = (iconPath: string) => {
     if (!mapRef.current) return;
 
-    // Switch to select tool immediately to prevent dialog from reopening
-    setActiveTool('select');
+    // Set guard to prevent picker from reopening
+    skipNextPickerOpen.current = true;
 
-    // Register a one-time click handler to place the icon
-    const handleMapClick = (evt: any) => {
-      const coordinate = evt.coordinate;
-      handleIconClick(vectorSourceRef.current, coordinate, iconPath);
+    // Use the hook to set the icon path and activate icons tool
+    handleIconSelectFromHook(iconPath);
 
-      // Save map state after adding icon
-      saveMapState();
+    // Close the dialog
+    setIconPickerOpen(false);
 
-      // Remove the click listener after placing the icon
-      mapRef.current?.un('click', handleMapClick);
-    };
-
-    // Add the click listener
-    mapRef.current.on('click', handleMapClick);
+    // Save map state
+    saveMapState();
   };
 
   const handleIconPickerClose = () => {
     setIconPickerOpen(false);
-    // Switch back to select tool to prevent dialog from reopening
-    setActiveTool('select');
+    // Only switch to select tool if no icon is selected
+    if (!selectedIconPath) {
+      setActiveTool('select');
+    }
   };
 
   // Merge dialog handlers
@@ -876,6 +888,7 @@ const MapEditor: React.FC = () => {
         vectorSource={vectorSourceRef.current}
         activeTool={activeTool}
         selectedLegend={selectedLegend}
+        selectedIconPath={selectedIconPath}
         onFeatureSelect={setSelectedFeature}
         onToolChange={setActiveTool}
       />
