@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { Modify, Select, Translate, Snap, DragBox, DragPan } from "ol/interaction";
 import { Collection } from "ol";
-import { click, altKeyOnly, shiftKeyOnly, always, platformModifierKeyOnly } from "ol/events/condition";
+import { click, altKeyOnly, shiftKeyOnly, always, platformModifierKeyOnly, pointerMove } from "ol/events/condition";
 import Transform from "ol-ext/interaction/Transform";
 import UndoRedo from "ol-ext/interaction/UndoRedo";
 import Split from "ol-ext/interaction/Split";
@@ -23,6 +23,7 @@ import {
   findNearbyEndpoint,
   isOffsettableFeature,
 } from "@/utils/splitUtils";
+import { createHoverStyle } from "@/utils/styleUtils";
 
 // Custom event interface for merge requests
 export interface MergeRequestDetail {
@@ -77,6 +78,7 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
   const featureSelectionDragBoxRef = useRef<DragBox | null>(null);
   const dragPanRef = useRef<DragPan | null>(null);
   const translateRef = useRef<Translate | null>(null);
+  const hoverInteractionRef = useRef<Select | null>(null);
 
   // Initialize UndoRedo interaction - only initialize once when map and vectorLayer are available
   useEffect(() => {
@@ -113,6 +115,28 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
       }
     };
   }, [map]);
+
+  // Initialize hover interaction for feature highlighting on mouse move
+  useEffect(() => {
+    if (!map || !vectorLayer) return;
+
+    // Create hover select interaction with pointerMove condition
+    const hoverInteraction = new Select({
+      condition: pointerMove,
+      layers: [vectorLayer],
+      style: (feature) => createHoverStyle(feature as Feature<Geometry>),
+    });
+
+    map.addInteraction(hoverInteraction);
+    hoverInteractionRef.current = hoverInteraction;
+
+    return () => {
+      if (hoverInteractionRef.current) {
+        map.removeInteraction(hoverInteractionRef.current);
+        hoverInteractionRef.current = null;
+      }
+    };
+  }, [map, vectorLayer]);
 
   // 🆕 Initialize select and modify interactions with multi-select support
   useEffect(() => {

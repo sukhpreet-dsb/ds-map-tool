@@ -1,6 +1,8 @@
-import { Style, Circle as CircleStyle, Text } from "ol/style";
+import { Style, Circle as CircleStyle, Text, Icon } from "ol/style";
 import Stroke from "ol/style/Stroke";
 import Fill from "ol/style/Fill";
+import { Feature } from "ol";
+import type { Geometry } from "ol/geom";
 import { applyOpacityToColor } from "./colorUtils";
 
 /**
@@ -170,5 +172,108 @@ export const createPolygonStyle = (
   return new Style({
     stroke,
     fill,
+  });
+};
+
+/**
+ * Hover highlight color
+ */
+export const HOVER_HIGHLIGHT_COLOR = "#f55927"; // Bright cyan/blue
+
+/**
+ * Creates a hover/highlight style for a feature
+ * Applies a bright outline to indicate hover state
+ * @param feature - The feature to create hover style for
+ * @returns OpenLayers Style object or array of styles
+ */
+export const createHoverStyle = (feature: Feature<Geometry>): Style | Style[] => {
+  const geometry = feature.getGeometry();
+  if (!geometry) return new Style();
+
+  const geometryType = geometry.getType();
+
+  // Common hover stroke - bright cyan with increased width
+  const hoverStroke = new Stroke({
+    color: HOVER_HIGHLIGHT_COLOR,
+    width: 4,
+  });
+
+  // For Point features (including icons)
+  if (geometryType === "Point") {
+    const iconSrc = feature.get("iconSrc");
+
+    if (iconSrc) {
+      // Icon point - return icon with a highlight circle behind it
+      return [
+        new Style({
+          image: new CircleStyle({
+            radius: 18,
+            fill: new Fill({ color: "rgba(0, 191, 255, 0.3)" }),
+            stroke: new Stroke({
+              color: HOVER_HIGHLIGHT_COLOR,
+              width: 2,
+            }),
+          }),
+        }),
+        new Style({
+          image: new Icon({
+            src: iconSrc,
+            scale: feature.get("iconScale") || 1,
+          }),
+        }),
+      ];
+    }
+
+    // Text feature
+    if (feature.get("isText")) {
+      const textContent = feature.get("text") || "Text";
+      const textScale = feature.get("textScale") || 1;
+      const textRotation = feature.get("textRotation") || 0;
+
+      return new Style({
+        text: new Text({
+          text: textContent,
+          font: `${14 * textScale}px Arial, sans-serif`,
+          scale: textScale,
+          rotation: (textRotation * Math.PI) / 180,
+          fill: new Fill({ color: HOVER_HIGHLIGHT_COLOR }),
+          stroke: new Stroke({
+            color: "#ffffff",
+            width: 4,
+          }),
+          padding: [4, 6, 4, 6],
+          textAlign: "center",
+          textBaseline: "middle",
+        }),
+        zIndex: 100,
+      });
+    }
+
+    // Regular point
+    return new Style({
+      image: new CircleStyle({
+        radius: 8,
+        fill: new Fill({ color: HOVER_HIGHLIGHT_COLOR }),
+        stroke: new Stroke({
+          color: "#ffffff",
+          width: 3,
+        }),
+      }),
+    });
+  }
+
+  // For Polygon features
+  if (geometryType === "Polygon" || geometryType === "MultiPolygon") {
+    return new Style({
+      stroke: hoverStroke,
+      fill: new Fill({
+        color: "rgba(0, 191, 255, 0.2)",
+      }),
+    });
+  }
+
+  // For LineString, MultiLineString, GeometryCollection (most common)
+  return new Style({
+    stroke: hoverStroke,
   });
 };
