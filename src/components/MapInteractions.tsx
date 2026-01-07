@@ -125,6 +125,7 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
       condition: pointerMove,
       layers: [vectorLayer],
       style: (feature) => createHoverStyle(feature as Feature<Geometry>),
+      hitTolerance: 15,  // 🆕 15px tolerance around features for forgiving clicks
     });
 
     map.addInteraction(hoverInteraction);
@@ -147,6 +148,7 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
       condition: click,
       layers: [vectorLayer],
       filter: isSelectableFeature,
+      hitTolerance: 15,  // 🆕 15px tolerance around features for forgiving clicks
     };
 
     if (multiSelectMode === "always") {
