@@ -120,3 +120,32 @@ export const isLegacySelectableFeature = (feature: FeatureLike): boolean => {
   // All other feature types are not selectable
   return false;
 };
+
+/**
+ * Determines if a feature supports custom line styling (width and color)
+ * Only Polyline and Freehand LineString features support custom styling
+ * Excludes: Measure, Arrow, Legends
+ */
+export const supportsCustomLineStyle = (feature: FeatureLike): boolean => {
+  const geometry = feature.getGeometry();
+  if (!geometry || geometry.getType() !== "LineString") return false;
+
+  // Include: Polyline and Freehand
+  const isPolyline = feature.get("isPolyline");
+  const isFreehand = feature.get("isFreehand");
+  const isArrow = feature.get("isArrow");
+  const isLegends = feature.get("islegends");
+
+  // Exclude: Measure, Arrow, Legends
+  const isMeasure = feature.get("isMeasure");
+
+  return (isPolyline || isFreehand || isArrow || isLegends) && !isMeasure;
+};
+
+/**
+ * Default line style configuration
+ */
+export const DEFAULT_LINE_STYLE = {
+  color: "#00ff00",
+  width: 4,
+} as const;
