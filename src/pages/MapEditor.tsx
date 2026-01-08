@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { Vector as VectorSource } from "ol/source";
 import { Feature } from "ol";
+import { Point } from "ol/geom";
 import type { Geometry } from "ol/geom";
 import type { Extent } from "ol/extent";
 import type Map from "ol/Map";
@@ -641,6 +642,21 @@ const MapEditor: React.FC = () => {
     const handleTextToolClick = (event: CustomEvent) => {
       const { coordinate } = event.detail;
       setPendingCoordinate(coordinate);
+
+      // Create temporary text feature for live preview when adding new text
+      if (vectorSourceRef.current) {
+        const tempFeature = new Feature({
+          geometry: new Point(coordinate),
+          text: "Text",
+          textScale: 1,
+          textRotation: 0,
+          isText: true,
+          _isTemporaryTextPreview: true, // Mark as temporary for cleanup
+        });
+        vectorSourceRef.current.addFeature(tempFeature);
+        setEditingTextFeature(tempFeature);
+      }
+
       setTextDialogOpen(true);
     };
 
@@ -734,6 +750,11 @@ const MapEditor: React.FC = () => {
       editingTextFeature.set("textScale", scale || 1);
       editingTextFeature.set("textRotation", rotation || 0);
 
+      // Remove temporary flag if it was a new text feature
+      if (editingTextFeature.get('_isTemporaryTextPreview')) {
+        editingTextFeature.unset('_isTemporaryTextPreview');
+      }
+
       // Text styling handled by layer style function
       // Force re-render to update text
       if (mapRef.current) {
@@ -748,6 +769,18 @@ const MapEditor: React.FC = () => {
   };
 
   const handleTextDialogClose = () => {
+    // If we created a temporary feature for adding new text and user cancelled, remove it
+    if (editingTextFeature && vectorSourceRef.current) {
+      const features = vectorSourceRef.current.getFeatures();
+      if (features.includes(editingTextFeature)) {
+        // Only remove if it's still marked as temporary (wasn't submitted)
+        // If submitted, the flag would have been removed in handleTextSubmit
+        if (editingTextFeature.get('_isTemporaryTextPreview')) {
+          vectorSourceRef.current.removeFeature(editingTextFeature);
+        }
+      }
+    }
+
     setTextDialogOpen(false);
     setPendingCoordinate(null);
     setEditingTextFeature(null);
@@ -927,6 +960,8 @@ const MapEditor: React.FC = () => {
         initialScale={editingTextScale}
         initialRotation={editingTextRotation}
         isEditing={!!editingTextFeature}
+        selectInteraction={selectInteractionRef.current}
+        editingTextFeature={editingTextFeature}
       />
 
       <IconPickerDialog
