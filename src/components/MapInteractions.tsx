@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { Modify, Select, Translate, Snap, DragBox, DragPan } from "ol/interaction";
 import { Collection } from "ol";
-import { click, altKeyOnly, shiftKeyOnly, always, platformModifierKeyOnly } from "ol/events/condition";
+import { click, altKeyOnly, shiftKeyOnly, always, platformModifierKeyOnly, pointerMove } from "ol/events/condition";
 import Transform from "ol-ext/interaction/Transform";
 import UndoRedo from "ol-ext/interaction/UndoRedo";
 import Split from "ol-ext/interaction/Split";
@@ -23,6 +23,7 @@ import {
   findNearbyEndpoint,
   isOffsettableFeature,
 } from "@/utils/splitUtils";
+import { createHoverStyle } from "@/utils/styleUtils";
 
 // Custom event interface for merge requests
 export interface MergeRequestDetail {
@@ -77,6 +78,7 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
   const featureSelectionDragBoxRef = useRef<DragBox | null>(null);
   const dragPanRef = useRef<DragPan | null>(null);
   const translateRef = useRef<Translate | null>(null);
+  const hoverInteractionRef = useRef<Select | null>(null);
 
   // Initialize UndoRedo interaction - only initialize once when map and vectorLayer are available
   useEffect(() => {
@@ -114,6 +116,29 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
     };
   }, [map]);
 
+  // Initialize hover interaction for feature highlighting on mouse move
+  useEffect(() => {
+    if (!map || !vectorLayer) return;
+
+    // Create hover select interaction with pointerMove condition
+    const hoverInteraction = new Select({
+      condition: pointerMove,
+      layers: [vectorLayer],
+      style: (feature) => createHoverStyle(feature as Feature<Geometry>),
+      hitTolerance: 6,  // 🆕 15px tolerance around features for forgiving clicks
+    });
+
+    map.addInteraction(hoverInteraction);
+    hoverInteractionRef.current = hoverInteraction;
+
+    return () => {
+      if (hoverInteractionRef.current) {
+        map.removeInteraction(hoverInteractionRef.current);
+        hoverInteractionRef.current = null;
+      }
+    };
+  }, [map, vectorLayer]);
+
   // 🆕 Initialize select and modify interactions with multi-select support
   useEffect(() => {
     if (!map || !vectorLayer) return;
@@ -123,6 +148,7 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
       condition: click,
       layers: [vectorLayer],
       filter: isSelectableFeature,
+      hitTolerance: 6,  // 🆕 15px tolerance around features for forgiving clicks
     };
 
     if (multiSelectMode === "always") {
@@ -168,18 +194,16 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
     map.addInteraction(modifyInteraction);
     map.addInteraction(translate);
 
+    // Initialize DragPan reference eagerly
+    map.getInteractions().forEach((interaction) => {
+      if (interaction instanceof DragPan) {
+        dragPanRef.current = interaction;
+      }
+    });
+
     // 🆕 Updated select event handler for multi-select
     selectInteraction.on("select", (e) => {
       const allSelectedFeatures = selectInteraction.getFeatures().getArray();
-
-      // Find DragPan interaction on first selection
-      if (!dragPanRef.current && map) {
-        map.getInteractions().forEach((interaction) => {
-          if (interaction instanceof DragPan) {
-            dragPanRef.current = interaction;
-          }
-        });
-      }
 
       if (allSelectedFeatures.length > 0) {
         // Enable translate for ANY selected features (single or multi)
@@ -698,6 +722,21 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
     } else {
       // Disable selection for all other tools (drawing, navigation, icon tools, etc.)
       selectInteractionRef.current.setActive(false);
+
+      // Clear any existing selection to prevent stale state
+      selectInteractionRef.current.getFeatures().clear();
+
+      // Disable translate since nothing is selected
+      translateRef.current?.setActive(false);
+
+      // Re-enable panning when switching away from selection tools
+      dragPanRef.current?.setActive(true);
+
+      // Notify parent that selection was cleared
+      onFeatureSelect(null);
+      if (onMultiSelectChange) {
+        onMultiSelectChange([]);
+      }
     }
   }, [activeTool, map]);
 

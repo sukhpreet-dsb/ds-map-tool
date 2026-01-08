@@ -9,6 +9,7 @@ import { applyOpacityToColor } from "@/utils/colorUtils";
 import { getFeatureTypeStyle } from "@/utils/featureUtils";
 import { createPointStyle, createLineStyle } from "@/utils/styleUtils";
 import { getTextStyle } from "@/icons/Text";
+import { supportsCustomLineStyle, DEFAULT_LINE_STYLE } from "@/utils/featureTypeUtils";
 
 export type FeatureStylerFunction = (feature: FeatureLike, selectedLegend?: LegendType) => Style | Style[] | null;
 
@@ -22,12 +23,20 @@ export const getTextAlongLineStyle = (
 
   const styles: Style[] = [];
 
+  // Check for custom color first, fallback to legend type color
+  const customColor = feature.get("lineColor");
+  const strokeColor = customColor || legendType.style.strokeColor;
+
+  // Check for custom width first, fallback to legend type width
+  const customWidth = feature.get("lineWidth");
+  const width = customWidth !== undefined ? customWidth : legendType.style.strokeWidth;
+
   // Base line style from legend configuration
   styles.push(
     new Style({
       stroke: new Stroke({
-        color: legendType.style.strokeColor,
-        width: legendType.style.strokeWidth,
+        color: strokeColor,
+        width: width,
         lineDash: legendType.style.strokeDash,
         lineCap: "butt",
       }),
@@ -104,6 +113,11 @@ export const getArrowStyle = (feature: FeatureLike) => {
   const dy = endPoint[1] - startPoint[1];
   const angle = Math.atan2(dy, dx);
 
+  // Get custom color and width (support custom styling)
+  const customColor = feature.get("lineColor") || "#000000";
+  const customWidth = feature.get("lineWidth");
+  const width = customWidth !== undefined ? customWidth : 4;
+
   // Create arrow head using RegularShape
   const arrowHead = new RegularShape({
     points: 3,
@@ -111,15 +125,15 @@ export const getArrowStyle = (feature: FeatureLike) => {
     rotation: -angle,
     angle: 10,
     displacement: [0, 0],
-    fill: new Fill({ color: "#000000" }),
+    fill: new Fill({ color: customColor }),
   });
 
   return [
     // Line style
     new Style({
       stroke: new Stroke({
-        color: "#000000",
-        width: 4,
+        color: customColor,
+        width: width,
       }),
     }),
     // Arrow head style at the end point
@@ -230,13 +244,20 @@ export const getFeatureStyle = (
 
     const styles: Style[] = [];
     const opacity = legendType.style.opacity || 1;
-    const strokeColor = legendType.style.strokeColor || "#000000";
+
+    // Check for custom color first, fallback to legend type color
+    const customColor = feature.get("lineColor");
+    const strokeColor = customColor || legendType.style.strokeColor || "#000000";
+
+    // Check for custom width first, fallback to legend type width
+    const customWidth = feature.get("lineWidth");
+    const width = customWidth !== undefined ? customWidth : (legendType.style.strokeWidth || 2);
 
     styles.push(
       new Style({
         stroke: new Stroke({
           color: applyOpacityToColor(strokeColor, opacity),
-          width: legendType.style.strokeWidth || 2,
+          width: width,
           lineDash: legendType.style.strokeDash || [5, 5],
           lineCap: "butt",
         }),
@@ -273,6 +294,19 @@ export const getFeatureStyle = (
   }
 
   if (type === "LineString" || type === "MultiLineString") {
+    // Check for custom line styling (Polyline/Freehand only)
+    if (supportsCustomLineStyle(feature)) {
+      const customColor = feature.get("lineColor");
+      const customWidth = feature.get("lineWidth");
+
+      // Use custom values if set, otherwise use defaults
+      const color = customColor || DEFAULT_LINE_STYLE.color;
+      const width = customWidth !== undefined ? customWidth : DEFAULT_LINE_STYLE.width;
+
+      return createLineStyle(color, width);
+    }
+
+    // Fallback for other LineString types
     return createLineStyle("#00ff00", 4);
   }
 

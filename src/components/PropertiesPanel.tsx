@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { fromLonLat, toLonLat } from "ol/proj";
 import type Map from "ol/Map";
 import type Feature from "ol/Feature";
@@ -11,6 +11,9 @@ import { getCenter } from "ol/extent";
 import { X, Edit2, Save, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
+import { supportsCustomLineStyle, DEFAULT_LINE_STYLE } from "@/utils/featureTypeUtils";
 
 interface PropertiesPanelProps {
   map: Map | null;
@@ -56,6 +59,18 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   const [originalCustomProperties, setOriginalCustomProperties] = useState<
     CustomProperty[]
   >([]);
+
+  // Line style state
+  const [lineColor, setLineColor] = useState<string>(DEFAULT_LINE_STYLE.color);
+  const [lineWidth, setLineWidth] = useState<number>(DEFAULT_LINE_STYLE.width);
+  const [originalLineColor, setOriginalLineColor] = useState<string>(DEFAULT_LINE_STYLE.color);
+  const [originalLineWidth, setOriginalLineWidth] = useState<number>(DEFAULT_LINE_STYLE.width);
+
+  // Check if selected feature supports custom line styling
+  const supportsLineStyle = useMemo(() => {
+    if (!selectedFeature) return false;
+    return supportsCustomLineStyle(selectedFeature);
+  }, [selectedFeature]);
 
   // Extract all properties including coordinates
   const extractAllProperties = (feature: Feature): CustomProperty[] => {
@@ -169,12 +184,28 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
       setOriginalCoordinates(coords);
       setCustomProperties(properties);
       setOriginalCustomProperties(properties);
+
+      // Initialize line style if supported
+      if (supportsCustomLineStyle(selectedFeature)) {
+        const color = selectedFeature.get("lineColor") || DEFAULT_LINE_STYLE.color;
+        const width = selectedFeature.get("lineWidth") || DEFAULT_LINE_STYLE.width;
+        setLineColor(color);
+        setLineWidth(width);
+        setOriginalLineColor(color);
+        setOriginalLineWidth(width);
+      }
+
       setIsEditing(false);
     } else {
       setCoordinates({ long: "", lat: "", name: "" });
       setOriginalCoordinates({ long: "", lat: "", name: "" });
       setCustomProperties([]);
       setOriginalCustomProperties([]);
+      // Reset line style
+      setLineColor(DEFAULT_LINE_STYLE.color);
+      setLineWidth(DEFAULT_LINE_STYLE.width);
+      setOriginalLineColor(DEFAULT_LINE_STYLE.color);
+      setOriginalLineWidth(DEFAULT_LINE_STYLE.width);
       setIsEditing(false);
     }
   }, [selectedFeature]);
@@ -389,6 +420,17 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     updateAllProperties(customProperties);
     setOriginalCustomProperties(customProperties);
 
+    // Update line style if supported
+    if (selectedFeature && supportsCustomLineStyle(selectedFeature)) {
+      selectedFeature.set("lineColor", lineColor);
+      selectedFeature.set("lineWidth", lineWidth);
+      setOriginalLineColor(lineColor);
+      setOriginalLineWidth(lineWidth);
+
+      // Trigger style update
+      selectedFeature.changed();
+    }
+
     // Update coordinates state for consistency
     const nameProp = customProperties.find(p => p.key === 'name');
     const longProp = customProperties.find(p => p.key === 'long');
@@ -418,6 +460,9 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   const handleCancel = () => {
     setCoordinates(originalCoordinates);
     setCustomProperties(originalCustomProperties);
+    // Reset line style
+    setLineColor(originalLineColor);
+    setLineWidth(originalLineWidth);
     setIsEditing(false);
   };
 
@@ -529,6 +574,93 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
               </div>
             )}
           </div>
+
+          {/* Line Style Controls - Only for Polyline/Freehand */}
+          {supportsLineStyle && (
+            <div className="border-t border-gray-100 dark:border-slate-700 pt-4 mt-4">
+              <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-3 uppercase tracking-wide">
+                Line Style
+              </h4>
+
+              {!isEditing ? (
+                <div className="space-y-2">
+                  <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+                    <span className="font-medium text-gray-700 dark:text-gray-300">Color:</span>
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-6 h-6 rounded border border-gray-300 dark:border-gray-600"
+                        style={{ backgroundColor: lineColor }}
+                      />
+                      <span className="text-gray-600 dark:text-gray-400 font-mono text-xs">
+                        {lineColor.toUpperCase()}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+                    <span className="font-medium text-gray-700 dark:text-gray-300">Width:</span>
+                    <span className="text-gray-600 dark:text-gray-400">{lineWidth}px</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Color Picker */}
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Line Color
+                    </Label>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="color"
+                        value={lineColor}
+                        onChange={(e) => setLineColor(e.target.value)}
+                        className="w-12 h-10 rounded cursor-pointer border border-gray-300 dark:border-gray-600"
+                      />
+                      <Input
+                        type="text"
+                        value={lineColor}
+                        onChange={(e) => setLineColor(e.target.value)}
+                        placeholder="#00ff00"
+                        className="flex-1 text-sm font-mono"
+                        pattern="^#[0-9A-Fa-f]{6}$"
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Click color box or enter hex code
+                    </p>
+                  </div>
+
+                  {/* Width Slider */}
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Line Width: {lineWidth}px
+                    </Label>
+                    <div className="flex items-center gap-3">
+                      <Slider
+                        value={[lineWidth]}
+                        onValueChange={(value) => setLineWidth(value[0])}
+                        min={1}
+                        max={20}
+                        step={1}
+                        className="flex-1"
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setLineWidth(DEFAULT_LINE_STYLE.width)}
+                        className="px-2 py-1 text-xs shrink-0"
+                      >
+                        Reset
+                      </Button>
+                    </div>
+                    <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      <span>1px</span>
+                      <span>20px</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Footer */}
