@@ -7,6 +7,7 @@ import type LineString from "ol/geom/LineString";
 import type Polygon from "ol/geom/Polygon";
 import type GeometryCollection from "ol/geom/GeometryCollection";
 import type MultiLineString from "ol/geom/MultiLineString";
+import type { Select } from "ol/interaction";
 import { getCenter } from "ol/extent";
 import { X, Edit2, Save, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,7 @@ interface PropertiesPanelProps {
   selectedFeature: Feature | null;
   onClose: () => void;
   onSave?: () => void;
+  selectInteraction?: Select | null;
 }
 
 interface CoordinateState {
@@ -39,9 +41,11 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   selectedFeature,
   onClose,
   onSave,
+  selectInteraction,
 }) => {
   console.log("Selected Features : ", selectedFeature)
   const [isEditing, setIsEditing] = useState(false);
+  const [isEditingLineStyle, setIsEditingLineStyle] = useState(false);
   const [coordinates, setCoordinates] = useState<CoordinateState>({
     long: "",
     lat: "",
@@ -196,6 +200,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
       }
 
       setIsEditing(false);
+      setIsEditingLineStyle(false);
     } else {
       setCoordinates({ long: "", lat: "", name: "" });
       setOriginalCoordinates({ long: "", lat: "", name: "" });
@@ -207,8 +212,44 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
       setOriginalLineColor(DEFAULT_LINE_STYLE.color);
       setOriginalLineWidth(DEFAULT_LINE_STYLE.width);
       setIsEditing(false);
+      setIsEditingLineStyle(false);
     }
   }, [selectedFeature]);
+
+  // Auto-set isEditingLineStyle when entering/exiting edit mode
+  useEffect(() => {
+    if (isEditing && supportsLineStyle) {
+      setIsEditingLineStyle(true);
+    } else {
+      setIsEditingLineStyle(false);
+    }
+  }, [isEditing, supportsLineStyle]);
+
+  // Handle line style editing mode - deselect feature when entering, restore when exiting
+  useEffect(() => {
+    if (!selectedFeature || !selectInteraction || !supportsLineStyle) return;
+
+    if (isEditingLineStyle) {
+      // Deselect feature to show actual styling without selection overlay
+      selectInteraction.getFeatures().clear();
+    } else {
+      // Restore selection when exiting line style editing
+      const features = selectInteraction.getFeatures();
+      if (!features.getArray().includes(selectedFeature)) {
+        features.push(selectedFeature);
+      }
+    }
+
+    return () => {
+      // Cleanup: restore selection on unmount
+      if (!isEditingLineStyle && selectInteraction && selectedFeature) {
+        const features = selectInteraction.getFeatures();
+        if (!features.getArray().includes(selectedFeature)) {
+          features.push(selectedFeature);
+        }
+      }
+    };
+  }, [isEditingLineStyle, selectedFeature, selectInteraction, supportsLineStyle]);
 
   // Update all properties
   const updateAllProperties = (properties: CustomProperty[]) => {
@@ -457,13 +498,46 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     setIsEditing(false);
   };
 
+  // Handle immediate line color change with live preview
+  const handleLineColorChange = (color: string) => {
+    setLineColor(color);
+    if (selectedFeature) {
+      selectedFeature.set("lineColor", color);
+      selectedFeature.changed();
+      map?.render();
+    }
+  };
+
+  // Handle immediate line width change with live preview
+  const handleLineWidthChange = (width: number) => {
+    setLineWidth(width);
+    if (selectedFeature) {
+      selectedFeature.set("lineWidth", width);
+      selectedFeature.changed();
+      map?.render();
+    }
+  };
+
   const handleCancel = () => {
     setCoordinates(originalCoordinates);
     setCustomProperties(originalCustomProperties);
-    // Reset line style
-    setLineColor(originalLineColor);
-    setLineWidth(originalLineWidth);
+
+    // If editing line style, revert changes
+    if (isEditingLineStyle && selectedFeature) {
+      setLineColor(originalLineColor);
+      setLineWidth(originalLineWidth);
+      selectedFeature.set("lineColor", originalLineColor);
+      selectedFeature.set("lineWidth", originalLineWidth);
+      selectedFeature.changed();
+      map?.render();
+    } else {
+      // Reset line style for normal edit mode
+      setLineColor(originalLineColor);
+      setLineWidth(originalLineWidth);
+    }
+
     setIsEditing(false);
+    setIsEditingLineStyle(false);
   };
 
   
@@ -612,13 +686,13 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                       <input
                         type="color"
                         value={lineColor}
-                        onChange={(e) => setLineColor(e.target.value)}
+                        onChange={(e) => handleLineColorChange(e.target.value)}
                         className="w-12 h-10 rounded cursor-pointer border border-gray-300 dark:border-gray-600"
                       />
                       <Input
                         type="text"
                         value={lineColor}
-                        onChange={(e) => setLineColor(e.target.value)}
+                        onChange={(e) => handleLineColorChange(e.target.value)}
                         placeholder="#00ff00"
                         className="flex-1 text-sm font-mono"
                         pattern="^#[0-9A-Fa-f]{6}$"
@@ -637,7 +711,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                     <div className="flex items-center gap-3">
                       <Slider
                         value={[lineWidth]}
-                        onValueChange={(value) => setLineWidth(value[0])}
+                        onValueChange={(value) => handleLineWidthChange(value[0])}
                         min={1}
                         max={20}
                         step={1}
@@ -646,7 +720,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setLineWidth(DEFAULT_LINE_STYLE.width)}
+                        onClick={() => handleLineWidthChange(DEFAULT_LINE_STYLE.width)}
                         className="px-2 py-1 text-xs shrink-0"
                       >
                         Reset

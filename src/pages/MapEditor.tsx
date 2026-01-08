@@ -911,6 +911,7 @@ const MapEditor: React.FC = () => {
         selectedFeature={selectedFeature}
         onClose={() => setSelectedFeature(null)}
         onSave={saveMapState}
+        selectInteraction={selectInteractionRef.current}
       />
 
       <TextDialog
