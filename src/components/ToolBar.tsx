@@ -11,12 +11,11 @@ import {
 import { FilePlus, Menu, ArrowDownToLine } from "lucide-react";
 import { TOOLS } from "../tools/toolConfig";
 import { LegendDropdown } from "./LegendDropdown";
-import { ColorPickerDropdown } from "./ColorPickerDropdown";
 import type { LegendType } from "@/tools/legendsConfig";
 import { Link } from "react-router";
 
 // Tools that support custom line color/width
-const LINE_STYLE_TOOLS = ["polyline", "freehand", "arrow"];
+// const LINE_STYLE_TOOLS = ["polyline", "freehand", "arrow"];
 
 interface ToolbarProps {
   onFileImport: () => void;
@@ -40,15 +39,11 @@ const Toolbar = ({
   onLegendSelect,
   onExportClick,
   onPdfExportClick,
-  lineColor,
-  lineWidth,
-  onLineColorChange,
-  onLineWidthChange,
 }: ToolbarProps) => {
   const [open, setOpen] = useState(true);
 
   // Show color picker when active tool supports line styling
-  const showColorPicker = LINE_STYLE_TOOLS.includes(activeTool);
+  // const showColorPicker = LINE_STYLE_TOOLS.includes(activeTool);
 
   const handleToolClick = (toolId: string) => {
     onToolActivate(toolId);
