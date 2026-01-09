@@ -319,6 +319,7 @@ export const createBoxDraw = (
     event.feature.set("isBox", true);
     event.feature.set("strokeColor", customStrokeColor);
     event.feature.set("fillColor", customFillColor);
+    event.feature.set("fillOpacity", 0.2);
 
     if (onDrawEnd) {
       onDrawEnd(event);
@@ -373,6 +374,7 @@ export const createCircleDraw = (
     event.feature.set("isCircle", true);
     event.feature.set("strokeColor", customStrokeColor);
     event.feature.set("fillColor", customFillColor);
+    event.feature.set("fillOpacity", 0.2);
 
     if (onDrawEnd) {
       onDrawEnd(event);

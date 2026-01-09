@@ -221,14 +221,16 @@ export const getFeatureStyle = (
   if (feature.get("isBox") && (type === "Polygon" || type === "MultiPolygon")) {
     const strokeColor = feature.get("strokeColor") || "#000000";
     const fillColor = feature.get("fillColor") || "#ffffff";
-    return createPolygonStyle(strokeColor, 2, 1, fillColor, 0);
+    const fillOpacity = feature.get("fillOpacity") !== undefined ? feature.get("fillOpacity") : 0.2;
+    return createPolygonStyle(strokeColor, 2, 1, fillColor, fillOpacity);
   }
 
   // Handle Circle features
   if (feature.get("isCircle") && (type === "Polygon" || type === "MultiPolygon")) {
     const strokeColor = feature.get("strokeColor") || "#000000";
     const fillColor = feature.get("fillColor") || "#ffffff";
-    return createPolygonStyle(strokeColor, 2, 1, fillColor, 0);
+    const fillOpacity = feature.get("fillOpacity") !== undefined ? feature.get("fillOpacity") : 0.2;
+    return createPolygonStyle(strokeColor, 2, 1, fillColor, fillOpacity);
   }
 
   if (

@@ -11,6 +11,7 @@ import { DEFAULT_LINE_STYLE } from "@/utils/featureTypeUtils";
 import { isProtectedProperty } from "@/utils/propertyUtils";
 import { usePropertiesPanel } from "@/hooks/usePropertiesPanel";
 import { useLineStyleEditor } from "@/hooks/useLineStyleEditor";
+import { useShapeStyleEditor } from "@/hooks/useShapeStyleEditor";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -53,15 +54,23 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     selectInteraction ?? null,
     properties.isEditing
   );
+  const shapeStyle = useShapeStyleEditor(
+    selectedFeature,
+    map,
+    selectInteraction ?? null,
+    properties.isEditing
+  );
 
   const handleSave = () => {
     properties.save();
     lineStyle.commitLineStyle();
+    shapeStyle.commitShapeStyle();
   };
 
   const handleCancel = () => {
     properties.cancel();
     lineStyle.resetToOriginal();
+    shapeStyle.resetToOriginal();
   };
 
   if (!selectedFeature) {
@@ -110,6 +119,14 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
           {lineStyle.supportsLineStyle && (
             <LineStyleSection
               lineStyle={lineStyle}
+              isEditing={properties.isEditing}
+            />
+          )}
+
+          {/* Shape Style Controls (Box and Circle) */}
+          {shapeStyle.supportsShapeStyle && (
+            <ShapeStyleSection
+              shapeStyle={shapeStyle}
               isEditing={properties.isEditing}
             />
           )}
@@ -410,6 +427,208 @@ const LineStyleEditor: React.FC<LineStyleEditorProps> = ({ lineStyle }) => (
       <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
         <span>1px</span>
         <span>20px</span>
+      </div>
+    </div>
+  </div>
+);
+
+interface ShapeStyleSectionProps {
+  shapeStyle: {
+    strokeColor: string;
+    fillColor: string;
+    fillOpacity: number;
+    handleStrokeColorChange: (color: string) => void;
+    handleFillColorChange: (color: string) => void;
+    handleFillOpacityChange: (opacity: number) => void;
+    setStrokeColor: (color: string) => void;
+    setFillColor: (color: string) => void;
+  };
+  isEditing: boolean;
+}
+
+const ShapeStyleSection: React.FC<ShapeStyleSectionProps> = ({
+  shapeStyle,
+  isEditing,
+}) => {
+  return (
+    <div className="border-t border-gray-100 dark:border-slate-700 pt-4 mt-4">
+      <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-3 uppercase tracking-wide">
+        Shape Style
+      </h4>
+
+      {!isEditing ? (
+        <ShapeStyleDisplay
+          strokeColor={shapeStyle.strokeColor}
+          fillColor={shapeStyle.fillColor}
+          fillOpacity={shapeStyle.fillOpacity}
+        />
+      ) : (
+        <ShapeStyleEditor shapeStyle={shapeStyle} />
+      )}
+    </div>
+  );
+};
+
+interface ShapeStyleDisplayProps {
+  strokeColor: string;
+  fillColor: string;
+  fillOpacity: number;
+}
+
+const ShapeStyleDisplay: React.FC<ShapeStyleDisplayProps> = ({
+  strokeColor,
+  fillColor,
+  fillOpacity,
+}) => (
+  <div className="space-y-2">
+    <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+      <span className="font-medium text-gray-700 dark:text-gray-300">Stroke:</span>
+      <div className="flex items-center gap-2">
+        <div
+          className="w-6 h-6 rounded border border-gray-300 dark:border-gray-600"
+          style={{ backgroundColor: strokeColor }}
+        />
+        <span className="text-gray-600 dark:text-gray-400 font-mono text-xs">
+          {strokeColor.toUpperCase()}
+        </span>
+      </div>
+    </div>
+    <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+      <span className="font-medium text-gray-700 dark:text-gray-300">Fill:</span>
+      <div className="flex items-center gap-2">
+        <div
+          className="w-6 h-6 rounded border border-gray-300 dark:border-gray-600"
+          style={{ backgroundColor: fillColor }}
+        />
+        <span className="text-gray-600 dark:text-gray-400 font-mono text-xs">
+          {fillColor.toUpperCase()}
+        </span>
+      </div>
+    </div>
+    <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+      <span className="font-medium text-gray-700 dark:text-gray-300">Opacity:</span>
+      <span className="text-gray-600 dark:text-gray-400">{Math.round(fillOpacity * 100)}%</span>
+    </div>
+  </div>
+);
+
+interface ShapeStyleEditorProps {
+  shapeStyle: {
+    strokeColor: string;
+    fillColor: string;
+    fillOpacity: number;
+    handleStrokeColorChange: (color: string) => void;
+    handleFillColorChange: (color: string) => void;
+    handleFillOpacityChange: (opacity: number) => void;
+    setStrokeColor: (color: string) => void;
+    setFillColor: (color: string) => void;
+  };
+}
+
+const ShapeStyleEditor: React.FC<ShapeStyleEditorProps> = ({ shapeStyle }) => (
+  <div className="space-y-4">
+    {/* Stroke Color Picker */}
+    <div>
+      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        Stroke Color
+      </Label>
+      <div className="flex items-center gap-3">
+        <input
+          type="color"
+          value={shapeStyle.strokeColor}
+          onChange={(e) => shapeStyle.handleStrokeColorChange(e.target.value)}
+          className="w-12 h-10 rounded cursor-pointer border border-gray-300 dark:border-gray-600"
+        />
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="h-10 px-3">
+              Choose Color
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-48 p-1 bg-white rounded-sm shadow-lg z-10">
+            <DropdownMenuSeparator />
+            <DropdownMenuRadioGroup
+              value={shapeStyle.strokeColor}
+              onValueChange={(value) => shapeStyle.setStrokeColor(value)}
+            >
+              {COLOR_OPTIONS.map((colorOption) => (
+                <DropdownMenuRadioItem
+                  key={colorOption.color}
+                  value={colorOption.color}
+                  className="flex items-center gap-2 p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 data-[state=checked]:bg-blue-50 dark:data-[state=checked]:bg-blue-900/20"
+                >
+                  <div
+                    className="w-4 h-4 rounded"
+                    style={{ backgroundColor: colorOption.color }}
+                  />
+                  <span>{colorOption.name}</span>
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </div>
+
+    {/* Fill Color Picker */}
+    <div>
+      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        Fill Color
+      </Label>
+      <div className="flex items-center gap-3">
+        <input
+          type="color"
+          value={shapeStyle.fillColor}
+          onChange={(e) => shapeStyle.handleFillColorChange(e.target.value)}
+          className="w-12 h-10 rounded cursor-pointer border border-gray-300 dark:border-gray-600"
+        />
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="h-10 px-3">
+              Choose Color
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-48 p-1 bg-white rounded-sm shadow-lg z-10">
+            <DropdownMenuSeparator />
+            <DropdownMenuRadioGroup
+              value={shapeStyle.fillColor}
+              onValueChange={(value) => shapeStyle.setFillColor(value)}
+            >
+              {COLOR_OPTIONS.map((colorOption) => (
+                <DropdownMenuRadioItem
+                  key={colorOption.color}
+                  value={colorOption.color}
+                  className="flex items-center gap-2 p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 data-[state=checked]:bg-blue-50 dark:data-[state=checked]:bg-blue-900/20"
+                >
+                  <div
+                    className="w-4 h-4 rounded"
+                    style={{ backgroundColor: colorOption.color }}
+                  />
+                  <span>{colorOption.name}</span>
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </div>
+
+    {/* Opacity Slider */}
+    <div>
+      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        Fill Opacity: {Math.round(shapeStyle.fillOpacity * 100)}%
+      </Label>
+      <Slider
+        value={[shapeStyle.fillOpacity]}
+        onValueChange={(value) => shapeStyle.handleFillOpacityChange(value[0])}
+        min={0}
+        max={1}
+        step={0.01}
+        className="flex-1"
+      />
+      <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+        <span>0%</span>
+        <span>100%</span>
       </div>
     </div>
   </div>
