@@ -112,6 +112,19 @@ export const useLineStyleEditor = (
     [selectedFeature, map]
   );
 
+  // Handle dropdown color selection
+  const setLineColorHandler = useCallback(
+    (color: string) => {
+      setLineColor(color);
+      if (selectedFeature) {
+        selectedFeature.set("lineColor", color);
+        selectedFeature.changed();
+        map?.render();
+      }
+    },
+    [selectedFeature, map]
+  );
+
   // Handle immediate line width change with live preview
   const handleWidthChange = useCallback(
     (width: number) => {
@@ -149,7 +162,7 @@ export const useLineStyleEditor = (
     isEditingLineStyle,
     handleColorChange,
     handleWidthChange,
-    setLineColor,
+    setLineColor: setLineColorHandler,
     resetToOriginal,
     commitLineStyle,
   };

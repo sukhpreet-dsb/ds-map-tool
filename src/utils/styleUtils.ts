@@ -267,7 +267,7 @@ export const createHoverStyle = (feature: Feature<Geometry>): Style | Style[] =>
     return new Style({
       stroke: hoverStroke,
       fill: new Fill({
-        color: "rgba(0, 191, 255, 0.2)",
+        color: "rgba(0, 191, 255, 0)",
       }),
     });
   }

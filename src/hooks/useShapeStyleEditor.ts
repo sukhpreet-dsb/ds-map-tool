@@ -23,7 +23,7 @@ export interface UseShapeStyleEditorReturn {
 
 const DEFAULT_STROKE_COLOR = "#000000";
 const DEFAULT_FILL_COLOR = "#ffffff";
-const DEFAULT_FILL_OPACITY = 0.2;
+const DEFAULT_FILL_OPACITY = 0;
 
 export const useShapeStyleEditor = (
   selectedFeature: Feature | null,
@@ -157,6 +157,32 @@ export const useShapeStyleEditor = (
     [selectedFeature, map]
   );
 
+  // Handle dropdown stroke color selection
+  const setStrokeColorHandler = useCallback(
+    (color: string) => {
+      setStrokeColor(color);
+      if (selectedFeature) {
+        selectedFeature.set("strokeColor", color);
+        selectedFeature.changed();
+        map?.render();
+      }
+    },
+    [selectedFeature, map]
+  );
+
+  // Handle dropdown fill color selection
+  const setFillColorHandler = useCallback(
+    (color: string) => {
+      setFillColor(color);
+      if (selectedFeature) {
+        selectedFeature.set("fillColor", color);
+        selectedFeature.changed();
+        map?.render();
+      }
+    },
+    [selectedFeature, map]
+  );
+
   const resetToOriginal = useCallback(() => {
     setStrokeColor(originalStrokeColor);
     setFillColor(originalFillColor);
@@ -186,8 +212,8 @@ export const useShapeStyleEditor = (
     handleStrokeColorChange,
     handleFillColorChange,
     handleFillOpacityChange,
-    setStrokeColor,
-    setFillColor,
+    setStrokeColor: setStrokeColorHandler,
+    setFillColor: setFillColorHandler,
     resetToOriginal,
     commitShapeStyle,
   };

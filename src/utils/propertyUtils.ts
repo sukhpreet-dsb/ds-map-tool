@@ -19,6 +19,22 @@ export const isProtectedProperty = (key: string): boolean => {
   );
 };
 
+/** Style properties that have their own UI section */
+const STYLE_PROPERTY_KEYS = [
+  "lineColor",
+  "lineWidth",
+  "strokeColor",
+  "fillColor",
+  "fillOpacity",
+] as const;
+
+/**
+ * Check if a property is a style property (has its own UI section)
+ */
+export const isStyleProperty = (key: string): boolean => {
+  return STYLE_PROPERTY_KEYS.includes(key as (typeof STYLE_PROPERTY_KEYS)[number]);
+};
+
 /**
  * Check if a property should be excluded from display
  */
@@ -27,6 +43,8 @@ const shouldExcludeProperty = (key: string): boolean => {
   if (key === "nonEditable") return true;
   if (key.startsWith("_")) return true;
   if (key === "name") return true;
+  // Style properties have their own UI section in the panel
+  if (isStyleProperty(key)) return true;
   return false;
 };
 
@@ -99,28 +117,40 @@ export const applyPropertiesToFeature = (
     }
   }
 
-  // Clear existing custom properties
+  // Clear existing custom properties (preserve style and system properties)
+  const PRESERVED_KEYS = [
+    "geometry",
+    "name",
+    "nonEditable",
+    // Style properties
+    "lineColor",
+    "lineWidth",
+    "strokeColor",
+    "fillColor",
+    "fillOpacity",
+  ];
+
   const currentProperties = feature.getProperties();
   Object.keys(currentProperties).forEach((key) => {
     if (
       !key.startsWith("is") &&
-      key !== "geometry" &&
-      key !== "name" &&
-      key !== "nonEditable" &&
-      !key.startsWith("_")
+      !key.startsWith("_") &&
+      !PRESERVED_KEYS.includes(key)
     ) {
       feature.unset(key);
     }
   });
 
-  // Set new custom properties
+  // Set new custom properties (skip protected and style properties)
   properties.forEach((prop) => {
+    const key = prop.key.trim();
     if (
-      prop.key.trim() &&
+      key &&
       prop.value.trim() &&
-      !isProtectedProperty(prop.key)
+      !isProtectedProperty(key) &&
+      !isStyleProperty(key)
     ) {
-      feature.set(prop.key.trim(), prop.value.trim());
+      feature.set(key, prop.value.trim());
     }
   });
 };

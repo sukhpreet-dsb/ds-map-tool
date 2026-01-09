@@ -61,14 +61,14 @@ export const DRAW_CONFIGS = {
   },
   box: {
     type: "Circle" as const, // Uses Circle type with createBox() geometry function
-    style: createPolygonStyle("#ffffff", 2, 1, "#000000", 0.2),
+    style: createPolygonStyle("#ffffff", 2, 1, "#000000", 0),
     featureProperties: {
       isBox: true,
     },
   },
   circle: {
     type: "Circle" as const,
-    style: createPolygonStyle("#ffffff", 2, 1, "#000000", 0.2),
+    style: createPolygonStyle("#ffffff", 2, 1, "#000000", 0),
     featureProperties: {
       isCircle: true,
     },
@@ -304,7 +304,7 @@ export const createBoxDraw = (
     source: source,
     type: "Circle",
     geometryFunction: createBox(),
-    style: createPolygonStyle(customStrokeColor, 2, 1, customFillColor, 0.2),
+    style: createPolygonStyle(customStrokeColor, 2, 1, customFillColor, 0),
   });
 
   // Setup keyboard handlers when drawing starts
@@ -319,7 +319,7 @@ export const createBoxDraw = (
     event.feature.set("isBox", true);
     event.feature.set("strokeColor", customStrokeColor);
     event.feature.set("fillColor", customFillColor);
-    event.feature.set("fillOpacity", 0.2);
+    event.feature.set("fillOpacity", 0);
 
     if (onDrawEnd) {
       onDrawEnd(event);
@@ -354,7 +354,7 @@ export const createCircleDraw = (
   const drawInteraction = new Draw({
     source: source,
     type: "Circle",
-    style: createPolygonStyle(customStrokeColor, 2, 1, customFillColor, 0.2),
+    style: createPolygonStyle(customStrokeColor, 2, 1, customFillColor, 0),
   });
 
   // Setup keyboard handlers when drawing starts
@@ -374,7 +374,7 @@ export const createCircleDraw = (
     event.feature.set("isCircle", true);
     event.feature.set("strokeColor", customStrokeColor);
     event.feature.set("fillColor", customFillColor);
-    event.feature.set("fillOpacity", 0.2);
+    event.feature.set("fillOpacity", 0);
 
     if (onDrawEnd) {
       onDrawEnd(event);
