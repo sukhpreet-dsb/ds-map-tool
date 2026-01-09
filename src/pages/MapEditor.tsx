@@ -32,12 +32,18 @@ import { useMapProjects } from "@/hooks/useMapProjects";
 import PropertiesPanel from "../components/PropertiesPanel";
 import { TextDialog } from "../components/TextDialog";
 import { handleTextClick } from "@/icons/Text";
-import SearchWrapper, { type SearchWrapperRef } from "../components/SearchWrapper";
+import SearchWrapper, {
+  type SearchWrapperRef,
+} from "../components/SearchWrapper";
 import type { SearchResult } from "../components/SearchPanel";
 import { TogglingObject } from "../components/TogglingObject";
 import { PdfExportDialog } from "../components/PdfExportDialog";
 import { DragBoxInstruction } from "../components/DragBoxInstruction";
-import { exportMapToImage, type MapImageExportResult, type ExportProgress } from "@/utils/mapImageExport";
+import {
+  exportMapToImage,
+  type MapImageExportResult,
+  type ExportProgress,
+} from "@/utils/mapImageExport";
 import { IconPickerDialog } from "../components/IconPickerDialog";
 import { MergePropertiesDialog } from "@/components/MergePropertiesDialog";
 import { type MergeRequestDetail } from "@/components/MapInteractions";
@@ -112,8 +118,11 @@ const MapEditor: React.FC = () => {
 
   // Text dialog state
   const [textDialogOpen, setTextDialogOpen] = useState(false);
-  const [pendingCoordinate, setPendingCoordinate] = useState<number[] | null>(null);
-  const [editingTextFeature, setEditingTextFeature] = useState<Feature<Geometry> | null>(null);
+  const [pendingCoordinate, setPendingCoordinate] = useState<number[] | null>(
+    null
+  );
+  const [editingTextFeature, setEditingTextFeature] =
+    useState<Feature<Geometry> | null>(null);
   const [editingTextScale, setEditingTextScale] = useState(1);
   const [editingTextRotation, setEditingTextRotation] = useState(0);
 
@@ -122,11 +131,15 @@ const MapEditor: React.FC = () => {
 
   // Merge properties dialog state
   const [mergeDialogOpen, setMergeDialogOpen] = useState(false);
-  const [pendingMerge, setPendingMerge] = useState<MergeRequestDetail | null>(null);
+  const [pendingMerge, setPendingMerge] = useState<MergeRequestDetail | null>(
+    null
+  );
 
   // Offset dialog state
   const [offsetDialogOpen, setOffsetDialogOpen] = useState(false);
-  const [offsetFeature, setOffsetFeature] = useState<Feature<Geometry> | null>(null);
+  const [offsetFeature, setOffsetFeature] = useState<Feature<Geometry> | null>(
+    null
+  );
 
   // PDF export dialog state
   const [pdfDialogOpen, setPdfDialogOpen] = useState(false);
@@ -264,8 +277,11 @@ const MapEditor: React.FC = () => {
   };
 
   // Search location handler
-  const handleLocationSelected = (coordinate: [number, number], result: SearchResult) => {
-    console.log('Search location selected:', coordinate, result);
+  const handleLocationSelected = (
+    coordinate: [number, number],
+    result: SearchResult
+  ) => {
+    console.log("Search location selected:", coordinate, result);
     // You can add custom logic here when a location is selected
     // For example, you could save it to the current project or add it as a feature
   };
@@ -278,7 +294,7 @@ const MapEditor: React.FC = () => {
   const handleToolActivation = (toolId: string) => {
     // Special handling for icons tool - if already active, dispatch event to reopen picker
     if (toolId === "icons" && activeTool === "icons") {
-      const iconPickerEvent = new CustomEvent('iconPickerOpen');
+      const iconPickerEvent = new CustomEvent("iconPickerOpen");
       window.dispatchEvent(iconPickerEvent);
       return;
     }
@@ -340,6 +356,26 @@ const MapEditor: React.FC = () => {
       pastedFeatures.push(clone);
     });
 
+    // Sync with Select interaction to ensure pasted features are selected, not originals
+    if (selectInteractionRef.current && pastedFeatures.length > 0) {
+      // Ensure Select interaction is active before modifying selection
+      const wasActive = selectInteractionRef.current.getActive();
+      selectInteractionRef.current.setActive(true);
+
+      // Clear old selection (removes originals from selection)
+      selectInteractionRef.current.getFeatures().clear();
+
+      // Add pasted features to selection so they appear selected
+      pastedFeatures.forEach((feature) => {
+        selectInteractionRef.current!.getFeatures().push(feature);
+      });
+
+      // Restore previous active state if it wasn't active before
+      if (!wasActive) {
+        selectInteractionRef.current.setActive(false);
+      }
+    }
+
     if (pastedFeatures.length > 0) {
       setSelectedFeature(pastedFeatures[0]);
     }
@@ -349,9 +385,12 @@ const MapEditor: React.FC = () => {
     }
   };
 
-  const handleSelectInteractionReady = useCallback((selectInteraction: Select | null) => {
-    selectInteractionRef.current = selectInteraction;
-  }, []);
+  const handleSelectInteractionReady = useCallback(
+    (selectInteraction: Select | null) => {
+      selectInteractionRef.current = selectInteraction;
+    },
+    []
+  );
 
   const handleUndoInteractionReady = (undoInteraction: any) => {
     undoRedoInteractionRef.current = undoInteraction;
@@ -445,7 +484,7 @@ const MapEditor: React.FC = () => {
   // PDF Export - Client-side with jsPDF
   const handlePdfExportClick = () => {
     if (!mapRef.current) {
-      alert('Map not ready for export');
+      alert("Map not ready for export");
       return;
     }
 
@@ -457,7 +496,7 @@ const MapEditor: React.FC = () => {
     if (!dragBoxRef.current) {
       const dragBox = new DragBox();
 
-      dragBox.on('boxend', () => {
+      dragBox.on("boxend", () => {
         const extent = dragBox.getGeometry().getExtent();
         setSelectedExtent(extent);
         setIsDragBoxActive(false);
@@ -472,7 +511,7 @@ const MapEditor: React.FC = () => {
         setPdfDialogOpen(true);
       });
 
-      dragBox.on('boxstart', () => {
+      dragBox.on("boxstart", () => {
         // Clear previous selection when starting new drag
         setSelectedExtent(null);
       });
@@ -490,20 +529,25 @@ const MapEditor: React.FC = () => {
     onProgress: (progress: ExportProgress) => void
   ): Promise<MapImageExportResult> => {
     if (!mapRef.current) {
-      throw new Error('Map not ready for export');
+      throw new Error("Map not ready for export");
     }
 
     if (!selectedExtent) {
-      throw new Error('No area selected for export');
+      throw new Error("No area selected for export");
     }
 
     setIsExportingPdf(true);
 
     try {
-      const imageResult = await exportMapToImage(mapRef.current, config, onProgress, selectedExtent);
+      const imageResult = await exportMapToImage(
+        mapRef.current,
+        config,
+        onProgress,
+        selectedExtent
+      );
       return imageResult;
     } catch (error) {
-      console.error('PDF export failed:', error);
+      console.error("PDF export failed:", error);
       throw error;
     } finally {
       setIsExportingPdf(false);
@@ -545,7 +589,9 @@ const MapEditor: React.FC = () => {
       const wasUndoRedoActive = undoRedoInteractionRef.current !== null;
       if (wasUndoRedoActive) {
         undoRedoInteractionRef.current?.setActive(false);
-        console.log("Temporarily disabled UndoRedo interaction during recovery");
+        console.log(
+          "Temporarily disabled UndoRedo interaction during recovery"
+        );
       }
 
       // 1. ALWAYS clear the map first!
@@ -661,11 +707,17 @@ const MapEditor: React.FC = () => {
     };
 
     // Add event listener for text tool clicks
-    window.addEventListener('textToolClick', handleTextToolClick as EventListener);
+    window.addEventListener(
+      "textToolClick",
+      handleTextToolClick as EventListener
+    );
 
     return () => {
       // Clean up event listener
-      window.removeEventListener('textToolClick', handleTextToolClick as EventListener);
+      window.removeEventListener(
+        "textToolClick",
+        handleTextToolClick as EventListener
+      );
     };
   }, []);
 
@@ -680,11 +732,11 @@ const MapEditor: React.FC = () => {
     };
 
     // Add event listener for icon picker open
-    window.addEventListener('iconPickerOpen', handleIconPickerOpen);
+    window.addEventListener("iconPickerOpen", handleIconPickerOpen);
 
     return () => {
       // Clean up event listener
-      window.removeEventListener('iconPickerOpen', handleIconPickerOpen);
+      window.removeEventListener("iconPickerOpen", handleIconPickerOpen);
     };
   }, []);
 
@@ -695,31 +747,52 @@ const MapEditor: React.FC = () => {
       setMergeDialogOpen(true);
     };
 
-    window.addEventListener('mergeRequest', handleMergeRequest as EventListener);
+    window.addEventListener(
+      "mergeRequest",
+      handleMergeRequest as EventListener
+    );
 
     return () => {
-      window.removeEventListener('mergeRequest', handleMergeRequest as EventListener);
+      window.removeEventListener(
+        "mergeRequest",
+        handleMergeRequest as EventListener
+      );
     };
   }, []);
 
   // Offset request event listener
   useEffect(() => {
-    const handleOffsetRequest = (event: CustomEvent<{ feature: Feature<Geometry>; vectorSource: VectorSource<Feature<Geometry>> }>) => {
+    const handleOffsetRequest = (
+      event: CustomEvent<{
+        feature: Feature<Geometry>;
+        vectorSource: VectorSource<Feature<Geometry>>;
+      }>
+    ) => {
       setOffsetFeature(event.detail.feature);
       setOffsetDialogOpen(true);
     };
 
-    window.addEventListener('offsetRequest', handleOffsetRequest as EventListener);
+    window.addEventListener(
+      "offsetRequest",
+      handleOffsetRequest as EventListener
+    );
 
     return () => {
-      window.removeEventListener('offsetRequest', handleOffsetRequest as EventListener);
+      window.removeEventListener(
+        "offsetRequest",
+        handleOffsetRequest as EventListener
+      );
     };
   }, []);
 
   // Handle text feature selection for editing
   useEffect(() => {
     // Only handle editing when select tool is active and a text feature is selected
-    if (activeTool === "select" && selectedFeature && selectedFeature.get("isText")) {
+    if (
+      activeTool === "select" &&
+      selectedFeature &&
+      selectedFeature.get("isText")
+    ) {
       const geometry = selectedFeature.getGeometry();
       if (geometry && geometry.getType() === "Point") {
         const point = geometry as any;
@@ -734,7 +807,11 @@ const MapEditor: React.FC = () => {
         setPendingCoordinate(coordinate);
         setTextDialogOpen(true);
       }
-    } else if (activeTool !== "select" || !selectedFeature || !selectedFeature.get("isText")) {
+    } else if (
+      activeTool !== "select" ||
+      !selectedFeature ||
+      !selectedFeature.get("isText")
+    ) {
       // Clear editing state when not editing a text feature
       setEditingTextFeature(null);
       setEditingTextScale(1);
@@ -743,7 +820,11 @@ const MapEditor: React.FC = () => {
   }, [activeTool, selectedFeature]);
 
   // Text dialog handlers
-  const handleTextSubmit = (textContent: string, scale?: number, rotation?: number) => {
+  const handleTextSubmit = (
+    textContent: string,
+    scale?: number,
+    rotation?: number
+  ) => {
     if (editingTextFeature) {
       // Update existing text feature with all properties
       editingTextFeature.set("text", textContent);
@@ -751,8 +832,8 @@ const MapEditor: React.FC = () => {
       editingTextFeature.set("textRotation", rotation || 0);
 
       // Remove temporary flag if it was a new text feature
-      if (editingTextFeature.get('_isTemporaryTextPreview')) {
-        editingTextFeature.unset('_isTemporaryTextPreview');
+      if (editingTextFeature.get("_isTemporaryTextPreview")) {
+        editingTextFeature.unset("_isTemporaryTextPreview");
       }
 
       // Text styling handled by layer style function
@@ -764,7 +845,13 @@ const MapEditor: React.FC = () => {
       setSelectedFeature(null);
     } else if (pendingCoordinate && vectorSourceRef.current) {
       // Create new text feature with scale/rotation
-      handleTextClick(vectorSourceRef.current, pendingCoordinate, textContent, scale, rotation);
+      handleTextClick(
+        vectorSourceRef.current,
+        pendingCoordinate,
+        textContent,
+        scale,
+        rotation
+      );
     }
   };
 
@@ -775,7 +862,7 @@ const MapEditor: React.FC = () => {
       if (features.includes(editingTextFeature)) {
         // Only remove if it's still marked as temporary (wasn't submitted)
         // If submitted, the flag would have been removed in handleTextSubmit
-        if (editingTextFeature.get('_isTemporaryTextPreview')) {
+        if (editingTextFeature.get("_isTemporaryTextPreview")) {
           vectorSourceRef.current.removeFeature(editingTextFeature);
         }
       }
@@ -808,7 +895,7 @@ const MapEditor: React.FC = () => {
     setIconPickerOpen(false);
     // Only switch to select tool if no icon is selected
     if (!selectedIconPath) {
-      setActiveTool('select');
+      setActiveTool("select");
     }
   };
 
@@ -816,7 +903,13 @@ const MapEditor: React.FC = () => {
   const handleMergeConfirm = (selectedProperties: Record<string, any>) => {
     if (!pendingMerge) return;
 
-    const { feature1, feature2, feature1Endpoint, feature2Endpoint, vectorSource } = pendingMerge;
+    const {
+      feature1,
+      feature2,
+      feature1Endpoint,
+      feature2Endpoint,
+      vectorSource,
+    } = pendingMerge;
 
     // Perform merge with selected properties
     const mergedFeature = performMerge(
@@ -846,7 +939,10 @@ const MapEditor: React.FC = () => {
   };
 
   // Offset dialog handlers
-  const handleOffsetConfirm = (direction: OffsetDirection, distance: number) => {
+  const handleOffsetConfirm = (
+    direction: OffsetDirection,
+    distance: number
+  ) => {
     if (!offsetFeature) return;
 
     const vectorSource = vectorSourceRef.current;
@@ -903,10 +999,13 @@ const MapEditor: React.FC = () => {
   };
 
   // Multi-select handler (memoized to prevent Select interaction recreation)
-  const handleMultiSelectChange = useCallback((features: Feature<Geometry>[]) => {
-    // Set the first feature as primary selection for properties panel
-    setSelectedFeature(features[0] || null);
-  }, [setSelectedFeature]);
+  const handleMultiSelectChange = useCallback(
+    (features: Feature<Geometry>[]) => {
+      // Set the first feature as primary selection for properties panel
+      setSelectedFeature(features[0] || null);
+    },
+    [setSelectedFeature]
+  );
 
   // Keyboard shortcuts
   useKeyboardShortcuts({
@@ -1062,7 +1161,7 @@ const MapEditor: React.FC = () => {
         currentView={currentMapView}
         onViewChange={handleMapViewChange}
       />
-      
+
       <TogglingObject />
     </div>
   );
