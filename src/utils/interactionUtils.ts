@@ -61,14 +61,14 @@ export const DRAW_CONFIGS = {
   },
   box: {
     type: "Circle" as const, // Uses Circle type with createBox() geometry function
-    style: createPolygonStyle("#3b82f6", 2, 1, "#3b82f6", 0.2),
+    style: createPolygonStyle("#ffffff", 2, 1, "#000000", 0.2),
     featureProperties: {
       isBox: true,
     },
   },
   circle: {
     type: "Circle" as const,
-    style: createPolygonStyle("#8b5cf6", 2, 1, "#8b5cf6", 0.2),
+    style: createPolygonStyle("#ffffff", 2, 1, "#000000", 0.2),
     featureProperties: {
       isCircle: true,
     },
@@ -297,8 +297,8 @@ export const createBoxDraw = (
   strokeColor?: string,
   fillColor?: string
 ): Draw => {
-  const customStrokeColor = strokeColor || "#3b82f6";
-  const customFillColor = fillColor || "#3b82f6";
+  const customStrokeColor = strokeColor || "#000000";
+  const customFillColor = fillColor || "#000000";
 
   const drawInteraction = new Draw({
     source: source,
@@ -347,8 +347,8 @@ export const createCircleDraw = (
   strokeColor?: string,
   fillColor?: string
 ): Draw => {
-  const customStrokeColor = strokeColor || "#8b5cf6";
-  const customFillColor = fillColor || "#8b5cf6";
+  const customStrokeColor = strokeColor || "#000000";
+  const customFillColor = fillColor || "#000000";
 
   const drawInteraction = new Draw({
     source: source,
