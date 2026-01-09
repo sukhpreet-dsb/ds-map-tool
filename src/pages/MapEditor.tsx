@@ -50,6 +50,7 @@ import { type MergeRequestDetail } from "@/components/MapInteractions";
 import { performMerge, createOffsetLineString } from "@/utils/splitUtils";
 import type { PdfExportConfig } from "@/types/pdf";
 import { OffsetDialog, type OffsetDirection } from "@/components/OffsetDialog";
+import { HelpModal } from "@/components/HelpModal";
 
 // Interface for properly serializable map data
 interface SerializedMapData {
@@ -1153,6 +1154,9 @@ const MapEditor: React.FC = () => {
         isVisible={isTransitioning}
         message="Switching map view..."
       />
+
+      {/* Shortcuts */}
+      <HelpModal />
 
       <MapViewToggle
         currentView={currentMapView}
