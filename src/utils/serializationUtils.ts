@@ -125,10 +125,12 @@ export const extractStyleMetadata = (feature: Feature<Geometry>): any => {
   // Store name property for PropertiesPanel
   if (feature.get("name")) properties.name = feature.get("name");
 
-  // Store shape type identifiers (Box, Circle, Arc)
+  // Store shape type identifiers (Box, Circle, Arc, Revision Cloud)
   if (feature.get("isBox")) properties.isBox = true;
   if (feature.get("isCircle")) properties.isCircle = true;
   if (feature.get("isArc")) properties.isArc = true;
+  if (feature.get("isRevisionCloud")) properties.isRevisionCloud = true;
+  if (feature.get("scallopRadius")) properties.scallopRadius = feature.get("scallopRadius");
 
   // Store line style properties
   if (feature.get("lineColor")) properties.lineColor = feature.get("lineColor");

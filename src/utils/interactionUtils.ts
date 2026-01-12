@@ -4,11 +4,16 @@ import { Style } from "ol/style";
 import { createPointStyle, createLineStyle, createPolygonStyle } from "./styleUtils";
 import { getLength } from "ol/sphere";
 import { Feature } from "ol";
-import { Geometry, LineString, Circle as CircleGeom } from "ol/geom";
+import { Geometry, LineString, Circle as CircleGeom, Polygon } from "ol/geom";
 import { Vector as VectorSource } from "ol/source";
 import type { Coordinate } from "ol/coordinate";
 import { circleToPolygon } from "./geometryUtils";
 import { generateArcPreview, createArcGeometry } from "./arcUtils";
+import {
+  generateRevisionCloudCoordinates,
+  generateRevisionCloudPreview,
+  REVISION_CLOUD_CONFIG,
+} from "./revisionCloudUtils";
 
 /**
  * Draw interaction configuration interface
@@ -600,6 +605,90 @@ export const createArcDraw = (
     event.feature.set("isArc", true);
     event.feature.set("lineColor", customColor);
     event.feature.set("lineWidth", customWidth);
+
+    if (onDrawEnd) {
+      onDrawEnd(event);
+    }
+  });
+
+  drawInteraction.on("drawabort", () => {
+    removeDrawKeyboardHandlers(drawInteraction);
+  });
+
+  return drawInteraction;
+};
+
+/**
+ * Create a revision cloud draw interaction
+ * Uses freehand drawing with automatic scallop edge generation
+ * @param source - Vector source to draw on
+ * @param onDrawEnd - Optional callback for when drawing ends
+ * @param strokeColor - Optional custom stroke color
+ * @param fillColor - Optional custom fill color
+ * @param scallopRadius - Optional scallop radius in map units
+ * @returns Revision cloud draw interaction
+ */
+export const createRevisionCloudDraw = (
+  source: VectorSource<Feature<Geometry>>,
+  onDrawEnd?: (event: any) => void,
+  strokeColor?: string,
+  fillColor?: string,
+  scallopRadius?: number
+): Draw => {
+  const customStrokeColor = strokeColor || "#ff0000";
+  const customFillColor = fillColor;
+  const radius = scallopRadius || REVISION_CLOUD_CONFIG.defaultScallopRadius;
+
+  const drawInteraction = new Draw({
+    source: source,
+    type: "Polygon",
+    freehand: true,
+    style: createPolygonStyle(customStrokeColor, 2, 1, customFillColor, 0),
+    geometryFunction: (coordinates, geom) => {
+      // coordinates for Polygon type is [ring[]]
+      const coordArray = coordinates as Coordinate[][];
+
+      if (!geom) {
+        geom = new Polygon([[]]);
+      }
+
+      if (coordArray.length > 0 && coordArray[0].length >= 3) {
+        // Generate revision cloud preview
+        const cloudCoords = generateRevisionCloudPreview(coordArray[0], radius);
+        (geom as Polygon).setCoordinates([cloudCoords]);
+      } else if (coordArray.length > 0) {
+        (geom as Polygon).setCoordinates(coordArray);
+      }
+
+      return geom;
+    },
+  });
+
+  // Setup keyboard handlers when drawing starts
+  drawInteraction.on("drawstart", () => {
+    setupDrawKeyboardHandlers(drawInteraction);
+  });
+
+  drawInteraction.on("drawend", (event) => {
+    removeDrawKeyboardHandlers(drawInteraction);
+
+    // Get the original freehand coordinates and regenerate with full resolution
+    const polygon = event.feature.getGeometry() as Polygon;
+    const originalCoords = polygon.getCoordinates()[0];
+
+    // Generate final revision cloud with full resolution
+    const finalCloudCoords = generateRevisionCloudCoordinates(
+      originalCoords,
+      radius
+    );
+    polygon.setCoordinates([finalCloudCoords]);
+
+    // Set feature properties
+    event.feature.set("isRevisionCloud", true);
+    event.feature.set("strokeColor", customStrokeColor);
+    event.feature.set("fillColor", customFillColor);
+    event.feature.set("fillOpacity", 1);
+    event.feature.set("scallopRadius", radius);
 
     if (onDrawEnd) {
       onDrawEnd(event);

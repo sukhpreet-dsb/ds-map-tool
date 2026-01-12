@@ -16,6 +16,7 @@ export interface HiddenTypesState {
   point: boolean;
   text: boolean;
   icon: boolean;
+  revcloud: boolean;
 }
 
 interface VisibilityConfig {
@@ -36,6 +37,7 @@ const VISIBILITY_CONFIGS: VisibilityConfig[] = [
   { hiddenKey: 'polyline', flag: 'isPolyline', types: ['LineString', 'MultiLineString'] },
   { hiddenKey: 'legends', flag: 'islegends', types: ['LineString', 'MultiLineString'] },
   { hiddenKey: 'point', flag: 'isPoint', types: ['Point'] },
+  { hiddenKey: 'revcloud', flag: 'isRevisionCloud', types: ['Polygon', 'MultiPolygon'] },
 ];
 
 /**

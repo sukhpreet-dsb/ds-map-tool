@@ -202,6 +202,14 @@ export const TOOLS_CONFIG: Record<string, ToolConfig> = {
     drawType: "LineString",
     description: "Draw 3-point arc (start, through, end)",
   },
+  revcloud: {
+    id: "revcloud",
+    name: "Revision Cloud",
+    requiresDrawInteraction: true,
+    drawType: "Polygon",
+    freehand: true,
+    description: "Draw freehand revision cloud with scalloped edges",
+  },
 };
 
 /**

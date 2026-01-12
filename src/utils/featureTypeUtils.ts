@@ -62,8 +62,8 @@ export const isEditableFeature = (feature: FeatureLike): boolean => {
     return false;
   }
 
-  // NOT editable: Box and Circle shapes (no vertex editing)
-  if (feature.get("isBox") || feature.get("isCircle")) {
+  // NOT editable: Box, Circle, and Revision Cloud shapes (no vertex editing)
+  if (feature.get("isBox") || feature.get("isCircle") || feature.get("isRevisionCloud")) {
     return false;
   }
 

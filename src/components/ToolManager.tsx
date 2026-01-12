@@ -22,6 +22,7 @@ import {
   createBoxDraw,
   createCircleDraw,
   createArcDraw,
+  createRevisionCloudDraw,
 } from "@/utils/interactionUtils";
 import { createLineStyle } from "@/utils/styleUtils";
 import { useClickHandlerManager } from "@/hooks/useClickHandlerManager";
@@ -320,6 +321,15 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
           undefined,
           lineColor,
           lineWidth
+        );
+        map.addInteraction(drawInteractionRef.current);
+        break;
+
+      case "revcloud":
+        drawInteractionRef.current = createRevisionCloudDraw(
+          vectorSource,
+          undefined,
+          lineColor
         );
         map.addInteraction(drawInteractionRef.current);
         break;

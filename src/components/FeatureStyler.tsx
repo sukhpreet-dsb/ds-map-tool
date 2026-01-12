@@ -233,6 +233,14 @@ export const getFeatureStyle = (
     return createPolygonStyle(strokeColor, 2, 1, fillColor, fillOpacity);
   }
 
+  // Handle Revision Cloud features
+  if (feature.get("isRevisionCloud") && (type === "Polygon" || type === "MultiPolygon")) {
+    const strokeColor = feature.get("strokeColor") || "#ff0000";
+    const fillColor = feature.get("fillColor");
+    const fillOpacity = feature.get("fillOpacity") !== undefined ? feature.get("fillOpacity") : 0;
+    return createPolygonStyle(strokeColor, 2, 1, fillColor, fillOpacity);
+  }
+
   if (
     feature.get("islegends") &&
     (type === "LineString" || type === "MultiLineString")
