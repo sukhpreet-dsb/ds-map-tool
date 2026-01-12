@@ -8,6 +8,7 @@ import { Geometry, LineString, Circle as CircleGeom } from "ol/geom";
 import { Vector as VectorSource } from "ol/source";
 import type { Coordinate } from "ol/coordinate";
 import { circleToPolygon } from "./geometryUtils";
+import { generateArcPreview, createArcGeometry } from "./arcUtils";
 
 /**
  * Draw interaction configuration interface
@@ -531,6 +532,85 @@ export const offsetFeature = (
 export const getCopyableFeatures = (selectedFeatures: Feature<Geometry>[]): Feature<Geometry>[] => {
   // All selectable features can be copied
   return selectedFeatures.filter(feature => feature.getGeometry() !== undefined);
+};
+
+/**
+ * Create a 3-point arc draw interaction
+ * User clicks 3 points: start, point on arc, end
+ * @param source - Vector source to draw on
+ * @param onDrawEnd - Optional callback for when drawing ends
+ * @param color - Optional custom line color
+ * @param width - Optional custom line width
+ * @returns Arc draw interaction
+ */
+export const createArcDraw = (
+  source: VectorSource<Feature<Geometry>>,
+  onDrawEnd?: (event: any) => void,
+  color?: string,
+  width?: number
+): Draw => {
+  const customColor = color || "#00ff00";
+  const customWidth = width || 4;
+
+  const drawInteraction = new Draw({
+    source: source,
+    type: "LineString",
+    maxPoints: 3,
+    style: createLineStyle(customColor, customWidth),
+    geometryFunction: (coordinates, geom) => {
+      const coordArray = coordinates as Coordinate[];
+
+      if (!geom) {
+        geom = new LineString([]);
+      }
+
+      // Generate arc preview based on number of points
+      const previewCoords = generateArcPreview(coordArray);
+      (geom as LineString).setCoordinates(previewCoords);
+
+      return geom;
+    },
+  });
+
+  // Setup keyboard handlers when drawing starts
+  drawInteraction.on("drawstart", () => {
+    setupDrawKeyboardHandlers(drawInteraction);
+  });
+
+  drawInteraction.on("drawend", (event) => {
+    removeDrawKeyboardHandlers(drawInteraction);
+
+    // Get the 3 clicked points from the sketch
+    const sketchCoords = (event.feature.getGeometry() as LineString).getCoordinates();
+
+    // If we have the full arc preview, use it; otherwise regenerate
+    if (sketchCoords.length >= 3) {
+      // The geometryFunction already generated the arc, but we need to ensure
+      // we have the full resolution arc from the original 3 points
+      // Extract the original 3 control points and regenerate with higher resolution
+      const p1 = sketchCoords[0];
+      const p2 = sketchCoords[Math.floor(sketchCoords.length / 2)];
+      const p3 = sketchCoords[sketchCoords.length - 1];
+
+      const finalGeom = createArcGeometry(p1, p2, p3, 64);
+      event.feature.setGeometry(finalGeom);
+    }
+
+    // Set feature properties
+    event.feature.set("isArc", true);
+    event.feature.set("lineColor", customColor);
+    event.feature.set("lineWidth", customWidth);
+
+    if (onDrawEnd) {
+      onDrawEnd(event);
+    }
+  });
+
+  drawInteraction.on("drawabort", () => {
+    removeDrawKeyboardHandlers(drawInteraction);
+  });
+
+  return drawInteraction;
 };
 
 // ============== CONTINUATION DRAW UTILITIES ==============

@@ -16,6 +16,8 @@ import {
   CopySlash,
   Square,
   CircleDot,
+  Undo2,
+  Merge,
 } from "lucide-react";
 
 export type ToolCategory = "edit" | "draw" | "symbols";
@@ -56,7 +58,7 @@ export const TOOLS: ToolItem[] = [
   {
     id: 'merge',
     name: 'Merge',
-    icon: Spline,
+    icon: Merge,
     category: "edit",
   },
   {
@@ -118,6 +120,12 @@ export const TOOLS: ToolItem[] = [
     id: 'circle',
     name: 'Circle',
     icon: CircleDot,
+    category: "draw",
+  },
+  {
+    id: 'arc',
+    name: 'Arc',
+    icon: Spline,
     category: "draw",
   },
   // SYMBOL TOOLS

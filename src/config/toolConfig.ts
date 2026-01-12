@@ -195,6 +195,13 @@ export const TOOLS_CONFIG: Record<string, ToolConfig> = {
     modifyDisabled: true,
     description: "Draw circle shapes",
   },
+  arc: {
+    id: "arc",
+    name: "Arc",
+    requiresDrawInteraction: true,
+    drawType: "LineString",
+    description: "Draw 3-point arc (start, through, end)",
+  },
 };
 
 /**

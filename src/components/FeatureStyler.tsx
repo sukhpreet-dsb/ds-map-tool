@@ -309,6 +309,13 @@ export const getFeatureStyle = (
     return baseStyle;
   }
 
+  // Handle Arc features
+  if (feature.get("isArc") && (type === "LineString" || type === "MultiLineString")) {
+    const strokeColor = feature.get("lineColor") || "#00ff00";
+    const strokeWidth = feature.get("lineWidth") !== undefined ? feature.get("lineWidth") : 4;
+    return createLineStyle(strokeColor, strokeWidth);
+  }
+
   if (type === "LineString" || type === "MultiLineString") {
     // Check for custom line styling (Polyline/Freehand only)
     if (supportsCustomLineStyle(feature)) {

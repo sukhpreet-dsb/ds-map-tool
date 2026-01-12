@@ -46,6 +46,12 @@ export const isEditableFeature = (feature: FeatureLike): boolean => {
     return true;
   }
 
+  // Editable: Arc features
+  const isArc = feature.get("isArc");
+  if (isArc) {
+    return true;
+  }
+
   // NOT editable: Special icon features (Triangle, Pit, GP, Junction)
   if (
     isTriangleFeature(feature as Feature<Geometry>) ||
@@ -128,23 +134,24 @@ export const isLegacySelectableFeature = (feature: FeatureLike): boolean => {
 
 /**
  * Determines if a feature supports custom line styling (width and color)
- * Only Polyline and Freehand LineString features support custom styling
- * Excludes: Measure, Arrow, Legends
+ * Only Polyline, Freehand, Arrow, Legends, and Arc LineString features support custom styling
+ * Excludes: Measure
  */
 export const supportsCustomLineStyle = (feature: FeatureLike): boolean => {
   const geometry = feature.getGeometry();
   if (!geometry || geometry.getType() !== "LineString") return false;
 
-  // Include: Polyline and Freehand
+  // Include: Polyline, Freehand, Arrow, Legends, Arc
   const isPolyline = feature.get("isPolyline");
   const isFreehand = feature.get("isFreehand");
   const isArrow = feature.get("isArrow");
   const isLegends = feature.get("islegends");
+  const isArc = feature.get("isArc");
 
-  // Exclude: Measure, Arrow, Legends
+  // Exclude: Measure
   const isMeasure = feature.get("isMeasure");
 
-  return (isPolyline || isFreehand || isArrow || isLegends) && !isMeasure;
+  return (isPolyline || isFreehand || isArrow || isLegends || isArc) && !isMeasure;
 };
 
 /**

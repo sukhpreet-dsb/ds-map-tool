@@ -21,6 +21,7 @@ import {
   createMeasureDraw,
   createBoxDraw,
   createCircleDraw,
+  createArcDraw,
 } from "@/utils/interactionUtils";
 import { createLineStyle } from "@/utils/styleUtils";
 import { useClickHandlerManager } from "@/hooks/useClickHandlerManager";
@@ -310,6 +311,16 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
 
       case "circle":
         drawInteractionRef.current = createCircleDraw(vectorSource);
+        map.addInteraction(drawInteractionRef.current);
+        break;
+
+      case "arc":
+        drawInteractionRef.current = createArcDraw(
+          vectorSource,
+          undefined,
+          lineColor,
+          lineWidth
+        );
         map.addInteraction(drawInteractionRef.current);
         break;
 
