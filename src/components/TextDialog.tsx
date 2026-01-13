@@ -5,6 +5,9 @@ import { Slider } from "@/components/ui/slider";
 import { X } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { useRef, useState, useEffect } from "react";
+import type { Select } from "ol/interaction";
+import type Feature from "ol/Feature";
+import type { Geometry } from "ol/geom";
 
 interface TextDialogProps {
   isOpen: boolean;
@@ -15,12 +18,28 @@ interface TextDialogProps {
   initialScale?: number;
   initialRotation?: number;
   isEditing?: boolean;
+  selectInteraction?: Select | null;
+  editingTextFeature?: Feature<Geometry> | null;
 }
 
-export function TextDialog({ isOpen, onClose, onSubmit, coordinate, initialText, initialScale, initialRotation, isEditing = false }: TextDialogProps) {
+export function TextDialog({
+  isOpen,
+  onClose,
+  onSubmit,
+  coordinate,
+  initialText,
+  initialScale,
+  initialRotation,
+  isEditing = false,
+  selectInteraction,
+  editingTextFeature
+}: TextDialogProps) {
   const [text, setText] = useState("");
   const [scale, setScale] = useState(1);
   const [rotation, setRotation] = useState(0);
+  const [originalText, setOriginalText] = useState("");
+  const [originalScale, setOriginalScale] = useState(1);
+  const [originalRotation, setOriginalRotation] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Set initial values when dialog opens for editing
@@ -30,10 +49,17 @@ export function TextDialog({ isOpen, onClose, onSubmit, coordinate, initialText,
         setText(initialText);
         setScale(initialScale || 1);
         setRotation(initialRotation || 0);
+        // Store original values for cancel operation
+        setOriginalText(initialText);
+        setOriginalScale(initialScale || 1);
+        setOriginalRotation(initialRotation || 0);
       } else {
         setText("");
         setScale(1);
         setRotation(0);
+        setOriginalText("");
+        setOriginalScale(1);
+        setOriginalRotation(0);
       }
       // Auto-focus input when dialog opens
       if (inputRef.current) {
@@ -45,6 +71,69 @@ export function TextDialog({ isOpen, onClose, onSubmit, coordinate, initialText,
       }
     }
   }, [isOpen, isEditing, initialText, initialScale, initialRotation]);
+
+  // Handle text editing mode - deselect feature when opening to show live changes
+  useEffect(() => {
+    if (isOpen && isEditing && editingTextFeature && selectInteraction) {
+      // Deselect feature to show actual text without selection styling
+      selectInteraction.getFeatures().clear();
+    } else if (!isOpen && editingTextFeature && selectInteraction) {
+      // Restore selection when dialog closes
+      const features = selectInteraction.getFeatures();
+      if (!features.getArray().includes(editingTextFeature)) {
+        features.push(editingTextFeature);
+      }
+    }
+
+    return () => {
+      // Cleanup: restore selection on unmount if still in editing mode
+      if (isOpen && editingTextFeature && selectInteraction) {
+        const features = selectInteraction.getFeatures();
+        if (!features.getArray().includes(editingTextFeature)) {
+          features.push(editingTextFeature);
+        }
+      }
+    };
+  }, [isOpen, isEditing, editingTextFeature, selectInteraction]);
+
+  // Live preview handlers for editing text features
+  const handleTextChange = (newText: string) => {
+    setText(newText);
+    // Apply live changes to feature if editing
+    if (isEditing && editingTextFeature) {
+      editingTextFeature.set("text", newText);
+      editingTextFeature.changed();
+    }
+  };
+
+  const handleScaleChange = (newScale: number) => {
+    setScale(newScale);
+    // Apply live changes to feature if editing
+    if (isEditing && editingTextFeature) {
+      editingTextFeature.set("textScale", newScale);
+      editingTextFeature.changed();
+    }
+  };
+
+  const handleRotationChange = (newRotation: number) => {
+    setRotation(newRotation);
+    // Apply live changes to feature if editing
+    if (isEditing && editingTextFeature) {
+      editingTextFeature.set("textRotation", newRotation);
+      editingTextFeature.changed();
+    }
+  };
+
+  const handleCancel = () => {
+    // If editing, revert changes to feature
+    if (isEditing && editingTextFeature) {
+      editingTextFeature.set("text", originalText);
+      editingTextFeature.set("textScale", originalScale);
+      editingTextFeature.set("textRotation", originalRotation);
+      editingTextFeature.changed();
+    }
+    onClose();
+  };
 
   const handleSubmit = () => {
     const trimmedText = text.trim();
@@ -62,7 +151,7 @@ export function TextDialog({ isOpen, onClose, onSubmit, coordinate, initialText,
       handleSubmit();
     }
     if (e.key === "Escape") {
-      onClose();
+      handleCancel();
     }
   };
 
@@ -81,7 +170,7 @@ export function TextDialog({ isOpen, onClose, onSubmit, coordinate, initialText,
           <Button
             variant="ghost"
             size="icon-sm"
-            onClick={onClose}
+            onClick={handleCancel}
             className="h-6 w-6 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:text-gray-500 dark:hover:text-gray-300 dark:hover:bg-slate-700"
             aria-label="Close panel"
           >
@@ -100,7 +189,7 @@ export function TextDialog({ isOpen, onClose, onSubmit, coordinate, initialText,
                 <Input
                   ref={inputRef}
                   value={text}
-                  onChange={(e) => setText(e.target.value)}
+                  onChange={(e) => handleTextChange(e.target.value)}
                   placeholder="Enter your text here..."
                   onKeyDown={handleKeyDown}
                   className="mt-1"
@@ -114,7 +203,7 @@ export function TextDialog({ isOpen, onClose, onSubmit, coordinate, initialText,
                 <div className="flex items-center space-x-2">
                   <Slider
                     value={[scale]}
-                    onValueChange={(value) => setScale(value[0])}
+                    onValueChange={(value) => handleScaleChange(value[0])}
                     min={0.5}
                     max={3.0}
                     step={0.1}
@@ -123,7 +212,7 @@ export function TextDialog({ isOpen, onClose, onSubmit, coordinate, initialText,
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setScale(1)}
+                    onClick={() => handleScaleChange(1)}
                     className="px-2 py-1 text-xs"
                   >
                     Reset
@@ -138,7 +227,7 @@ export function TextDialog({ isOpen, onClose, onSubmit, coordinate, initialText,
                 <div className="flex items-center space-x-2">
                   <Slider
                     value={[rotation]}
-                    onValueChange={(value) => setRotation(value[0])}
+                    onValueChange={(value) => handleRotationChange(value[0])}
                     min={0}
                     max={360}
                     step={1}
@@ -147,7 +236,7 @@ export function TextDialog({ isOpen, onClose, onSubmit, coordinate, initialText,
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setRotation(0)}
+                    onClick={() => handleRotationChange(0)}
                     className="px-2 py-1 text-xs"
                   >
                     Reset
@@ -168,7 +257,7 @@ export function TextDialog({ isOpen, onClose, onSubmit, coordinate, initialText,
             <Button
               variant="outline"
               size="sm"
-              onClick={onClose}
+              onClick={handleCancel}
               className="flex items-center gap-2"
             >
               Cancel

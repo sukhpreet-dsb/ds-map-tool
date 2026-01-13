@@ -17,6 +17,7 @@ let state: HiddenFeatureTypes = {
     gp: false,
     junction: false,
     tower: false,
+    revcloud: false,
 };
 
 const listeners = new Set<() => void>();

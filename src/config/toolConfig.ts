@@ -179,6 +179,37 @@ export const TOOLS_CONFIG: Record<string, ToolConfig> = {
     clickHandlerKey: "IconClickHandler",
     description: "Requires selected icon to be active",
   },
+  box: {
+    id: "box",
+    name: "Box",
+    requiresDrawInteraction: true,
+    drawType: "Polygon",
+    modifyDisabled: true,
+    description: "Draw rectangular box shapes",
+  },
+  circle: {
+    id: "circle",
+    name: "Circle",
+    requiresDrawInteraction: true,
+    drawType: "Polygon",
+    modifyDisabled: true,
+    description: "Draw circle shapes",
+  },
+  arc: {
+    id: "arc",
+    name: "Arc",
+    requiresDrawInteraction: true,
+    drawType: "LineString",
+    description: "Draw 3-point arc (start, through, end)",
+  },
+  revcloud: {
+    id: "revcloud",
+    name: "Revision Cloud",
+    requiresDrawInteraction: true,
+    drawType: "Polygon",
+    freehand: true,
+    description: "Draw freehand revision cloud with scalloped edges",
+  },
 };
 
 /**

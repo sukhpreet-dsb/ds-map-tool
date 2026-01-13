@@ -19,6 +19,10 @@ import {
   createArrowDraw,
   createLegendDraw,
   createMeasureDraw,
+  createBoxDraw,
+  createCircleDraw,
+  createArcDraw,
+  createRevisionCloudDraw,
 } from "@/utils/interactionUtils";
 import { createLineStyle } from "@/utils/styleUtils";
 import { useClickHandlerManager } from "@/hooks/useClickHandlerManager";
@@ -32,6 +36,8 @@ export interface ToolManagerProps {
   activeTool: string;
   selectedLegend?: LegendType;
   selectedIconPath?: string;
+  lineColor?: string;
+  lineWidth?: number;
   onToolChange: (tool: string) => void;
   onFeatureSelect?: (feature: Feature | null) => void;
 }
@@ -42,6 +48,8 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
   activeTool,
   selectedLegend,
   selectedIconPath,
+  lineColor,
+  lineWidth,
   onToolChange,
   onFeatureSelect,
 }) => {
@@ -98,17 +106,32 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
         break;
 
       case "polyline":
-        drawInteractionRef.current = createPolylineDraw(vectorSource);
+        drawInteractionRef.current = createPolylineDraw(
+          vectorSource,
+          undefined,
+          lineColor,
+          lineWidth
+        );
         map.addInteraction(drawInteractionRef.current);
         break;
 
       case "freehand":
-        drawInteractionRef.current = createFreehandDraw(vectorSource);
+        drawInteractionRef.current = createFreehandDraw(
+          vectorSource,
+          undefined,
+          lineColor,
+          lineWidth
+        );
         map.addInteraction(drawInteractionRef.current);
         break;
 
       case "arrow":
-        drawInteractionRef.current = createArrowDraw(vectorSource);
+        drawInteractionRef.current = createArrowDraw(
+          vectorSource,
+          undefined,
+          lineColor,
+          lineWidth
+        );
         map.addInteraction(drawInteractionRef.current);
         break;
 
@@ -282,6 +305,35 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
         }
         break;
 
+      case "box":
+        drawInteractionRef.current = createBoxDraw(vectorSource);
+        map.addInteraction(drawInteractionRef.current);
+        break;
+
+      case "circle":
+        drawInteractionRef.current = createCircleDraw(vectorSource);
+        map.addInteraction(drawInteractionRef.current);
+        break;
+
+      case "arc":
+        drawInteractionRef.current = createArcDraw(
+          vectorSource,
+          undefined,
+          lineColor,
+          lineWidth
+        );
+        map.addInteraction(drawInteractionRef.current);
+        break;
+
+      case "revcloud":
+        drawInteractionRef.current = createRevisionCloudDraw(
+          vectorSource,
+          undefined,
+          lineColor
+        );
+        map.addInteraction(drawInteractionRef.current);
+        break;
+
       case "split":
         // Split interaction is managed in MapInteractions.tsx
         // No draw interaction needed here
@@ -314,6 +366,8 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
     vectorSource,
     selectedLegend,
     selectedIconPath,
+    lineColor,
+    lineWidth,
     registerClickHandler,
     removeAllClickHandlers,
   ]);
