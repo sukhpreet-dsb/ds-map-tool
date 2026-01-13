@@ -183,7 +183,7 @@ export const generateRevisionCloudCoordinates = (
 
   // Step 3: Determine winding direction for consistent scallop bulge
   // Scallops should bulge outward from the polygon center
-  const clockwise = isClockwise(resampledPath);
+  // const clockwise = isClockwise(resampledPath);
   const bulgeDirection = 1;
 
   // Step 4: Generate scallops

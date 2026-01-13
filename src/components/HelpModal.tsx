@@ -9,7 +9,7 @@ import {
 import { TOOLS } from "@/tools/toolConfig";
 import { CircleQuestionMark } from "lucide-react";
 import { useState } from "react";
-import { getIconCategories, getIconFullPath } from "@/utils/iconUtils";
+import { getIconCategories } from "@/utils/iconUtils";
 
 console.log("getIconCategories", getIconCategories());
 

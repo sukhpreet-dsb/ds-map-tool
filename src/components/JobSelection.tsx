@@ -22,7 +22,7 @@ import { CreatingJob } from "./CreatingJob";
 import type { PGlite } from "@electric-sql/pglite";
 import type { Project } from "@/hooks/useMapProjects";
 import { useState } from "react";
-import { Edit2, MoreHorizontal, Trash2, Loader2 } from "lucide-react";
+import { Edit2, MoreHorizontal, Trash2 } from "lucide-react";
 import { useMapProjects } from "@/hooks/useMapProjects";
 import { LoadingOverlay } from "./LoadingOverlay";
 

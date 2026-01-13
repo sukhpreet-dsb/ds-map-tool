@@ -6,14 +6,10 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
 } from "@/components/ui/dropdown-menu";
 import {
   FilePlus,
   ArrowDownToLine,
-  Loader2,
-  FolderIcon,
   ChevronUp,
   ChevronDown,
 } from "lucide-react";
@@ -61,18 +57,18 @@ const Toolbar = ({
   onSelectProject,
 }: ToolbarProps) => {
   const [activeCategory, setActiveCategory] = useState<ToolCategory>("edit");
-  const [isSwitchingJob, setIsSwitchingJob] = useState(false);
+  // const [isSwitchingJob, setIsSwitchingJob] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
 
-  const handleJobSelect = async (projectId: string) => {
-    if (!onSelectProject) return;
-    setIsSwitchingJob(true);
-    try {
-      await onSelectProject(projectId);
-    } finally {
-      setIsSwitchingJob(false);
-    }
-  };
+  // const handleJobSelect = async (projectId: string) => {
+  //   if (!onSelectProject) return;
+  //   setIsSwitchingJob(true);
+  //   try {
+  //     await onSelectProject(projectId);
+  //   } finally {
+  //     setIsSwitchingJob(false);
+  //   }
+  // };
 
   const handleToolClick = (toolId: string) => {
     onToolActivate(toolId);

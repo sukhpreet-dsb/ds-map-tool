@@ -27,7 +27,7 @@ import {
   normalizeImportedGeoJSON,
 } from "@/utils/serializationUtils";
 import { fitMapToFeatures, restoreMapView } from "@/utils/mapStateUtils";
-import { JobSelection } from "../components/JobSelection";
+// import { JobSelection } from "../components/JobSelection";
 import { useMapProjects } from "@/hooks/useMapProjects";
 import PropertiesPanel from "../components/PropertiesPanel";
 import { TextDialog } from "../components/TextDialog";

@@ -267,7 +267,6 @@ interface PropertyDisplayListProps {
 
 const PropertyDisplayList: React.FC<PropertyDisplayListProps> = ({
   properties,
-  currentLabel,
 }) => {
   if (properties.length === 0) {
     return (
