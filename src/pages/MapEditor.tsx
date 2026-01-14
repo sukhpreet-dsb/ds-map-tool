@@ -51,6 +51,7 @@ import { performMerge, createOffsetLineString } from "@/utils/splitUtils";
 import type { PdfExportConfig } from "@/types/pdf";
 import { OffsetDialog, type OffsetDirection } from "@/components/OffsetDialog";
 import { HelpModal } from "@/components/HelpModal";
+import { useToolStore } from "@/stores/useToolStore";
 
 // Interface for properly serializable map data
 interface SerializedMapData {
@@ -111,6 +112,8 @@ const MapEditor: React.FC = () => {
     setCopiedFeatures,
     clearClipboard,
   } = useFeatureState();
+
+  const { setUndoRedoInteraction } = useToolStore();
 
   const selectInteractionRef = useRef<Select | null>(null);
   const undoRedoInteractionRef = useRef<any>(null);
@@ -395,6 +398,7 @@ const MapEditor: React.FC = () => {
 
   const handleUndoInteractionReady = (undoInteraction: any) => {
     undoRedoInteractionRef.current = undoInteraction;
+    setUndoRedoInteraction(undoInteraction);
     setInteractionReady(true);
   };
 

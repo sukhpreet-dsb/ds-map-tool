@@ -6,7 +6,6 @@
 import {
   MousePointer2,
   Type,
-  Circle,
   Pencil,
   Slash,
   ArrowUp,
