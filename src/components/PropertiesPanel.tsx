@@ -2,13 +2,14 @@ import React from "react";
 import type Map from "ol/Map";
 import type Feature from "ol/Feature";
 import type { Select } from "ol/interaction";
-import { X, Edit2, Save, Plus, Trash2 } from "lucide-react";
+import { X, Edit2, Save, Plus, Trash2, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { DEFAULT_LINE_STYLE } from "@/utils/featureTypeUtils";
-import { isProtectedProperty, isCalculatedProperty } from "@/utils/propertyUtils";
+import { isProtectedProperty, isCalculatedProperty, formatLengthWithUnit, type LengthUnit } from "@/utils/propertyUtils";
+import { getLength } from "ol/sphere";
 import { usePropertiesPanel } from "@/hooks/usePropertiesPanel";
 import { useLineStyleEditor } from "@/hooks/useLineStyleEditor";
 import { useShapeStyleEditor } from "@/hooks/useShapeStyleEditor";
@@ -60,6 +61,44 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     selectInteraction ?? null,
     properties.isEditing
   );
+
+  // Local state for length unit (syncs with feature)
+  const [lengthUnit, setLengthUnit] = React.useState<LengthUnit>(
+    (selectedFeature?.get("lengthUnit") as LengthUnit) || "km"
+  );
+
+  // Sync length unit when feature changes
+  React.useEffect(() => {
+    if (selectedFeature) {
+      setLengthUnit((selectedFeature.get("lengthUnit") as LengthUnit) || "km");
+    }
+  }, [selectedFeature]);
+
+  // Handle length unit change
+  const handleLengthUnitChange = (unit: LengthUnit) => {
+    if (!selectedFeature) return;
+
+    const lengthProp = properties.customProperties.find((p) => p.key === "length");
+    const geometry = selectedFeature.getGeometry();
+
+    if (lengthProp && geometry) {
+      // Get actual length from geometry (always in meters)
+      const meters = getLength(geometry);
+      const newValue = formatLengthWithUnit(meters, unit);
+
+      // Update local state immediately for UI
+      setLengthUnit(unit);
+
+      // Update the feature's lengthUnit property
+      selectedFeature.set("lengthUnit", unit);
+
+      // Update the displayed value
+      properties.updateProperty(lengthProp.id, "value", newValue);
+
+      // Trigger save to persist
+      onSave?.();
+    }
+  };
 
   // Get current label property value
   const currentLabel = properties.customProperties.find(
@@ -121,6 +160,8 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
               <PropertyDisplayList
                 properties={properties.customProperties}
                 currentLabel={currentLabel}
+                lengthUnit={lengthUnit}
+                onLengthUnitChange={handleLengthUnitChange}
               />
             ) : (
               <PropertyEditList
@@ -129,6 +170,8 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                 onDelete={properties.deleteProperty}
                 currentLabel={currentLabel}
                 onLabelSelect={handleLabelSelect}
+                lengthUnit={lengthUnit}
+                onLengthUnitChange={handleLengthUnitChange}
               />
             )}
           </div>
@@ -260,13 +303,63 @@ const LabelSelector: React.FC<LabelSelectorProps> = ({
   );
 };
 
+// Length value with unit selector
+interface LengthValueWithUnitProps {
+  value: string;
+  unit: LengthUnit;
+  onUnitChange: (unit: LengthUnit) => void;
+}
+
+const LengthValueWithUnit: React.FC<LengthValueWithUnitProps> = ({
+  value,
+  unit,
+  onUnitChange,
+}) => {
+  // Extract numeric part from value (e.g., "2951.69km" -> "2951.69")
+  const numericValue = value.replace(/[^\d.]/g, "");
+
+  return (
+    <div className="flex items-center gap-1">
+      <span className="text-gray-600 dark:text-gray-400">{numericValue}</span>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button className="flex items-center gap-0.5 px-1.5 py-0.5 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700 rounded transition-colors">
+            {unit}
+            <ChevronDown className="w-3 h-3" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="w-20 p-1 bg-white dark:bg-slate-800 rounded-sm shadow-lg z-50">
+          <DropdownMenuRadioGroup value={unit} onValueChange={(v) => onUnitChange(v as LengthUnit)}>
+            <DropdownMenuRadioItem
+              value="km"
+              className="flex items-center gap-2 p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 data-[state=checked]:bg-blue-50 dark:data-[state=checked]:bg-blue-900/20 rounded"
+            >
+              km
+            </DropdownMenuRadioItem>
+            <DropdownMenuRadioItem
+              value="m"
+              className="flex items-center gap-2 p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 data-[state=checked]:bg-blue-50 dark:data-[state=checked]:bg-blue-900/20 rounded"
+            >
+              m
+            </DropdownMenuRadioItem>
+          </DropdownMenuRadioGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+};
+
 interface PropertyDisplayListProps {
   properties: { id: string; key: string; value: string }[];
   currentLabel: string;
+  lengthUnit: LengthUnit;
+  onLengthUnitChange: (unit: LengthUnit) => void;
 }
 
 const PropertyDisplayList: React.FC<PropertyDisplayListProps> = ({
   properties,
+  lengthUnit,
+  onLengthUnitChange,
 }) => {
   if (properties.length === 0) {
     return (
@@ -288,9 +381,17 @@ const PropertyDisplayList: React.FC<PropertyDisplayListProps> = ({
           <span className="font-medium text-gray-700 dark:text-gray-300 capitalize flex-1">
             {prop.key}:
           </span>
-          <span className="text-gray-600 dark:text-gray-400 truncate ml-2">
-            {prop.value || <span className="text-gray-400 italic">Empty</span>}
-          </span>
+          {prop.key === "length" ? (
+            <LengthValueWithUnit
+              value={prop.value}
+              unit={lengthUnit}
+              onUnitChange={onLengthUnitChange}
+            />
+          ) : (
+            <span className="text-gray-600 dark:text-gray-400 truncate ml-2">
+              {prop.value || <span className="text-gray-400 italic">Empty</span>}
+            </span>
+          )}
         </div>
       ))}
     </div>
@@ -303,6 +404,8 @@ interface PropertyEditListProps {
   onDelete: (id: string) => void;
   currentLabel: string;
   onLabelSelect: (key: string) => void;
+  lengthUnit: LengthUnit;
+  onLengthUnitChange: (unit: LengthUnit) => void;
 }
 
 const PropertyEditList: React.FC<PropertyEditListProps> = ({
@@ -311,6 +414,8 @@ const PropertyEditList: React.FC<PropertyEditListProps> = ({
   onDelete,
   currentLabel,
   onLabelSelect,
+  lengthUnit,
+  onLengthUnitChange,
 }) => {
   if (properties.length === 0) {
     return (
@@ -345,17 +450,27 @@ const PropertyEditList: React.FC<PropertyEditListProps> = ({
               }`}
               disabled={isReadOnly || isCalculated}
             />
-            <Input
-              placeholder="Value"
-              value={prop.value}
-              onChange={(e) => onUpdate(prop.id, "value", e.target.value)}
-              className={`flex-1 text-sm ${
-                isCalculated ? "bg-gray-50 dark:bg-slate-700" : ""
-              }`}
-              disabled={isCalculated}
-              type={prop.key === "long" || prop.key === "lat" ? "number" : "text"}
-              step={prop.key === "long" || prop.key === "lat" ? "any" : undefined}
-            />
+            {prop.key === "length" ? (
+              <div className="flex-1 flex items-center">
+                <LengthValueWithUnit
+                  value={prop.value}
+                  unit={lengthUnit}
+                  onUnitChange={onLengthUnitChange}
+                />
+              </div>
+            ) : (
+              <Input
+                placeholder="Value"
+                value={prop.value}
+                onChange={(e) => onUpdate(prop.id, "value", e.target.value)}
+                className={`flex-1 text-sm ${
+                  isCalculated ? "bg-gray-50 dark:bg-slate-700" : ""
+                }`}
+                disabled={isCalculated}
+                type={prop.key === "long" || prop.key === "lat" ? "number" : "text"}
+                step={prop.key === "long" || prop.key === "lat" ? "any" : undefined}
+              />
+            )}
             {!isReadOnly && !isCalculated && (
               <Button
                 variant="ghost"
