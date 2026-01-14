@@ -92,6 +92,9 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
       // Update the feature's lengthUnit property
       selectedFeature.set("lengthUnit", unit);
 
+      // Trigger style recalculation for measure label update
+      selectedFeature.changed();
+
       // Update the displayed value
       properties.updateProperty(lengthProp.id, "value", newValue);
 

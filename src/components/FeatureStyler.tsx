@@ -397,11 +397,20 @@ export const getFeatureStyle = (
 };
 
 /**
- * Format distance with automatic unit switching
+ * Format distance with unit switching
  * @param distance - Distance in meters
+ * @param unit - Optional unit ('km' or 'm'). If not set, auto-switches based on distance.
  * @returns Formatted distance string
  */
-const formatDistance = (distance: number): string => {
+const formatDistance = (distance: number, unit?: string): string => {
+  // If unit is explicitly set, use it
+  if (unit === 'm') {
+    return `${distance.toFixed(3)}m`;
+  }
+  if (unit === 'km') {
+    return `${(distance / 1000).toFixed(3)}km`;
+  }
+  // Default: auto-switch based on distance
   if (distance < 1000) {
     return `${Math.round(distance)}m`;
   } else {
@@ -429,7 +438,8 @@ export const getMeasureTextStyle = (feature: FeatureLike): Style[] => {
 
   // Get the end point (last coordinate)
   const endPoint = coordinates[coordinates.length - 1];
-  const formattedDistance = formatDistance(distance);
+  const lengthUnit = feature.get('lengthUnit');
+  const formattedDistance = formatDistance(distance, lengthUnit);
 
   const styles: Style[] = [];
 
