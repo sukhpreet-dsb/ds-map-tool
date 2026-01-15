@@ -32,11 +32,15 @@ export const getTextAlongLineStyle = (
   const customWidth = feature.get("lineWidth");
   const width = customWidth !== undefined ? customWidth : legendType.style.strokeWidth;
 
+  // Check for custom opacity first, fallback to legend type opacity
+  const customOpacity = feature.get("opacity");
+  const opacity = customOpacity !== undefined ? customOpacity : (legendType.style.opacity || 1);
+
   // Base line style from legend configuration
   styles.push(
     new Style({
       stroke: new Stroke({
-        color: strokeColor,
+        color: applyOpacityToColor(strokeColor, opacity),
         width: width,
         lineDash: legendType.style.strokeDash,
         lineCap: "butt",
@@ -114,10 +118,14 @@ export const getArrowStyle = (feature: FeatureLike) => {
   const dy = endPoint[1] - startPoint[1];
   const angle = Math.atan2(dy, dx);
 
-  // Get custom color and width (support custom styling)
+  // Get custom color, width, and opacity (support custom styling)
   const customColor = feature.get("lineColor") || "#000000";
   const customWidth = feature.get("lineWidth");
   const width = customWidth !== undefined ? customWidth : 4;
+  const opacity = feature.get("opacity") !== undefined ? feature.get("opacity") : 1;
+
+  // Apply opacity to color
+  const colorWithOpacity = applyOpacityToColor(customColor, opacity);
 
   // Create arrow head using RegularShape
   const arrowHead = new RegularShape({
@@ -126,14 +134,14 @@ export const getArrowStyle = (feature: FeatureLike) => {
     rotation: -angle,
     angle: 10,
     displacement: [0, 0],
-    fill: new Fill({ color: customColor }),
+    fill: new Fill({ color: colorWithOpacity }),
   });
 
   return [
     // Line style
     new Style({
       stroke: new Stroke({
-        color: customColor,
+        color: colorWithOpacity,
         width: width,
       }),
     }),
@@ -265,25 +273,29 @@ export const getFeatureStyle = (
   // Handle Box features
   if (feature.get("isBox") && (type === "Polygon" || type === "MultiPolygon")) {
     const strokeColor = feature.get("strokeColor") || "#000000";
+    const strokeOpacity = feature.get("strokeOpacity") !== undefined ? feature.get("strokeOpacity") : 1;
     const fillColor = feature.get("fillColor") || "#ffffff";
     const fillOpacity = feature.get("fillOpacity") !== undefined ? feature.get("fillOpacity") : 0;
-    return createPolygonStyle(strokeColor, 2, 1, fillColor, fillOpacity);
+    return createPolygonStyle(strokeColor, 2, strokeOpacity, fillColor, fillOpacity);
   }
 
   // Handle Circle features
   if (feature.get("isCircle") && (type === "Polygon" || type === "MultiPolygon")) {
     const strokeColor = feature.get("strokeColor") || "#000000";
+    const strokeOpacity = feature.get("strokeOpacity") !== undefined ? feature.get("strokeOpacity") : 1;
     const fillColor = feature.get("fillColor") || "#ffffff";
     const fillOpacity = feature.get("fillOpacity") !== undefined ? feature.get("fillOpacity") : 0;
-    return createPolygonStyle(strokeColor, 2, 1, fillColor, fillOpacity);
+    return createPolygonStyle(strokeColor, 2, strokeOpacity, fillColor, fillOpacity);
   }
 
   // Handle Revision Cloud features
   if (feature.get("isRevisionCloud") && (type === "Polygon" || type === "MultiPolygon")) {
-    const strokeColor = feature.get("strokeColor") || "#ff0000";
+    const strokeColor = feature.get("strokeColor") || "#00ff00";
+    const strokeWidth = feature.get("strokeWidth") !== undefined ? feature.get("strokeWidth") : 2;
+    const strokeOpacity = feature.get("strokeOpacity") !== undefined ? feature.get("strokeOpacity") : 1;
     const fillColor = feature.get("fillColor");
     const fillOpacity = feature.get("fillOpacity") !== undefined ? feature.get("fillOpacity") : 0;
-    return createPolygonStyle(strokeColor, 2, 1, fillColor, fillOpacity);
+    return createPolygonStyle(strokeColor, strokeWidth, strokeOpacity, fillColor, fillOpacity);
   }
 
   if (
@@ -312,7 +324,10 @@ export const getFeatureStyle = (
     }
 
     const styles: Style[] = [];
-    const opacity = legendType.style.opacity || 1;
+
+    // Check for custom opacity first, fallback to legend type opacity
+    const customOpacity = feature.get("opacity");
+    const opacity = customOpacity !== undefined ? customOpacity : (legendType.style.opacity || 1);
 
     // Check for custom color first, fallback to legend type color
     const customColor = feature.get("lineColor");
@@ -366,7 +381,8 @@ export const getFeatureStyle = (
   if (feature.get("isArc") && (type === "LineString" || type === "MultiLineString")) {
     const strokeColor = feature.get("lineColor") || "#00ff00";
     const strokeWidth = feature.get("lineWidth") !== undefined ? feature.get("lineWidth") : 4;
-    return createLineStyle(strokeColor, strokeWidth);
+    const opacity = feature.get("opacity") !== undefined ? feature.get("opacity") : 1;
+    return createLineStyle(strokeColor, strokeWidth, opacity);
   }
 
   if (type === "LineString" || type === "MultiLineString") {
@@ -374,12 +390,13 @@ export const getFeatureStyle = (
     if (supportsCustomLineStyle(feature)) {
       const customColor = feature.get("lineColor");
       const customWidth = feature.get("lineWidth");
+      const opacity = feature.get("opacity") !== undefined ? feature.get("opacity") : 1;
 
       // Use custom values if set, otherwise use defaults
       const color = customColor || DEFAULT_LINE_STYLE.color;
       const width = customWidth !== undefined ? customWidth : DEFAULT_LINE_STYLE.width;
 
-      return createLineStyle(color, width);
+      return createLineStyle(color, width, opacity);
     }
 
     // Fallback for other LineString types

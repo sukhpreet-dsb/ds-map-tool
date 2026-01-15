@@ -25,6 +25,7 @@ export interface PointStyleConfig {
   fillColor?: string;
   strokeColor?: string;
   strokeWidth?: number;
+  opacity?: number;
 }
 
 /**
@@ -75,14 +76,18 @@ export const createBasicStyle = (config: BasicStyleConfig): Style => {
  * @returns OpenLayers Style object
  */
 export const createPointStyle = (config: PointStyleConfig): Style => {
+  const opacity = config.opacity !== undefined ? config.opacity : 1;
+  const fillColor = config.fillColor || "#ff0000";
+  const strokeColor = config.strokeColor || "#ffffff";
+
   return new Style({
     image: new CircleStyle({
       radius: config.radius || 6,
       fill: new Fill({
-        color: config.fillColor || "#ff0000",
+        color: applyOpacityToColor(fillColor, opacity),
       }),
       stroke: new Stroke({
-        color: config.strokeColor || "#ffffff",
+        color: applyOpacityToColor(strokeColor, opacity),
         width: config.strokeWidth || 2,
       }),
     }),

@@ -2,6 +2,7 @@ import { Style, Stroke } from "ol/style";
 import { Feature } from "ol";
 import { LineString, MultiLineString } from "ol/geom";
 import { Vector as VectorSource } from "ol/source";
+import { applyOpacityToColor } from "@/utils/colorUtils";
 
 /**
  * Creates a pit/plus shape using two perpendicular LineStrings
@@ -33,12 +34,13 @@ export const createPitGeometry = (center: number[], size: number = 20): MultiLin
 
 /**
  * Gets stroke style for pit/plus shape
+ * @param opacity - Opacity value (0-1), defaults to 1
  * @returns Style object with red stroke
  */
-export const getPitStyle = (): Style => {
+export const getPitStyle = (opacity: number = 1): Style => {
   return new Style({
     stroke: new Stroke({
-      color: "#ff0000", // Red
+      color: applyOpacityToColor("#ff0000", opacity), // Red with opacity
       width: 10,
     }),
   });

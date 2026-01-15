@@ -2,6 +2,7 @@ import { Style, Stroke, Fill } from "ol/style";
 import { Feature } from "ol";
 import { Polygon } from "ol/geom";
 import { Vector as VectorSource } from "ol/source";
+import { applyOpacityToColor } from "@/utils/colorUtils";
 
 export const createTrianglePolygon = (center: number[], size: number = 10): number[][][] => {
   const [cx, cy] = center;
@@ -20,13 +21,17 @@ export const createTrianglePolygon = (center: number[], size: number = 10): numb
   ]];
 };
 
-export const getTriangleStyle = (): Style => {
+/**
+ * Gets style for triangle feature
+ * @param opacity - Opacity value (0-1), defaults to 1
+ */
+export const getTriangleStyle = (opacity: number = 1): Style => {
   return new Style({
     stroke: new Stroke({
-      color: "#000000",
+      color: applyOpacityToColor("#000000", opacity),
       width: 2,
     }),
-    fill: new Fill({ color: "#a4aaa5" }),
+    fill: new Fill({ color: applyOpacityToColor("#a4aaa5", opacity) }),
   });
 };
 

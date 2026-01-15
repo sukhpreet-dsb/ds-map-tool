@@ -63,7 +63,10 @@ export const parseLengthValue = (value: string): number => {
 const STYLE_PROPERTY_KEYS = [
   "lineColor",
   "lineWidth",
+  "opacity",
   "strokeColor",
+  "strokeWidth",
+  "strokeOpacity",
   "fillColor",
   "fillOpacity",
 ] as const;
@@ -85,6 +88,7 @@ const shouldExcludeProperty = (key: string): boolean => {
   if (key === "name") return true;
   if (key === "label") return true;
   if (key === "lengthUnit") return true;
+  if (key === "scallopRadius") return true;
   // Style properties have their own UI section in the panel
   if (isStyleProperty(key)) return true;
   return false;
@@ -185,7 +189,9 @@ export const applyPropertiesToFeature = (
     // Style properties
     "lineColor",
     "lineWidth",
+    "opacity",
     "strokeColor",
+    "strokeOpacity",
     "fillColor",
     "fillOpacity",
   ];

@@ -4,6 +4,7 @@ import { Polygon, GeometryCollection } from "ol/geom";
 import { Vector as VectorSource } from "ol/source";
 import type { Geometry } from "ol/geom";
 import { createCirclePolygon } from "@/utils/geometryUtils";
+import { applyOpacityToColor } from "@/utils/colorUtils";
 
 /**
  * Create a single Feature that contains both square + inner circle
@@ -40,8 +41,9 @@ export const createJunctionGeometry = (
 /**
  * Returns styles for the JunctionPoint feature.
  * Each Style targets a specific sub-geometry inside the GeometryCollection.
+ * @param opacity - Opacity value (0-1), defaults to 1
  */
-export const getJunctionStyles = (): Style[] => {
+export const getJunctionStyles = (opacity: number = 1): Style[] => {
   const squareStyle = new Style({
     geometry: (feature) => {
       const geom = feature.getGeometry() as GeometryCollection | null;
@@ -49,11 +51,11 @@ export const getJunctionStyles = (): Style[] => {
       return (geom as any).getGeometries()[0]; // square
     },
     stroke: new Stroke({
-      color: "black",
+      color: applyOpacityToColor("#000000", opacity),
       width: 1,
     }),
     fill: new Fill({
-      color: "red",
+      color: applyOpacityToColor("#ff0000", opacity), // red
     }),
   });
 
@@ -64,10 +66,10 @@ export const getJunctionStyles = (): Style[] => {
       return (geom as any).getGeometries()[1]; // inner circle
     },
     fill: new Fill({
-      color: "#000",
+      color: applyOpacityToColor("#000000", opacity),
     }),
     stroke: new Stroke({
-      color: "black",
+      color: applyOpacityToColor("#000000", opacity),
       width: 1,
     }),
   });
@@ -77,8 +79,9 @@ export const getJunctionStyles = (): Style[] => {
 
 /**
  * Convenience alias for compatibility (returns same array as getJunctionStyles)
+ * @param opacity - Opacity value (0-1), defaults to 1
  */
-export const getJunctionStyle = (): Style[] => getJunctionStyles();
+export const getJunctionStyle = (opacity: number = 1): Style[] => getJunctionStyles(opacity);
 
 /**
  * Handles click event to create a JunctionPoint symbol (single Feature)

@@ -13,6 +13,7 @@ import { getLength } from "ol/sphere";
 import { usePropertiesPanel } from "@/hooks/usePropertiesPanel";
 import { useLineStyleEditor } from "@/hooks/useLineStyleEditor";
 import { useShapeStyleEditor } from "@/hooks/useShapeStyleEditor";
+import { usePointOpacityEditor } from "@/hooks/usePointOpacityEditor";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -56,6 +57,12 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     properties.isEditing
   );
   const shapeStyle = useShapeStyleEditor(
+    selectedFeature,
+    map,
+    selectInteraction ?? null,
+    properties.isEditing
+  );
+  const pointOpacity = usePointOpacityEditor(
     selectedFeature,
     map,
     selectInteraction ?? null,
@@ -120,12 +127,14 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     properties.save();
     lineStyle.commitLineStyle();
     shapeStyle.commitShapeStyle();
+    pointOpacity.commitOpacity();
   };
 
   const handleCancel = () => {
     properties.cancel();
     lineStyle.resetToOriginal();
     shapeStyle.resetToOriginal();
+    pointOpacity.resetToOriginal();
   };
 
   if (!selectedFeature) {
@@ -191,6 +200,14 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
           {shapeStyle.supportsShapeStyle && (
             <ShapeStyleSection
               shapeStyle={shapeStyle}
+              isEditing={properties.isEditing}
+            />
+          )}
+
+          {/* Point/Icon Opacity Controls */}
+          {pointOpacity.supportsPointOpacity && (
+            <PointOpacitySection
+              pointOpacity={pointOpacity}
               isEditing={properties.isEditing}
             />
           )}
@@ -496,8 +513,10 @@ interface LineStyleSectionProps {
   lineStyle: {
     lineColor: string;
     lineWidth: number;
+    opacity: number;
     handleColorChange: (color: string) => void;
     handleWidthChange: (width: number) => void;
+    handleOpacityChange: (opacity: number) => void;
     setLineColor: (color: string) => void;
   };
   isEditing: boolean;
@@ -517,6 +536,7 @@ const LineStyleSection: React.FC<LineStyleSectionProps> = ({
         <LineStyleDisplay
           lineColor={lineStyle.lineColor}
           lineWidth={lineStyle.lineWidth}
+          opacity={lineStyle.opacity}
         />
       ) : (
         <LineStyleEditor lineStyle={lineStyle} />
@@ -528,11 +548,13 @@ const LineStyleSection: React.FC<LineStyleSectionProps> = ({
 interface LineStyleDisplayProps {
   lineColor: string;
   lineWidth: number;
+  opacity: number;
 }
 
 const LineStyleDisplay: React.FC<LineStyleDisplayProps> = ({
   lineColor,
   lineWidth,
+  opacity,
 }) => (
   <div className="space-y-2">
     <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
@@ -551,6 +573,10 @@ const LineStyleDisplay: React.FC<LineStyleDisplayProps> = ({
       <span className="font-medium text-gray-700 dark:text-gray-300">Width:</span>
       <span className="text-gray-600 dark:text-gray-400">{lineWidth}px</span>
     </div>
+    <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+      <span className="font-medium text-gray-700 dark:text-gray-300">Opacity:</span>
+      <span className="text-gray-600 dark:text-gray-400">{Math.round(opacity * 100)}%</span>
+    </div>
   </div>
 );
 
@@ -558,8 +584,10 @@ interface LineStyleEditorProps {
   lineStyle: {
     lineColor: string;
     lineWidth: number;
+    opacity: number;
     handleColorChange: (color: string) => void;
     handleWidthChange: (width: number) => void;
+    handleOpacityChange: (opacity: number) => void;
     setLineColor: (color: string) => void;
   };
 }
@@ -637,15 +665,49 @@ const LineStyleEditor: React.FC<LineStyleEditorProps> = ({ lineStyle }) => (
         <span>20px</span>
       </div>
     </div>
+
+    {/* Opacity Slider */}
+    <div>
+      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        Opacity: {Math.round(lineStyle.opacity * 100)}%
+      </Label>
+      <div className="flex items-center gap-3">
+        <Slider
+          value={[lineStyle.opacity]}
+          onValueChange={(value) => lineStyle.handleOpacityChange(value[0])}
+          min={0}
+          max={1}
+          step={0.01}
+          className="flex-1"
+        />
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => lineStyle.handleOpacityChange(1)}
+          className="px-2 py-1 text-xs shrink-0"
+        >
+          Reset
+        </Button>
+      </div>
+      <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+        <span>0%</span>
+        <span>100%</span>
+      </div>
+    </div>
   </div>
 );
 
 interface ShapeStyleSectionProps {
   shapeStyle: {
     strokeColor: string;
+    strokeWidth: number;
+    strokeOpacity: number;
     fillColor: string;
     fillOpacity: number;
+    isRevisionCloud: boolean;
     handleStrokeColorChange: (color: string) => void;
+    handleStrokeWidthChange: (width: number) => void;
+    handleStrokeOpacityChange: (opacity: number) => void;
     handleFillColorChange: (color: string) => void;
     handleFillOpacityChange: (opacity: number) => void;
     setStrokeColor: (color: string) => void;
@@ -658,17 +720,22 @@ const ShapeStyleSection: React.FC<ShapeStyleSectionProps> = ({
   shapeStyle,
   isEditing,
 }) => {
+  const title = shapeStyle.isRevisionCloud ? "Revision Cloud Style" : "Shape Style";
+
   return (
     <div className="border-t border-gray-100 dark:border-slate-700 pt-4 mt-4">
       <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-3 uppercase tracking-wide">
-        Shape Style
+        {title}
       </h4>
 
       {!isEditing ? (
         <ShapeStyleDisplay
           strokeColor={shapeStyle.strokeColor}
+          strokeWidth={shapeStyle.strokeWidth}
+          strokeOpacity={shapeStyle.strokeOpacity}
           fillColor={shapeStyle.fillColor}
           fillOpacity={shapeStyle.fillOpacity}
+          isRevisionCloud={shapeStyle.isRevisionCloud}
         />
       ) : (
         <ShapeStyleEditor shapeStyle={shapeStyle} />
@@ -679,18 +746,26 @@ const ShapeStyleSection: React.FC<ShapeStyleSectionProps> = ({
 
 interface ShapeStyleDisplayProps {
   strokeColor: string;
+  strokeWidth: number;
+  strokeOpacity: number;
   fillColor: string;
   fillOpacity: number;
+  isRevisionCloud: boolean;
 }
 
 const ShapeStyleDisplay: React.FC<ShapeStyleDisplayProps> = ({
   strokeColor,
+  strokeWidth,
+  strokeOpacity,
   fillColor,
   fillOpacity,
+  isRevisionCloud,
 }) => (
   <div className="space-y-2">
     <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
-      <span className="font-medium text-gray-700 dark:text-gray-300">Stroke:</span>
+      <span className="font-medium text-gray-700 dark:text-gray-300">
+        {isRevisionCloud ? "Color:" : "Stroke:"}
+      </span>
       <div className="flex items-center gap-2">
         <div
           className="w-6 h-6 rounded border border-gray-300 dark:border-gray-600"
@@ -702,30 +777,52 @@ const ShapeStyleDisplay: React.FC<ShapeStyleDisplayProps> = ({
       </div>
     </div>
     <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
-      <span className="font-medium text-gray-700 dark:text-gray-300">Fill:</span>
-      <div className="flex items-center gap-2">
-        <div
-          className="w-6 h-6 rounded border border-gray-300 dark:border-gray-600"
-          style={{ backgroundColor: fillColor }}
-        />
-        <span className="text-gray-600 dark:text-gray-400 font-mono text-xs">
-          {fillColor.toUpperCase()}
-        </span>
-      </div>
+      <span className="font-medium text-gray-700 dark:text-gray-300">
+        {isRevisionCloud ? "Width:" : "Stroke Width:"}
+      </span>
+      <span className="text-gray-600 dark:text-gray-400">{strokeWidth}px</span>
     </div>
     <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
-      <span className="font-medium text-gray-700 dark:text-gray-300">Opacity:</span>
-      <span className="text-gray-600 dark:text-gray-400">{Math.round(fillOpacity * 100)}%</span>
+      <span className="font-medium text-gray-700 dark:text-gray-300">
+        {isRevisionCloud ? "Opacity:" : "Stroke Opacity:"}
+      </span>
+      <span className="text-gray-600 dark:text-gray-400">{Math.round(strokeOpacity * 100)}%</span>
     </div>
+    {/* Hide fill options for RevisionCloud since it's typically stroke-only */}
+    {!isRevisionCloud && (
+      <>
+        <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+          <span className="font-medium text-gray-700 dark:text-gray-300">Fill:</span>
+          <div className="flex items-center gap-2">
+            <div
+              className="w-6 h-6 rounded border border-gray-300 dark:border-gray-600"
+              style={{ backgroundColor: fillColor }}
+            />
+            <span className="text-gray-600 dark:text-gray-400 font-mono text-xs">
+              {fillColor.toUpperCase()}
+            </span>
+          </div>
+        </div>
+        <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+          <span className="font-medium text-gray-700 dark:text-gray-300">Fill Opacity:</span>
+          <span className="text-gray-600 dark:text-gray-400">{Math.round(fillOpacity * 100)}%</span>
+        </div>
+      </>
+    )}
   </div>
 );
 
 interface ShapeStyleEditorProps {
   shapeStyle: {
     strokeColor: string;
+    strokeWidth: number;
+    strokeOpacity: number;
     fillColor: string;
     fillOpacity: number;
+    isRevisionCloud: boolean;
     handleStrokeColorChange: (color: string) => void;
+    handleStrokeWidthChange: (width: number) => void;
+    handleStrokeOpacityChange: (opacity: number) => void;
     handleFillColorChange: (color: string) => void;
     handleFillOpacityChange: (opacity: number) => void;
     setStrokeColor: (color: string) => void;
@@ -735,10 +832,10 @@ interface ShapeStyleEditorProps {
 
 const ShapeStyleEditor: React.FC<ShapeStyleEditorProps> = ({ shapeStyle }) => (
   <div className="space-y-4">
-    {/* Stroke Color Picker */}
+    {/* Stroke/Line Color Picker */}
     <div>
       <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        Stroke Color
+        {shapeStyle.isRevisionCloud ? "Color" : "Stroke Color"}
       </Label>
       <div className="flex items-center gap-3">
         <input
@@ -778,62 +875,206 @@ const ShapeStyleEditor: React.FC<ShapeStyleEditorProps> = ({ shapeStyle }) => (
       </div>
     </div>
 
-    {/* Fill Color Picker */}
+    {/* Stroke/Line Width Slider */}
     <div>
       <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        Fill Color
+        {shapeStyle.isRevisionCloud ? "Width" : "Stroke Width"}: {shapeStyle.strokeWidth}px
       </Label>
       <div className="flex items-center gap-3">
-        <input
-          type="color"
-          value={shapeStyle.fillColor}
-          onChange={(e) => shapeStyle.handleFillColorChange(e.target.value)}
-          className="w-12 h-10 rounded cursor-pointer border border-gray-300 dark:border-gray-600"
+        <Slider
+          value={[shapeStyle.strokeWidth]}
+          onValueChange={(value) => shapeStyle.handleStrokeWidthChange(value[0])}
+          min={1}
+          max={20}
+          step={1}
+          className="flex-1"
         />
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="h-10 px-3">
-              Choose Color
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-48 p-1 bg-white rounded-sm shadow-lg z-10">
-            <DropdownMenuSeparator />
-            <DropdownMenuRadioGroup
-              value={shapeStyle.fillColor}
-              onValueChange={(value) => shapeStyle.setFillColor(value)}
-            >
-              {COLOR_OPTIONS.map((colorOption) => (
-                <DropdownMenuRadioItem
-                  key={colorOption.color}
-                  value={colorOption.color}
-                  className="flex items-center gap-2 p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 data-[state=checked]:bg-blue-50 dark:data-[state=checked]:bg-blue-900/20"
-                >
-                  <div
-                    className="w-4 h-4 rounded"
-                    style={{ backgroundColor: colorOption.color }}
-                  />
-                  <span>{colorOption.name}</span>
-                </DropdownMenuRadioItem>
-              ))}
-            </DropdownMenuRadioGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => shapeStyle.handleStrokeWidthChange(2)}
+          className="px-2 py-1 text-xs shrink-0"
+        >
+          Reset
+        </Button>
+      </div>
+      <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+        <span>1px</span>
+        <span>20px</span>
       </div>
     </div>
 
-    {/* Opacity Slider */}
+    {/* Stroke/Line Opacity Slider */}
     <div>
       <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        Fill Opacity: {Math.round(shapeStyle.fillOpacity * 100)}%
+        {shapeStyle.isRevisionCloud ? "Opacity" : "Stroke Opacity"}: {Math.round(shapeStyle.strokeOpacity * 100)}%
       </Label>
-      <Slider
-        value={[shapeStyle.fillOpacity]}
-        onValueChange={(value) => shapeStyle.handleFillOpacityChange(value[0])}
-        min={0}
-        max={1}
-        step={0.01}
-        className="flex-1"
-      />
+      <div className="flex items-center gap-3">
+        <Slider
+          value={[shapeStyle.strokeOpacity]}
+          onValueChange={(value) => shapeStyle.handleStrokeOpacityChange(value[0])}
+          min={0}
+          max={1}
+          step={0.01}
+          className="flex-1"
+        />
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => shapeStyle.handleStrokeOpacityChange(1)}
+          className="px-2 py-1 text-xs shrink-0"
+        >
+          Reset
+        </Button>
+      </div>
+      <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+        <span>0%</span>
+        <span>100%</span>
+      </div>
+    </div>
+
+    {/* Fill Color Picker - only for non-RevisionCloud shapes */}
+    {!shapeStyle.isRevisionCloud && (
+      <div>
+        <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Fill Color
+        </Label>
+        <div className="flex items-center gap-3">
+          <input
+            type="color"
+            value={shapeStyle.fillColor}
+            onChange={(e) => shapeStyle.handleFillColorChange(e.target.value)}
+            className="w-12 h-10 rounded cursor-pointer border border-gray-300 dark:border-gray-600"
+          />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-10 px-3">
+                Choose Color
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-48 p-1 bg-white rounded-sm shadow-lg z-10">
+              <DropdownMenuSeparator />
+              <DropdownMenuRadioGroup
+                value={shapeStyle.fillColor}
+                onValueChange={(value) => shapeStyle.setFillColor(value)}
+              >
+                {COLOR_OPTIONS.map((colorOption) => (
+                  <DropdownMenuRadioItem
+                    key={colorOption.color}
+                    value={colorOption.color}
+                    className="flex items-center gap-2 p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 data-[state=checked]:bg-blue-50 dark:data-[state=checked]:bg-blue-900/20"
+                  >
+                    <div
+                      className="w-4 h-4 rounded"
+                      style={{ backgroundColor: colorOption.color }}
+                    />
+                    <span>{colorOption.name}</span>
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+    )}
+
+    {/* Fill Opacity Slider - only for non-RevisionCloud shapes */}
+    {!shapeStyle.isRevisionCloud && (
+      <div>
+        <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Fill Opacity: {Math.round(shapeStyle.fillOpacity * 100)}%
+        </Label>
+        <Slider
+          value={[shapeStyle.fillOpacity]}
+          onValueChange={(value) => shapeStyle.handleFillOpacityChange(value[0])}
+          min={0}
+          max={1}
+          step={0.01}
+          className="flex-1"
+        />
+        <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+          <span>0%</span>
+          <span>100%</span>
+        </div>
+      </div>
+    )}
+  </div>
+);
+
+// Point/Icon Opacity Section
+interface PointOpacitySectionProps {
+  pointOpacity: {
+    opacity: number;
+    handleOpacityChange: (opacity: number) => void;
+    resetToOriginal: () => void;
+  };
+  isEditing: boolean;
+}
+
+const PointOpacitySection: React.FC<PointOpacitySectionProps> = ({
+  pointOpacity,
+  isEditing,
+}) => {
+  return (
+    <div className="border-t border-gray-100 dark:border-slate-700 pt-4 mt-4">
+      <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-3 uppercase tracking-wide">
+        Opacity
+      </h4>
+
+      {!isEditing ? (
+        <PointOpacityDisplay opacity={pointOpacity.opacity} />
+      ) : (
+        <PointOpacityEditor pointOpacity={pointOpacity} />
+      )}
+    </div>
+  );
+};
+
+interface PointOpacityDisplayProps {
+  opacity: number;
+}
+
+const PointOpacityDisplay: React.FC<PointOpacityDisplayProps> = ({ opacity }) => (
+  <div className="space-y-2">
+    <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+      <span className="font-medium text-gray-700 dark:text-gray-300">Opacity:</span>
+      <span className="text-gray-600 dark:text-gray-400">{Math.round(opacity * 100)}%</span>
+    </div>
+  </div>
+);
+
+interface PointOpacityEditorProps {
+  pointOpacity: {
+    opacity: number;
+    handleOpacityChange: (opacity: number) => void;
+    resetToOriginal: () => void;
+  };
+}
+
+const PointOpacityEditor: React.FC<PointOpacityEditorProps> = ({ pointOpacity }) => (
+  <div className="space-y-4">
+    <div>
+      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        Opacity: {Math.round(pointOpacity.opacity * 100)}%
+      </Label>
+      <div className="flex items-center gap-3">
+        <Slider
+          value={[pointOpacity.opacity]}
+          onValueChange={(value) => pointOpacity.handleOpacityChange(value[0])}
+          min={0}
+          max={1}
+          step={0.01}
+          className="flex-1"
+        />
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => pointOpacity.handleOpacityChange(1)}
+          className="px-2 py-1 text-xs shrink-0"
+        >
+          Reset
+        </Button>
+      </div>
       <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
         <span>0%</span>
         <span>100%</span>

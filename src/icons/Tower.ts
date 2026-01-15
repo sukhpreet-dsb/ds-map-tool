@@ -3,6 +3,7 @@ import { Feature } from "ol";
 import { GeometryCollection, Polygon, LineString, type Geometry } from "ol/geom";
 import { Style, Stroke, Fill } from "ol/style";
 import { Vector as VectorSource } from "ol/source";
+import { applyOpacityToColor } from "@/utils/colorUtils";
 
 /**
  * Create an SVGPathElement in-memory and return it.
@@ -174,16 +175,23 @@ export const createFeatureFromSvgPath = (
 
 /**
  * Style that uses Stroke + Fill (no Icon) matching your SVG (black fill, black stroke).
- * You can tweak strokeWidth and fillOpacity.
+ * You can tweak strokeWidth, fillOpacity, and overall opacity.
+ * @param _strokeWidth - Stroke width (currently unused)
+ * @param fillOpacity - Base fill opacity (0-1)
+ * @param opacity - Overall opacity modifier (0-1), defaults to 1
  */
-export const getTowerVectorStyle = (_strokeWidth = 1, fillOpacity = 0.1): Style => {
+export const getTowerVectorStyle = (_strokeWidth = 1, fillOpacity = 0.1, opacity: number = 1): Style => {
+  // Apply opacity to both stroke and fill
+  const effectiveFillOpacity = fillOpacity * opacity;
+  const strokeColor = applyOpacityToColor("#000000", opacity);
+
   return new Style({
     stroke: new Stroke({
-      color: "#000000",
+      color: strokeColor,
       width: 0,
     }),
     fill: new Fill({
-      color: `rgba(0,0,0,${fillOpacity})`,
+      color: `rgba(0,0,0,${effectiveFillOpacity})`,
     }),
     zIndex: 10,
   });
@@ -201,7 +209,7 @@ export const isTowerFeature = (feature: Feature<Geometry>): boolean => {
  */
 export const towerUtils = {
   isFeature: isTowerFeature,
-  getStyle: () => getTowerVectorStyle(1, 0.1),
+  getStyle: (opacity: number = 1) => getTowerVectorStyle(1, 0.1, opacity),
 };
 
 /**

@@ -93,25 +93,28 @@ export const getFeatureTypeStyle = (feature: FeatureLike) => {
   const geometry = feature.getGeometry();
   if (!geometry) return null;
 
-  // Check each feature type and return its style
+  // Get opacity from feature (default to 1)
+  const opacity = feature.get("opacity") !== undefined ? feature.get("opacity") : 1;
+
+  // Check each feature type and return its style with opacity
   if (isFeatureType(feature, "triangle")) {
-    return triangleUtils.getStyle();
+    return triangleUtils.getStyle(opacity);
   }
 
   if (isFeatureType(feature, "pit")) {
-    return pitUtils.getStyle();
+    return pitUtils.getStyle(opacity);
   }
 
   if (isFeatureType(feature, "gp")) {
-    return gpUtils.getStyles();
+    return gpUtils.getStyles(opacity);
   }
 
   if (isFeatureType(feature, "junction")) {
-    return junctionUtils.getStyles();
+    return junctionUtils.getStyles(opacity);
   }
 
   if (isFeatureType(feature, "tower")) {
-    return towerUtils.getStyle();
+    return towerUtils.getStyle(opacity);
   }
 
   // Handle custom icon features from icon picker
@@ -125,6 +128,7 @@ export const getFeatureTypeStyle = (feature: FeatureLike) => {
           anchor: [0.5, 0.5],
           anchorXUnits: "fraction",
           anchorYUnits: "fraction",
+          opacity: opacity, // Apply opacity to icon
         }),
       });
     }

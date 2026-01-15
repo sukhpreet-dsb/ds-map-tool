@@ -4,6 +4,7 @@ import { GeometryCollection } from "ol/geom";
 import { Vector as VectorSource } from "ol/source";
 import type { Geometry } from "ol/geom";
 import { createCirclePolygon } from "@/utils/geometryUtils";
+import { applyOpacityToColor } from "@/utils/colorUtils";
 
 /**
  * Create a single Feature that contains both outer + inner circles
@@ -30,8 +31,12 @@ export const createGPGeometry = (
  * Returns styles for the GP feature.
  * Each Style targets a specific sub-geometry inside the GeometryCollection
  * by using the `geometry` option (function returning the sub-geometry).
+ * @param opacity - Opacity value (0-1), defaults to 1
  */
-export const getGPStyles = (): Style[] => {
+export const getGPStyles = (opacity: number = 1): Style[] => {
+  const outerStrokeColor = applyOpacityToColor("#000000", opacity);
+  const outerFillColor = applyOpacityToColor("#9333ea", opacity); // purple
+
   const outerStyle = new Style({
     geometry: (feature) => {
       const geom = feature.getGeometry() as GeometryCollection | null;
@@ -41,13 +46,16 @@ export const getGPStyles = (): Style[] => {
       return (geom as any).getGeometries()[0]; // outer circle
     },
     stroke: new Stroke({
-      color: "black",
+      color: outerStrokeColor,
       width: 1,
     }),
     fill: new Fill({
-      color: "rgba(147, 51, 234)",
+      color: outerFillColor,
     }),
   });
+
+  const innerStrokeColor = applyOpacityToColor("#000000", opacity);
+  const innerFillColor = applyOpacityToColor("#000000", opacity);
 
   const innerStyle = new Style({
     geometry: (feature) => {
@@ -57,11 +65,11 @@ export const getGPStyles = (): Style[] => {
       return (geom as any).getGeometries()[1]; // inner circle
     },
     stroke: new Stroke({
-      color: "black",
+      color: innerStrokeColor,
       width: 1,
     }),
     fill: new Fill({
-      color: "#000",
+      color: innerFillColor,
     }),
   });
 
@@ -71,9 +79,10 @@ export const getGPStyles = (): Style[] => {
 /**
  * Convenience alias that returns the same styles as getGPStyles,
  * for code that expects `getStyle()` (singular).
+ * @param opacity - Opacity value (0-1), defaults to 1
  */
-export const getGPStyle = (): Style[] => {
-  return getGPStyles();
+export const getGPStyle = (opacity: number = 1): Style[] => {
+  return getGPStyles(opacity);
 };
 
 /**
