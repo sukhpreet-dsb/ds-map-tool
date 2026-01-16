@@ -2,7 +2,7 @@ import { createBrowserRouter, redirect } from "react-router";
 import MapEditor from "./pages/MapEditor";
 import LayoutEditor from "./pages/LayoutEditor";
 import LayoutsList from "./pages/LayoutsList";
-import JobWelcome from "./components/JobWelcome";
+import JobWelcome from "./pages/JobWelcome";
 
 export const router = createBrowserRouter([
   {
