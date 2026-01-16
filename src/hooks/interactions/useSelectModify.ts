@@ -160,6 +160,12 @@ export const useSelectModify = ({
     newSelectInteraction.on('select', (e) => {
       const allSelectedFeatures = newSelectInteraction.getFeatures().getArray();
 
+      // Reset styles on deselected features to use layer default
+      // This ensures features return to their original color after deselection
+      e.deselected.forEach((feature) => {
+        feature.setStyle(undefined);
+      });
+
       currentSelectedFeatureRef.current =
         allSelectedFeatures.length === 1 ? allSelectedFeatures[0] : null;
 

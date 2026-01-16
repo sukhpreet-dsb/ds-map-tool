@@ -6,23 +6,42 @@ import type { Vector as VectorSource } from 'ol/source';
 import type { Feature } from 'ol';
 import type { Geometry } from 'ol/geom';
 import type { StyleLike } from 'ol/style/Style';
+import type { Select } from 'ol/interaction';
 import { createHoverStyle } from '@/utils/styleUtils';
 import { STYLE_DEFAULTS } from '@/constants/styleDefaults';
 
 interface UseHoverInteractionOptions {
   map: Map | null;
   vectorLayer: VectorLayer<VectorSource<Feature<Geometry>>> | null;
+  selectInteraction?: Select | null;
 }
 
 export const useHoverInteraction = ({
   map,
   vectorLayer,
+  selectInteraction,
 }: UseHoverInteractionOptions): void => {
   const hoveredFeatureRef = useRef<Feature<Geometry> | null>(null);
-  const originalStyleRef = useRef<StyleLike | null>(null);
+  // Store original style - undefined means "use layer default style"
+  const originalStyleRef = useRef<StyleLike | undefined>(undefined);
 
   useEffect(() => {
     if (!map || !vectorLayer) return;
+
+    const restoreStyle = (feature: Feature<Geometry>) => {
+      // Always set to undefined to restore layer default styling
+      // This ensures the layer's style function is used
+      feature.setStyle(undefined);
+      hoveredFeatureRef.current = null;
+      originalStyleRef.current = undefined;
+    };
+
+    // Helper to check if a feature is currently selected
+    const isFeatureSelected = (feature: Feature<Geometry>): boolean => {
+      if (!selectInteraction) return false;
+      const selectedFeatures = selectInteraction.getFeatures().getArray();
+      return selectedFeatures.includes(feature);
+    };
 
     const handlePointerMove = (evt: MapBrowserEvent<PointerEvent>) => {
       // Skip if dragging (prevents interference with Modify interaction)
@@ -52,15 +71,13 @@ export const useHoverInteraction = ({
       if (foundFeature === previousHovered) return;
 
       // Restore previous feature's original style
-      if (previousHovered && originalStyleRef.current !== null) {
-        previousHovered.setStyle(originalStyleRef.current);
-        hoveredFeatureRef.current = null;
-        originalStyleRef.current = null;
+      if (previousHovered) {
+        restoreStyle(previousHovered);
       }
 
-      // Apply hover style to new feature
-      if (foundFeature) {
-        originalStyleRef.current = foundFeature.getStyle() ?? null;
+      // Apply hover style to new feature (skip if it's selected)
+      if (foundFeature && !isFeatureSelected(foundFeature)) {
+        originalStyleRef.current = foundFeature.getStyle();
         hoveredFeatureRef.current = foundFeature;
         foundFeature.setStyle(createHoverStyle(foundFeature));
       }
@@ -68,10 +85,8 @@ export const useHoverInteraction = ({
 
     const handlePointerOut = () => {
       // Restore style when pointer leaves the map
-      if (hoveredFeatureRef.current && originalStyleRef.current !== null) {
-        hoveredFeatureRef.current.setStyle(originalStyleRef.current);
-        hoveredFeatureRef.current = null;
-        originalStyleRef.current = null;
+      if (hoveredFeatureRef.current) {
+        restoreStyle(hoveredFeatureRef.current);
       }
     };
 
@@ -81,14 +96,12 @@ export const useHoverInteraction = ({
 
     return () => {
       // Cleanup: restore any hovered feature's style
-      if (hoveredFeatureRef.current && originalStyleRef.current !== null) {
-        hoveredFeatureRef.current.setStyle(originalStyleRef.current);
+      if (hoveredFeatureRef.current) {
+        restoreStyle(hoveredFeatureRef.current);
       }
-      hoveredFeatureRef.current = null;
-      originalStyleRef.current = null;
 
       (map as any).un('pointermove', handlePointerMove);
       map.getViewport().removeEventListener('pointerout', handlePointerOut);
     };
-  }, [map, vectorLayer]);
+  }, [map, vectorLayer, selectInteraction]);
 };
