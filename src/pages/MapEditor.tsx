@@ -53,6 +53,7 @@ import type { PdfExportConfig } from "@/types/pdf";
 import { OffsetDialog, type OffsetDirection } from "@/components/OffsetDialog";
 import { HelpModal } from "@/components/HelpModal";
 import { useToolStore } from "@/stores/useToolStore";
+import JobWelcome from "@/components/JobWelcome";
 
 // Interface for properly serializable map data
 interface SerializedMapData {
@@ -1098,6 +1099,11 @@ const MapEditor: React.FC = () => {
     onDeleteOperation: handleDeleteFromKeyboard,
     disabled: false,
   });
+
+  // Show welcome screen when no project is selected
+  // if (!currentProjectId) {
+  //   return <JobWelcome />;
+  // }
 
   return (
     <div>
