@@ -1,7 +1,7 @@
-import { Style, Text, RegularShape } from "ol/style";
+import { Style, Text, RegularShape, Circle } from "ol/style";
 import Stroke from "ol/style/Stroke";
 import Fill from "ol/style/Fill";
-import { Point } from "ol/geom";
+import { Point, MultiLineString, LineString } from "ol/geom";
 import { getCenter } from "ol/extent";
 import type { FeatureLike } from "ol/Feature";
 import type { LegendType } from "@/tools/legendsConfig";
@@ -86,6 +86,10 @@ export const getTextAlongLineStyle = (
     );
   }
 
+  // Add vertex highlighting
+  const vertexStyles = getLineStringVertexStyle(feature);
+  styles.push(...vertexStyles);
+
   return styles;
 };
 
@@ -137,7 +141,7 @@ export const getArrowStyle = (feature: FeatureLike) => {
     fill: new Fill({ color: colorWithOpacity }),
   });
 
-  return [
+  const styles: Style[] = [
     // Line style
     new Style({
       stroke: new Stroke({
@@ -151,6 +155,56 @@ export const getArrowStyle = (feature: FeatureLike) => {
       image: arrowHead,
     }),
   ];
+
+  // Add vertex highlighting (excluding the last point which has the arrow head)
+  const vertexStyles = getLineStringVertexStyle(feature);
+  if (vertexStyles.length > 0) {
+    // Remove the last vertex style to avoid overlap with arrow head
+    styles.push(...vertexStyles.slice(0, -1));
+  }
+
+  return styles;
+};
+
+// ✅ Vertex highlighting for LineStrings
+export const getLineStringVertexStyle = (feature: FeatureLike): Style[] => {
+  const geometry = feature.getGeometry();
+  if (!geometry) return [];
+
+  let coordinates: number[][] = [];
+
+  // Extract coordinates from LineString or MultiLineString
+  if (geometry.getType() === "LineString") {
+    coordinates = (geometry as LineString).getCoordinates();
+  } else if (geometry.getType() === "MultiLineString") {
+    const lineStrings = (geometry as MultiLineString).getLineStrings();
+    lineStrings.forEach((lineString) => {
+      coordinates = coordinates.concat(lineString.getCoordinates());
+    });
+  } else {
+    return [];
+  }
+
+  if (coordinates.length === 0) return [];
+
+  const styles: Style[] = [];
+
+  // Create a small circle marker for each vertex
+  coordinates.forEach((coord) => {
+    styles.push(
+      new Style({
+        geometry: new Point(coord),
+        image: new Circle({
+          radius: 4,
+          fill: new Fill({ color: "rgba(0, 102, 204, 0.8)" }), // Blue with transparency
+          stroke: new Stroke({ color: "#ffffff", width: 1.5 }),
+        }),
+        zIndex: 50, // High z-index to appear above the line
+      })
+    );
+  });
+
+  return styles;
 };
 
 /**
@@ -350,6 +404,11 @@ export const getFeatureStyle = (
         }),
       })
     );
+
+    // Add vertex highlighting for legend features
+    const vertexStyles = getLineStringVertexStyle(feature);
+    styles.push(...vertexStyles);
+
     return styles;
   }
 
@@ -389,6 +448,8 @@ export const getFeatureStyle = (
   }
 
   if (type === "LineString" || type === "MultiLineString") {
+    const styles: Style[] = [];
+
     // Check for custom line styling (Polyline/Freehand only)
     if (supportsCustomLineStyle(feature)) {
       const customColor = feature.get("lineColor");
@@ -399,11 +460,27 @@ export const getFeatureStyle = (
       const color = customColor || DEFAULT_LINE_STYLE.color;
       const width = customWidth !== undefined ? customWidth : DEFAULT_LINE_STYLE.width;
 
-      return createLineStyle(color, width, opacity);
+      const lineStyle = createLineStyle(color, width, opacity);
+      if (Array.isArray(lineStyle)) {
+        styles.push(...lineStyle);
+      } else {
+        styles.push(lineStyle);
+      }
+    } else {
+      // Fallback for other LineString types
+      const lineStyle = createLineStyle("#00ff00", 4);
+      if (Array.isArray(lineStyle)) {
+        styles.push(...lineStyle);
+      } else {
+        styles.push(lineStyle);
+      }
     }
 
-    // Fallback for other LineString types
-    return createLineStyle("#00ff00", 4);
+    // Add vertex highlighting
+    const vertexStyles = getLineStringVertexStyle(feature);
+    styles.push(...vertexStyles);
+
+    return styles;
   }
 
   if (type === "Point" || type === "MultiPoint") {
@@ -501,6 +578,10 @@ export const getMeasureTextStyle = (feature: FeatureLike): Style[] => {
       zIndex: 11,
     })
   );
+
+  // Add vertex highlighting
+  const vertexStyles = getLineStringVertexStyle(feature);
+  styles.push(...vertexStyles);
 
   return styles;
 };

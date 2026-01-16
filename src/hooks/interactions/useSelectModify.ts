@@ -10,6 +10,7 @@ import type { Feature } from 'ol';
 import type { Geometry } from 'ol/geom';
 import { isSelectableFeature, isEditableFeature } from '@/utils/featureTypeUtils';
 import { recalculateMeasureDistances, createContinuationDraw } from '@/utils/interactionUtils';
+import { createSelectStyle } from '@/utils/styleUtils';
 import {
   isContinuableFeature,
   detectEndpointClick,
@@ -61,6 +62,7 @@ export const useSelectModify = ({
       layers: [vectorLayer],
       filter: isSelectableFeature,
       hitTolerance: STYLE_DEFAULTS.HIT_TOLERANCE,
+      style: createSelectStyle,
     };
 
     if (multiSelectMode === 'always') {
