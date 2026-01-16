@@ -175,9 +175,9 @@ export const useSelectModify = ({
       onFeatureSelect(allSelectedFeatures[0] || null);
 
       editableFeatures.clear();
-      e.selected.forEach((feature) => {
-        if (isEditableFeature(feature as Feature<Geometry>)) {
-          editableFeatures.push(feature as Feature<Geometry>);
+      allSelectedFeatures.forEach((feature) => {
+        if (isEditableFeature(feature)) {
+          editableFeatures.push(feature);
         }
       });
     });
