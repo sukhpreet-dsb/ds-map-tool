@@ -2,7 +2,6 @@ import { useState, useRef, useMemo } from "react";
 import {
   Plus,
   Loader2,
-  Map,
   FolderOpen,
   Sparkles,
   Clock,
@@ -24,6 +23,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useMapProjects, type Project } from "@/hooks/useMapProjects";
+import { getMapUrl } from "@/utils/routeUtils";
 
 export default function JobWelcome() {
   const navigate = useNavigate();
@@ -69,8 +69,19 @@ export default function JobWelcome() {
   const handleSelectProject = async (projectId: string) => {
     setLoadingProjectId(projectId);
     try {
-      await loadProject(projectId);
-      navigate("/map");
+      const db = await loadProject(projectId);
+
+      if (!db) {
+        console.error("Failed to load project database");
+        return;
+      }
+
+      const project = projects.find(p => p.id === projectId);
+      if (project) {
+        navigate(getMapUrl(projectId, project.name));
+      } else {
+        navigate('/map'); // Fallback
+      }
     } catch (error) {
       console.error("Failed to select project:", error);
     } finally {

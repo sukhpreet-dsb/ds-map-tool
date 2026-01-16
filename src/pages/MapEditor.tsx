@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
+import { useParams, useNavigate } from "react-router";
 import { Vector as VectorSource } from "ol/source";
 import { Feature } from "ol";
 import { Point } from "ol/geom";
@@ -28,6 +29,7 @@ import {
   normalizeImportedGeoJSON,
 } from "@/utils/serializationUtils";
 import { fitMapToFeatures, restoreMapView } from "@/utils/mapStateUtils";
+import { getMapUrl } from "@/utils/routeUtils";
 // import { JobSelection } from "../components/JobSelection";
 import { useMapProjects } from "@/hooks/useMapProjects";
 import PropertiesPanel from "../components/PropertiesPanel";
@@ -53,7 +55,6 @@ import type { PdfExportConfig } from "@/types/pdf";
 import { OffsetDialog, type OffsetDirection } from "@/components/OffsetDialog";
 import { HelpModal } from "@/components/HelpModal";
 import { useToolStore } from "@/stores/useToolStore";
-import JobWelcome from "@/components/JobWelcome";
 
 // Interface for properly serializable map data
 interface SerializedMapData {
@@ -66,6 +67,13 @@ interface SerializedMapData {
 }
 
 const MapEditor: React.FC = () => {
+  // URL routing
+  const { projectId: urlProjectId } = useParams<{
+    projectId: string;
+    projectName: string;
+  }>();
+  const navigate = useNavigate();
+
   // Core map references
   const mapRef = useRef<Map | null>(null);
   const vectorSourceRef = useRef(new VectorSource());
@@ -635,6 +643,27 @@ const MapEditor: React.FC = () => {
     }
   };
 
+  // Initialize project from URL on mount
+  useEffect(() => {
+    if (urlProjectId && !currentProjectId) {
+      console.log('Loading project from URL:', urlProjectId);
+      loadProject(urlProjectId).catch(error => {
+        console.error('Failed to load project from URL:', error);
+        navigate('/'); // Redirect to home if project not found
+      });
+    }
+  }, []); // Run only on mount
+
+  // Keep URL in sync with current project
+  useEffect(() => {
+    if (currentProjectId && urlProjectId !== currentProjectId) {
+      const project = projects.find(p => p.id === currentProjectId);
+      if (project) {
+        navigate(getMapUrl(currentProjectId, project.name), { replace: true });
+      }
+    }
+  }, [currentProjectId, projects, navigate, urlProjectId]);
+
   // Update ready flag
   useEffect(() => {
     if (currentProjectId && currentDb && interactionReady) {
@@ -1099,11 +1128,6 @@ const MapEditor: React.FC = () => {
     onDeleteOperation: handleDeleteFromKeyboard,
     disabled: false,
   });
-
-  // Show welcome screen when no project is selected
-  // if (!currentProjectId) {
-  //   return <JobWelcome />;
-  // }
 
   return (
     <div>
