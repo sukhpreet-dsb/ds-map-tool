@@ -60,6 +60,42 @@ export const useKeyboardShortcuts = ({
         return;
       }
 
+      // Handle Arrow keys for map panning
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
+        event.preventDefault();
+        const view = map.getView();
+        const center = view.getCenter();
+        if (!center) return;
+
+        // Pan distance is proportional to current resolution (zoom level)
+        const resolution = view.getResolution() || 1;
+        const panDistance = resolution * 100; // 100 pixels worth of movement
+
+        let newCenter: [number, number];
+        switch (event.key) {
+          case 'ArrowUp':
+            newCenter = [center[0], center[1] + panDistance];
+            break;
+          case 'ArrowDown':
+            newCenter = [center[0], center[1] - panDistance];
+            break;
+          case 'ArrowLeft':
+            newCenter = [center[0] - panDistance, center[1]];
+            break;
+          case 'ArrowRight':
+            newCenter = [center[0] + panDistance, center[1]];
+            break;
+          default:
+            return;
+        }
+
+        view.animate({
+          center: newCenter,
+          duration: 100
+        });
+        return;
+      }
+
       // Handle Delete and Backspace keys (NOT with Ctrl modifier)
       if ((event.key === 'Delete' || event.key === 'Backspace') && !event.ctrlKey && !event.metaKey) {
         event.preventDefault();
