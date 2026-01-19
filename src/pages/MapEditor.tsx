@@ -124,7 +124,7 @@ const MapEditor: React.FC = () => {
     clearClipboard,
   } = useFeatureState();
 
-  const { setUndoRedoInteraction } = useToolStore();
+  const { setUndoRedoInteraction, toggleOrthoMode } = useToolStore();
 
   const selectInteractionRef = useRef<Select | null>(null);
   const undoRedoInteractionRef = useRef<any>(null);
@@ -1127,6 +1127,7 @@ const MapEditor: React.FC = () => {
     onRedoOperation: handleRedoOperation,
     onClearSelection: handleClearSelection,
     onDeleteOperation: handleDeleteFromKeyboard,
+    onOrthoToggle: toggleOrthoMode,
     disabled: false,
   });
 

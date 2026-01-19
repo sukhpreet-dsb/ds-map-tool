@@ -17,6 +17,7 @@ export interface KeyboardShortcutsProps {
   onRedoOperation?: () => void;
   onClearSelection?: () => void;
   onDeleteOperation?: () => void;
+  onOrthoToggle?: () => void;
   disabled?: boolean;
 }
 
@@ -32,6 +33,7 @@ export const useKeyboardShortcuts = ({
   onRedoOperation,
   onClearSelection,
   onDeleteOperation,
+  onOrthoToggle,
   disabled = false,
 }: KeyboardShortcutsProps) => {
   const currentCursorCoordinates = useRef<number[] | null>(null);
@@ -47,6 +49,13 @@ export const useKeyboardShortcuts = ({
       // Ignore if user is typing in an input field
       const target = event.target as HTMLElement;
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+        return;
+      }
+
+      // Handle F8 key for Ortho mode toggle
+      if (event.key === 'F8') {
+        event.preventDefault();
+        onOrthoToggle?.();
         return;
       }
 
@@ -262,6 +271,7 @@ export const useKeyboardShortcuts = ({
     onRedoOperation,
     onClearSelection,
     onDeleteOperation,
+    onOrthoToggle,
     disabled
   ]);
 
