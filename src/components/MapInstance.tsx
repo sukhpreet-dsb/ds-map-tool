@@ -9,6 +9,7 @@ import { fromLonLat } from "ol/proj";
 import { defaults as defaultControls } from "ol/control";
 import { getFeatureStyle } from "./FeatureStyler";
 import { useHiddenFeatures } from "@/hooks/useToggleObjects";
+import { useHiddenFeaturesStore } from "@/stores/useHiddenFeaturesStore";
 import { isFeatureHidden, isTextFeatureHidden } from "@/utils/features/visibilityUtils";
 import { STYLE_DEFAULTS } from "@/constants/styleDefaults";
 import type { Geometry } from "ol/geom";
@@ -30,6 +31,7 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const { hiddenTypes } = useHiddenFeatures();
+  const { hiddenFeatureIds } = useHiddenFeaturesStore();
 
   useEffect(() => {
     if (!mapContainerRef.current) return;
@@ -95,6 +97,12 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
         const type = feature.getGeometry()?.getType();
         const typedFeature = feature as Feature<Geometry>;
 
+        // Check if feature is individually hidden (from SeparateFeatures panel)
+        const featureId = String((feature as any).ol_uid);
+        if (hiddenFeatureIds.has(featureId)) {
+          return new Style({ stroke: undefined });
+        }
+
         // Only process text features with resolution-based visibility
         if (feature.get("isText") && type === "Point") {
           const textContent = feature.get("text") || "Text";
@@ -142,7 +150,7 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
         return getFeatureStyle(feature);
       });
     }
-  }, [hiddenTypes]);
+  }, [hiddenTypes, hiddenFeatureIds]);
 
   return <div id="map" className="relative w-full h-screen" ref={mapContainerRef} />;
 };

@@ -55,6 +55,7 @@ import type { PdfExportConfig } from "@/types/pdf";
 import { OffsetDialog, type OffsetDirection } from "@/components/OffsetDialog";
 import { HelpModal } from "@/components/HelpModal";
 import { useToolStore } from "@/stores/useToolStore";
+import { SeparateFeatures } from "@/components/SeparateFeatures";
 
 // Interface for properly serializable map data
 interface SerializedMapData {
@@ -1269,6 +1270,10 @@ const MapEditor: React.FC = () => {
       />
 
       <TogglingObject />
+      <SeparateFeatures
+        vectorSource={vectorSourceRef.current}
+        onSaveMapState={saveMapState}
+      />
     </div>
   );
 };
