@@ -58,12 +58,6 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
     onReady: onUndoInteractionReady,
   });
 
-  // Initialize hover interaction for feature highlighting
-  useHoverInteraction({
-    map,
-    vectorLayer,
-  });
-
   // Initialize select and modify interactions with multi-select support
   const { selectInteraction, modifyInteraction, translateInteraction } = useSelectModify({
     map,
@@ -72,6 +66,14 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
     onFeatureSelect,
     onMultiSelectChange,
     onReady: onSelectInteractionReady,
+  });
+
+  // Initialize hover interaction for feature highlighting
+  // Must be after useSelectModify to access selectInteraction for disabling hover on selected features
+  useHoverInteraction({
+    map,
+    vectorLayer,
+    selectInteraction,
   });
 
   // Initialize DragBox for Ctrl+Drag feature selection
