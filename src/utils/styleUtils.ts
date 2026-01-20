@@ -52,17 +52,17 @@ export interface TextStyleConfig {
 export const createBasicStyle = (config: BasicStyleConfig): Style => {
   const stroke = config.strokeColor
     ? new Stroke({
-        color: config.strokeColor,
-        width: config.strokeWidth || 2,
-        lineDash: config.strokeDash,
-        lineCap: config.lineCap || "butt",
-      })
+      color: config.strokeColor,
+      width: config.strokeWidth || 2,
+      lineDash: config.strokeDash,
+      lineCap: config.lineCap || "butt",
+    })
     : undefined;
 
   const fill = config.fillColor
     ? new Fill({
-        color: applyOpacityToColor(config.fillColor, config.fillOpacity || 1),
-      })
+      color: applyOpacityToColor(config.fillColor, config.fillOpacity || 1),
+    })
     : undefined;
 
   return new Style({
@@ -109,9 +109,9 @@ export const createTextStyle = (config: TextStyleConfig): Text => {
     }),
     stroke: config.strokeColor
       ? new Stroke({
-          color: config.strokeColor,
-          width: config.strokeWidth || 2,
-        })
+        color: config.strokeColor,
+        width: config.strokeWidth || 2,
+      })
       : undefined,
     offsetX: config.offsetX || 0,
     offsetY: config.offsetY || 0,
@@ -171,8 +171,8 @@ export const createPolygonStyle = (
 
   const fill = fillColor
     ? new Fill({
-        color: applyOpacityToColor(fillColor, fillOpacity),
-      })
+      color: applyOpacityToColor(fillColor, fillOpacity),
+    })
     : undefined;
 
   return new Style({
@@ -187,16 +187,22 @@ export const createPolygonStyle = (
 export const HOVER_HIGHLIGHT_COLOR = "#f55927"; // Bright cyan/blue
 
 /**
+ * Vertex colors for start and end points
+ */
+export const VERTEX_START_COLOR = "#7ccf00"; // Green for starting vertex
+export const VERTEX_END_COLOR = "#fb2c36"; // Red for ending vertex
+export const VERTEX_MIDDLE_COLOR = "rgba(0, 102, 204, 0.8)"; // Blue for middle vertices
+
+/**
  * Helper function to extract and create vertex styles for LineString/MultiLineString
+ * Uses different colors for start (green), end (red), and middle (blue) vertices
  * @param geometry - The geometry to extract vertices from
  * @param vertexRadius - Radius of vertex markers
- * @param vertexFillColor - Fill color for vertices
  * @returns Array of Style objects for each vertex
  */
 const createVertexStylesForGeometry = (
   geometry: Geometry,
-  vertexRadius: number = 4,
-  vertexFillColor: string = "rgba(0, 102, 204, 0.8)"
+  vertexRadius: number = 4
 ): Style[] => {
   let coordinates: number[][] = [];
 
@@ -209,14 +215,28 @@ const createVertexStylesForGeometry = (
     });
   }
 
+  if (coordinates.length === 0) return [];
+
   const styles: Style[] = [];
-  coordinates.forEach((coord) => {
+  const lastIndex = coordinates.length - 1;
+
+  coordinates.forEach((coord, index) => {
+    // Determine color based on position
+    let fillColor: string;
+    if (index === 0) {
+      fillColor = VERTEX_START_COLOR; // Green for start
+    } else if (index === lastIndex) {
+      fillColor = VERTEX_END_COLOR; // Red for end
+    } else {
+      fillColor = VERTEX_MIDDLE_COLOR; // Blue for middle
+    }
+
     styles.push(
       new Style({
         geometry: new Point(coord),
         image: new CircleStyle({
           radius: vertexRadius,
-          fill: new Fill({ color: vertexFillColor }),
+          fill: new Fill({ color: fillColor }),
           stroke: new Stroke({ color: "#ffffff", width: 1.5 }),
         }),
         zIndex: 50,
