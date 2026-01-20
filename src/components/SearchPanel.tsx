@@ -68,6 +68,7 @@ export const SearchPanel = forwardRef<SearchPanelRef, SearchPanelProps>(
     const inputRef = useRef<HTMLInputElement>(null);
     const abortControllerRef = useRef<AbortController | null>(null);
     const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const panelRef = useRef<HTMLDivElement>(null);
 
     // Initialize search control
     useEffect(() => {
@@ -211,6 +212,17 @@ export const SearchPanel = forwardRef<SearchPanelRef, SearchPanelProps>(
       [performSearch]
     );
 
+    // Clear search
+    const handleClear = useCallback(() => {
+      setQuery("");
+      setResults([]);
+      setShowResults(false);
+      setSelectedIndex(-1);
+      if (searchControlRef.current) {
+        searchControlRef.current.setInput("", false);
+      }
+    }, []);
+
     // Handle result selection
     const handleResultSelect = useCallback(
       (result: SearchResult) => {
@@ -268,14 +280,14 @@ export const SearchPanel = forwardRef<SearchPanelRef, SearchPanelProps>(
             break;
           case "Escape":
             e.preventDefault();
-            setShowResults(false);
-            setSelectedIndex(-1);
+            handleClear();
+            setShowCoordInput(false);
             setIsFocused(false);
             inputRef.current?.blur();
             break;
         }
       },
-      [showResults, results, selectedIndex, handleResultSelect]
+      [showResults, results, selectedIndex, handleResultSelect, handleClear]
     );
 
     // Handle input focus
@@ -296,16 +308,23 @@ export const SearchPanel = forwardRef<SearchPanelRef, SearchPanelProps>(
       }, 200);
     }, [isFocused]);
 
-    // Clear search
-    const handleClear = useCallback(() => {
-      setQuery("");
-      setResults([]);
-      setShowResults(false);
-      setSelectedIndex(-1);
-      if (searchControlRef.current) {
-        searchControlRef.current.setInput("", false);
+    // Handle click outside to close panel
+    useEffect(() => {
+      const handleClickOutside = (event: MouseEvent) => {
+        if (panelRef.current && !panelRef.current.contains(event.target as Node)) {
+          handleClear();
+          setShowCoordInput(false);
+        }
+      };
+
+      // Only add listener when search is active
+      if (query || showResults || showCoordInput) {
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => {
+          document.removeEventListener("mousedown", handleClickOutside);
+        };
       }
-    }, []);
+    }, [query, showResults, showCoordInput, handleClear]);
 
     // Toggle coordinate input mode
     const handleToggleCoordInput = useCallback(() => {
@@ -383,8 +402,8 @@ export const SearchPanel = forwardRef<SearchPanelRef, SearchPanelProps>(
     );
 
     return (
-      <div className={`absolute top-17 left-2 z-50 w-64 ${className}`}>
-        <Card className="bg-white/95 backdrop-blur-sm shadow-lg border-0 p-0">
+      <div ref={panelRef} className={`absolute top-1 left-1/2 -translate-x-1/2 z-100 w-64 ${className}`}>
+        <Card className="bg-white/95 backdrop-blur-sm border-0 p-0">
           <CardContent className="p-0">
             <div className="relative">
               <div className="flex items-center gap-2 p-1 pl-2">
