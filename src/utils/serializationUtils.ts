@@ -144,6 +144,9 @@ export const extractStyleMetadata = (feature: Feature<Geometry>): any => {
   if (feature.get("fillColor")) properties.fillColor = feature.get("fillColor");
   if (feature.get("fillOpacity") !== undefined) properties.fillOpacity = feature.get("fillOpacity");
 
+  // Store folder assignment for feature grouping
+  if (feature.get("folderId")) properties.folderId = feature.get("folderId");
+
   return properties;
 };
 

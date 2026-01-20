@@ -18,6 +18,9 @@ export interface SerializedMapData {
     zoom: number;
     viewMode: "osm" | "satellite";
   };
+  folderStructure?: {
+    folders: Record<string, any>;
+  };
 }
 
 interface MapStateRow {

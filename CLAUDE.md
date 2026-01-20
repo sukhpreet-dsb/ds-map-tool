@@ -19,6 +19,7 @@ Use Context7 for up-to-date docs when implementing new libraries/frameworks.
 **File Processing:** JSZip 3.10.1 (KMZ), jsPDF 3.0.4 (PDF export)  
 **Routing:** React Router 7.9.6  
 **Build:** Vite 7.1.7
+**Package Manager:** pnpm
 
 ## Key Features
 

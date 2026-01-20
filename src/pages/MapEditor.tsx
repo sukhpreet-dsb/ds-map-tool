@@ -54,6 +54,7 @@ import { performMerge } from "@/utils/splitUtils";
 import type { PdfExportConfig } from "@/types/pdf";
 import { HelpModal } from "@/components/HelpModal";
 import { useToolStore } from "@/stores/useToolStore";
+import { useFolderStore } from "@/stores/useFolderStore";
 import { SeparateFeatures } from "@/components/SeparateFeatures";
 
 // Interface for properly serializable map data
@@ -63,6 +64,9 @@ interface SerializedMapData {
     center: [number, number];
     zoom: number;
     viewMode: "osm" | "satellite";
+  };
+  folderStructure?: {
+    folders: Record<string, any>;
   };
 }
 
@@ -262,7 +266,16 @@ const MapEditor: React.FC = () => {
           return;
         }
 
-        vectorSourceRef.current.clear();
+        // Create folder for imported features (extract filename without extension)
+        const filename = file.name.replace(/\.[^/.]+$/, "");
+        const folderId = useFolderStore.getState().createFolder(filename);
+
+        // Set folderId on all imported features
+        features.forEach((feature) => {
+          feature.set("folderId", folderId);
+        });
+
+        // Add features without clearing existing ones
         vectorSourceRef.current.addFeatures(features);
 
         const extent: Extent = vectorSourceRef.current.getExtent();
@@ -582,6 +595,7 @@ const MapEditor: React.FC = () => {
           zoom: mapRef.current.getView().getZoom() || 0,
           viewMode: currentMapView,
         },
+        folderStructure: useFolderStore.getState().exportToStorage(),
       };
 
       await saveToDb(mapData);
@@ -606,6 +620,8 @@ const MapEditor: React.FC = () => {
       // 1. ALWAYS clear the map first!
       // This ensures old project data is removed even if the new project is empty
       vectorSourceRef.current.clear();
+      // Also clear folder structure when switching projects
+      useFolderStore.getState().clearAll();
 
       const mapData = await loadFromDb();
       if (mapData?.features) {
@@ -617,6 +633,10 @@ const MapEditor: React.FC = () => {
         if (!isEmptyExtent(extent) && mapRef.current) {
           fitMapToFeatures(mapRef.current, extent);
         }
+      }
+      // Restore folder structure if available
+      if (mapData?.folderStructure) {
+        useFolderStore.getState().loadFromStorage(mapData.folderStructure);
       }
       if (mapData?.mapState && mapRef.current) {
         restoreMapView(mapRef.current, mapData.mapState, handleMapViewChange);
