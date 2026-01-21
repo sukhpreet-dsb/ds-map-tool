@@ -7,11 +7,6 @@ import { Vector as VectorSource } from "ol/source";
 import type { Geometry } from "ol/geom";
 import type { LegendType } from "@/tools/legendsConfig";
 import { getLegendById } from "@/tools/legendsConfig";
-import { handleTriangleClick } from "@/icons/Triangle";
-import { handlePitClick } from "@/icons/Pit";
-import { handleGPClick } from "@/icons/Gp";
-import { handleJunctionClick } from "@/icons/JunctionPoint";
-import { handleTowerClickFromSvg } from "@/icons/Tower";
 import {
   createPointDraw,
   createPolylineDraw,
@@ -27,7 +22,6 @@ import {
 import { createLineStyle } from "@/utils/styleUtils";
 import { useClickHandlerManager } from "@/hooks/useClickHandlerManager";
 import { getCursorForTool } from "@/utils/cursorUtils";
-import { TOWER_CONFIG } from "@/config/toolConfig";
 import { getTextAlongLineStyle } from "./FeatureStyler";
 import { handleIconClick } from "@/icons/IconPicker";
 
@@ -197,97 +191,6 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
           }
         );
         map.addInteraction(drawInteractionRef.current);
-        break;
-
-      case "triangle":
-        registerClickHandler(
-          map,
-          {
-            toolId: "triangle",
-            handlerKey: "triangleClickHandler",
-            onClick: (coordinate) => {
-              const feature = handleTriangleClick(vectorSource, coordinate);
-              if (feature && onFeatureSelect) {
-                onFeatureSelect(feature);
-              }
-            },
-          },
-          vectorSource
-        );
-        break;
-
-      case "pit":
-        registerClickHandler(
-          map,
-          {
-            toolId: "pit",
-            handlerKey: "PitClickHandler",
-            onClick: (coordinate) => {
-              const feature = handlePitClick(vectorSource, coordinate);
-              if (feature && onFeatureSelect) {
-                onFeatureSelect(feature);
-              }
-            },
-          },
-          vectorSource
-        );
-        break;
-
-      case "gp":
-        registerClickHandler(
-          map,
-          {
-            toolId: "gp",
-            handlerKey: "GpClickHandler",
-            onClick: (coordinate) => {
-              const feature = handleGPClick(vectorSource, coordinate);
-              if (feature && onFeatureSelect) {
-                onFeatureSelect(feature);
-              }
-            },
-          },
-          vectorSource
-        );
-        break;
-
-      case "junction":
-        registerClickHandler(
-          map,
-          {
-            toolId: "junction",
-            handlerKey: "JuctionPointClickHandler",
-            onClick: (coordinate) => {
-              const feature = handleJunctionClick(vectorSource, coordinate);
-              if (feature && onFeatureSelect) {
-                onFeatureSelect(feature);
-              }
-            },
-          },
-          vectorSource
-        );
-        break;
-
-      case "tower":
-        registerClickHandler(
-          map,
-          {
-            toolId: "tower",
-            handlerKey: "TowerClickHandler",
-            onClick: (coordinate) => {
-              const feature = handleTowerClickFromSvg(
-                vectorSource,
-                coordinate,
-                TOWER_CONFIG.svgPath,
-                TOWER_CONFIG.scale,
-                TOWER_CONFIG.strokeWidth
-              );
-              if (feature && onFeatureSelect) {
-                onFeatureSelect(feature);
-              }
-            },
-          },
-          vectorSource
-        );
         break;
 
       case "text":

@@ -2,11 +2,6 @@ import { Feature } from "ol";
 import type { FeatureLike } from "ol/Feature";
 import { Geometry } from "ol/geom";
 import { Style, Icon } from "ol/style";
-import { isTriangleFeature, triangleUtils } from "@/icons/Triangle";
-import { isPitFeature, pitUtils } from "@/icons/Pit";
-import { isGPFeature, gpUtils } from "@/icons/Gp";
-import { isJunctionFeature, junctionUtils } from "@/icons/JunctionPoint";
-import { isTowerFeature, towerUtils } from "@/icons/Tower";
 
 /**
  * Feature type checker configuration
@@ -19,28 +14,7 @@ interface FeatureTypeChecker {
 /**
  * Feature type checker map for different icon types
  */
-const FEATURE_TYPE_CHECKERS: Record<string, FeatureTypeChecker> = {
-  triangle: {
-    isFeature: isTriangleFeature,
-    geometryType: "Polygon",
-  },
-  pit: {
-    isFeature: isPitFeature,
-    geometryType: "MultiLineString",
-  },
-  gp: {
-    isFeature: isGPFeature,
-    geometryType: "GeometryCollection",
-  },
-  junction: {
-    isFeature: isJunctionFeature,
-    geometryType: "GeometryCollection",
-  },
-  tower: {
-    isFeature: isTowerFeature,
-    geometryType: "GeometryCollection",
-  },
-};
+const FEATURE_TYPE_CHECKERS: Record<string, FeatureTypeChecker> = {};
 
 /**
  * Generic function to check if a feature matches a specific type
@@ -95,27 +69,6 @@ export const getFeatureTypeStyle = (feature: FeatureLike) => {
 
   // Get opacity from feature (default to 1)
   const opacity = feature.get("opacity") !== undefined ? feature.get("opacity") : 1;
-
-  // Check each feature type and return its style with opacity
-  if (isFeatureType(feature, "triangle")) {
-    return triangleUtils.getStyle(opacity);
-  }
-
-  if (isFeatureType(feature, "pit")) {
-    return pitUtils.getStyle(opacity);
-  }
-
-  if (isFeatureType(feature, "gp")) {
-    return gpUtils.getStyles(opacity);
-  }
-
-  if (isFeatureType(feature, "junction")) {
-    return junctionUtils.getStyles(opacity);
-  }
-
-  if (isFeatureType(feature, "tower")) {
-    return towerUtils.getStyle(opacity);
-  }
 
   // Handle custom icon features from icon picker
   if (feature.get("isIcon")) {

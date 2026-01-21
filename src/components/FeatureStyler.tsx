@@ -253,17 +253,6 @@ const shouldShowLabel = (feature: FeatureLike): boolean => {
   // Point geometry (standard points and custom icons)
   if (geometryType === "Point") return true;
 
-  // Icon features with non-Point geometry
-  if (feature.get("isTriangle") && geometryType === "Polygon") return true;
-  if (feature.get("isPit") && geometryType === "MultiLineString") return true;
-  if (
-    (feature.get("isGP") ||
-      feature.get("isTower") ||
-      feature.get("isJunction")) &&
-    geometryType === "GeometryCollection"
-  )
-    return true;
-
   return false;
 };
 

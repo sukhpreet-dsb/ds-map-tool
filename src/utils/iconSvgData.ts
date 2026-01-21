@@ -74,36 +74,6 @@ export type IconRegistry = Record<string, IconDefinition>;
  * Sized at 24x24px for optimal cursor usage
  */
 export const CUSTOM_SVGS: Record<string, string> = {
-  // Symbol Tools
-  triangle: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-    <polygon points="12,3 20,20 4,20" fill="#cccccc" stroke="#000000" stroke-width="1.5"/>
-  </svg>`,
-
-  pit: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-    <line x1="12" y1="4" x2="12" y2="20" stroke="#ff0000" stroke-width="2"/>
-    <line x1="4" y1="12" x2="20" y2="12" stroke="#ff0000" stroke-width="2"/>
-  </svg>`,
-
-  gp: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="12" cy="12" r="8" fill="rgba(147,51,234,0.3)" stroke="#000000" stroke-width="1.5"/>
-    <circle cx="12" cy="12" r="2" fill="#000000"/>
-  </svg>`,
-
-  junction: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-    <rect x="8" y="8" width="8" height="8" fill="#ff0000" stroke="#000000" stroke-width="1.5"/>
-    <circle cx="12" cy="12" r="1.5" fill="#000000"/>
-  </svg>`,
-
-  tower: `<svg
-    xmlns="http://www.w3.org/2000/svg"
-    fill="#000000"
-    width="800px"
-    height="800px"
-    viewBox="0 0 15 15"
-  >
-    <path d="M11.8545,6.4336l-.4131-.2813a4.7623,4.7623,0,0,0,.2813-4.8779l-.0835-.1533L12.0747.875l.0908.167a5.2619,5.2619,0,0,1-.311,5.3916Zm1.1521,7.1316V14h-11v-.4348H4.4952L6.0439,6.4a.5.5,0,0,1,.4888-.3945h.7255V4.6014A1.14,1.14,0,0,1,6.3756,3.5a1.1568,1.1568,0,1,1,2.3136,0,1.14,1.14,0,0,1-.931,1.1112V6.0059h.7223A.5.5,0,0,1,8.9692,6.4l1.5478,7.1648ZM8.4543,8.751H6.5588L6.236,10.2441H8.777ZM6.1279,10.7441l-.3233,1.4952H9.2082l-.3231-1.4952ZM6.936,7.0059,6.6669,8.251H8.3463L8.0771,7.0059ZM5.5179,13.5652H9.4948l-.1786-.8259h-3.62ZM5.21,5.0137a2.7523,2.7523,0,0,1,.0161-3.0518L4.812,1.6826a3.25,3.25,0,0,0-.019,3.6065ZM10.7568,3.5a3.2433,3.2433,0,0,0-.5341-1.7861l-.418.2754a2.7517,2.7517,0,0,1-.0176,3.0488l.4141.2793A3.2341,3.2341,0,0,0,10.7568,3.5ZM3.5342,6.1182A4.7637,4.7637,0,0,1,3.3813,1.13L2.9478.88a5.2643,5.2643,0,0,0,.1694,5.5137Z" />
-  </svg>`,
-
   legends: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
     <line x1="3" y1="12" x2="21" y2="12" stroke="#000000" stroke-width="2"/>
   </svg>`,
@@ -149,11 +119,6 @@ export const LUCIDE_ICONS: Record<string, string> = {
  */
 export const ICON_REGISTRY: IconRegistry = {
   // Custom icons - specialized designs
-  triangle: { source: "custom", svg: CUSTOM_SVGS.triangle },
-  pit: { source: "custom", svg: CUSTOM_SVGS.pit },
-  gp: { source: "custom", svg: CUSTOM_SVGS.gp },
-  junction: { source: "custom", svg: CUSTOM_SVGS.junction },
-  tower: { source: "custom", svg: CUSTOM_SVGS.tower },
   measure: { source: "custom", svg: CUSTOM_SVGS.measure },
 
   // Lucide icons - standard tools

@@ -88,11 +88,6 @@ const initializeCursors = () => {
   TOOL_CURSORS.legends = createIconCursor(ICON_SVGS.legends);
 
   // Click-based Symbol Tools - Crosshair with icon overlay
-  TOOL_CURSORS.triangle = createCrosshairWithIcon(ICON_SVGS.triangle);
-  TOOL_CURSORS.pit = createCrosshairWithIcon(ICON_SVGS.pit);
-  TOOL_CURSORS.gp = createCrosshairWithIcon(ICON_SVGS.gp);
-  TOOL_CURSORS.junction = createCrosshairWithIcon(ICON_SVGS.junction);
-  TOOL_CURSORS.tower = createCrosshairWithIcon(ICON_SVGS.tower);
   TOOL_CURSORS.icons = createCrosshairWithIcon(ICON_SVGS.icons);
 
   // Edit/Utility Tools - Standard CSS cursors

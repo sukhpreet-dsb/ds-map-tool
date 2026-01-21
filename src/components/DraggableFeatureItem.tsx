@@ -15,12 +15,7 @@ import {
   Square,
   Spline,
   Cloud,
-  CircleDot,
-  Radio,
-  Triangle,
   RulerDimensionLine,
-  Crosshair,
-  SquareDot,
 } from "lucide-react";
 
 interface DraggableFeatureItemProps {
@@ -34,11 +29,6 @@ interface DraggableFeatureItemProps {
 
 // Icon color configuration based on feature type
 function getFeatureIconColor(feature: Feature<Geometry>): string {
-  if (feature.get("isTriangle")) return "text-gray-500";
-  if (feature.get("isPit")) return "text-red-500";
-  if (feature.get("isGP")) return "text-purple-500";
-  if (feature.get("isJunction")) return "text-red-500";
-  if (feature.get("isTower")) return "text-gray-700";
   if (feature.get("isArrow")) return "text-blue-500";
   if (feature.get("isMeasure")) return "text-gray-600";
   if (feature.get("isBox")) return "text-blue-500";
@@ -52,13 +42,6 @@ function getFeatureIconColor(feature: Feature<Geometry>): string {
 
 // Get appropriate icon based on feature type
 function getFeatureIcon(feature: Feature<Geometry>): LucideIcon {
-  // Symbol tools - distinctive icons
-  if (feature.get("isTriangle")) return Triangle;
-  if (feature.get("isPit")) return Crosshair;  // Pit is a crosshair/plus symbol
-  if (feature.get("isGP")) return CircleDot;   // GP is a circle with center dot
-  if (feature.get("isJunction")) return SquareDot;  // Junction is a square with center
-  if (feature.get("isTower")) return Radio;    // Tower icon
-
   // Drawing tools
   if (feature.get("isArrow")) return ArrowUp;
   if (feature.get("isPolyline")) return Slash;
@@ -93,11 +76,6 @@ function getFeatureTypeName(feature: Feature<Geometry>): string {
   if (feature.get("isText")) return "Text";
   if (feature.get("isMeasure")) return "Measure";
   if (feature.get("islegends")) return "Legend";
-  if (feature.get("isTriangle")) return "Triangle";
-  if (feature.get("isPit")) return "Pit";
-  if (feature.get("isGP")) return "GP";
-  if (feature.get("isJunction")) return "Junction";
-  if (feature.get("isTower")) return "Tower";
   if (feature.get("isIcon")) return "Icon";
   if (feature.get("isBox")) return "Box";
   if (feature.get("isCircle")) return "Circle";

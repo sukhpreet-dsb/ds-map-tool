@@ -19,7 +19,7 @@ const DEFAULT_OPACITY = 1;
 
 /**
  * Check if a feature supports point/icon opacity
- * Includes: Point geometry, GP, Tower, Junction, Triangle, Pit, and Google Earth icons
+ * Includes: Point geometry and Google Earth icons
  */
 const supportsOpacity = (feature: Feature | null): boolean => {
   if (!feature) return false;
@@ -31,13 +31,6 @@ const supportsOpacity = (feature: Feature | null): boolean => {
 
   // Point geometry features
   if (geometryType === "Point") return true;
-
-  // Symbol icons with special geometry types
-  if (feature.get("isGP") && geometryType === "GeometryCollection") return true;
-  if (feature.get("isTower") && geometryType === "GeometryCollection") return true;
-  if (feature.get("isJunction") && geometryType === "GeometryCollection") return true;
-  if (feature.get("isTriangle") && geometryType === "Polygon") return true;
-  if (feature.get("isPit") && geometryType === "MultiLineString") return true;
 
   // Google Earth icons from IconPickerDialog
   if (feature.get("isIcon")) return true;
