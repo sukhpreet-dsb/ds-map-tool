@@ -231,7 +231,8 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
         }
 
         // Apply world-scaling for all LineString/MultiLineString features based on resolution
-        if (resolution && (type === "LineString" || type === "MultiLineString")) {
+        if (resolution>=0.8 && (type === "LineString" || type === "MultiLineString")) {
+          console.log("resolution", resolution);
           const desiredPxSize = 16;
           const referenceResolution = 1.0;
           const baseScaleFactor = (desiredPxSize / 16) * (referenceResolution / resolution);
