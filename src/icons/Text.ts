@@ -19,20 +19,24 @@ const hexToRgba = (hex: string, opacity: number): string => {
  * @param scale - Optional scale factor (default: 1)
  * @param rotation - Optional rotation in degrees (default: 0)
  * @param opacity - Optional opacity 0-1 (default: 1)
+ * @param customFillColor - Optional custom fill color (default: #000000)
+ * @param customStrokeColor - Optional custom stroke color (default: #ffffff)
  * @returns OpenLayers Style object for text
  */
 export const getTextStyle = (
   textContent: string,
   scale: number = 1,
   rotation: number = 0,
-  opacity: number = 1
+  opacity: number = 1,
+  customFillColor: string = '#000000',
+  customStrokeColor: string = '#ffffff'
 ): Style => {
   // Convert rotation from degrees to radians
   const rotationRadians = (rotation * Math.PI) / 180;
 
   // Apply opacity to colors
-  const fillColor = hexToRgba('#000000', opacity);
-  const strokeColor = hexToRgba('#ffffff', opacity);
+  const fillColor = hexToRgba(customFillColor, opacity);
+  const strokeColor = hexToRgba(customStrokeColor, opacity);
 
   return new Style({
     text: new Text({
@@ -61,6 +65,8 @@ export const getTextStyle = (
  * @param scale - Optional scale factor for text size (default: 1)
  * @param rotation - Optional rotation angle in degrees (default: 0)
  * @param opacity - Optional opacity 0-1 (default: 1)
+ * @param fillColor - Optional fill color (default: #000000)
+ * @param strokeColor - Optional stroke color (default: #ffffff)
  */
 export const handleTextClick = (
   vectorSource: VectorSource,
@@ -68,7 +74,9 @@ export const handleTextClick = (
   textContent: string,
   scale?: number,
   rotation?: number,
-  opacity?: number
+  opacity?: number,
+  fillColor?: string,
+  strokeColor?: string
 ): void => {
   try {
     // Create point geometry for text
@@ -88,6 +96,8 @@ export const handleTextClick = (
     textFeature.set("textScale", scale || 1);
     textFeature.set("textRotation", rotation || 0);
     textFeature.set("textOpacity", opacity ?? 1);
+    textFeature.set("textFillColor", fillColor || "#000000");
+    textFeature.set("textStrokeColor", strokeColor || "#ffffff");
 
     // Style handled by layer style function to prevent double styling conflicts
     // Note: Removed direct setStyle() call - layer style function will handle text visibility

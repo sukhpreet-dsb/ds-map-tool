@@ -8,16 +8,38 @@ import { useRef, useState, useEffect } from "react";
 import type { Select } from "ol/interaction";
 import type Feature from "ol/Feature";
 import type { Geometry } from "ol/geom";
+import { DEFAULT_TEXT_STYLE } from "@/utils/featureTypeUtils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@radix-ui/react-dropdown-menu";
+
+const COLOR_OPTIONS = [
+  { name: "Green", color: "#00ff00" },
+  { name: "Red", color: "#ff0000" },
+  { name: "Yellow", color: "#ffff00" },
+  { name: "Cyan", color: "#00ffff" },
+  { name: "Blue", color: "#0000ff" },
+  { name: "Magenta", color: "#ff00ff" },
+  { name: "White", color: "#ffffff" },
+  { name: "Black", color: "#000000" },
+] as const;
 
 interface TextDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (text: string, scale?: number, rotation?: number, opacity?: number) => void;
+  onSubmit: (text: string, scale?: number, rotation?: number, opacity?: number, fillColor?: string, strokeColor?: string) => void;
   coordinate: number[];
   initialText?: string;
   initialScale?: number;
   initialRotation?: number;
   initialOpacity?: number;
+  initialFillColor?: string;
+  initialStrokeColor?: string;
   isEditing?: boolean;
   selectInteraction?: Select | null;
   editingTextFeature?: Feature<Geometry> | null;
@@ -32,6 +54,8 @@ export function TextDialog({
   initialScale,
   initialRotation,
   initialOpacity,
+  initialFillColor,
+  initialStrokeColor,
   isEditing = false,
   selectInteraction,
   editingTextFeature
@@ -40,10 +64,14 @@ export function TextDialog({
   const [scale, setScale] = useState(1);
   const [rotation, setRotation] = useState(0);
   const [opacity, setOpacity] = useState(1);
+  const [fillColor, setFillColor] = useState<string>(DEFAULT_TEXT_STYLE.fillColor);
+  const [strokeColor, setStrokeColor] = useState<string>(DEFAULT_TEXT_STYLE.strokeColor);
   const [originalText, setOriginalText] = useState("");
   const [originalScale, setOriginalScale] = useState(1);
   const [originalRotation, setOriginalRotation] = useState(0);
   const [originalOpacity, setOriginalOpacity] = useState(1);
+  const [originalFillColor, setOriginalFillColor] = useState<string>(DEFAULT_TEXT_STYLE.fillColor);
+  const [originalStrokeColor, setOriginalStrokeColor] = useState<string>(DEFAULT_TEXT_STYLE.strokeColor);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Set initial values when dialog opens for editing
@@ -51,23 +79,31 @@ export function TextDialog({
     if (isOpen) {
       if (isEditing && initialText) {
         setText(initialText);
-        setScale(initialScale || 1);
-        setRotation(initialRotation || 0);
-        setOpacity(initialOpacity ?? 1);
+        setScale(Number(initialScale) || 1);
+        setRotation(Number(initialRotation) || 0);
+        setOpacity(initialOpacity != null ? Number(initialOpacity) : 1);
+        setFillColor(initialFillColor || DEFAULT_TEXT_STYLE.fillColor);
+        setStrokeColor(initialStrokeColor || DEFAULT_TEXT_STYLE.strokeColor);
         // Store original values for cancel operation
         setOriginalText(initialText);
-        setOriginalScale(initialScale || 1);
-        setOriginalRotation(initialRotation || 0);
-        setOriginalOpacity(initialOpacity ?? 1);
+        setOriginalScale(Number(initialScale) || 1);
+        setOriginalRotation(Number(initialRotation) || 0);
+        setOriginalOpacity(initialOpacity != null ? Number(initialOpacity) : 1);
+        setOriginalFillColor(initialFillColor || DEFAULT_TEXT_STYLE.fillColor);
+        setOriginalStrokeColor(initialStrokeColor || DEFAULT_TEXT_STYLE.strokeColor);
       } else {
         setText("");
         setScale(1);
         setRotation(0);
         setOpacity(1);
+        setFillColor(DEFAULT_TEXT_STYLE.fillColor);
+        setStrokeColor(DEFAULT_TEXT_STYLE.strokeColor);
         setOriginalText("");
         setOriginalScale(1);
         setOriginalRotation(0);
         setOriginalOpacity(1);
+        setOriginalFillColor(DEFAULT_TEXT_STYLE.fillColor);
+        setOriginalStrokeColor(DEFAULT_TEXT_STYLE.strokeColor);
       }
       // Auto-focus input when dialog opens
       if (inputRef.current) {
@@ -78,7 +114,7 @@ export function TextDialog({
         }
       }
     }
-  }, [isOpen, isEditing, initialText, initialScale, initialRotation, initialOpacity]);
+  }, [isOpen, isEditing, initialText, initialScale, initialRotation, initialOpacity, initialFillColor, initialStrokeColor]);
 
   // Handle text editing mode - deselect feature when opening to show live changes
   useEffect(() => {
@@ -141,6 +177,24 @@ export function TextDialog({
     }
   };
 
+  const handleFillColorChange = (newColor: string) => {
+    setFillColor(newColor);
+    // Apply live changes to feature if editing
+    if (isEditing && editingTextFeature) {
+      editingTextFeature.set("textFillColor", newColor);
+      editingTextFeature.changed();
+    }
+  };
+
+  const handleStrokeColorChange = (newColor: string) => {
+    setStrokeColor(newColor);
+    // Apply live changes to feature if editing
+    if (isEditing && editingTextFeature) {
+      editingTextFeature.set("textStrokeColor", newColor);
+      editingTextFeature.changed();
+    }
+  };
+
   const handleCancel = () => {
     // If editing, revert changes to feature
     if (isEditing && editingTextFeature) {
@@ -148,6 +202,8 @@ export function TextDialog({
       editingTextFeature.set("textScale", originalScale);
       editingTextFeature.set("textRotation", originalRotation);
       editingTextFeature.set("textOpacity", originalOpacity);
+      editingTextFeature.set("textFillColor", originalFillColor);
+      editingTextFeature.set("textStrokeColor", originalStrokeColor);
       editingTextFeature.changed();
     }
     onClose();
@@ -156,11 +212,13 @@ export function TextDialog({
   const handleSubmit = () => {
     const trimmedText = text.trim();
     if (trimmedText) {
-      onSubmit(trimmedText, scale, rotation, opacity);
+      onSubmit(trimmedText, scale, rotation, opacity, fillColor, strokeColor);
       setText("");
       setScale(1);
       setRotation(0);
       setOpacity(1);
+      setFillColor(DEFAULT_TEXT_STYLE.fillColor);
+      setStrokeColor(DEFAULT_TEXT_STYLE.strokeColor);
       onClose();
     }
   };
@@ -280,6 +338,108 @@ export function TextDialog({
                     variant="outline"
                     size="sm"
                     onClick={() => handleOpacityChange(1)}
+                    className="px-2 py-1 text-xs"
+                  >
+                    Reset
+                  </Button>
+                </div>
+              </div>
+
+              {/* Fill Color Picker */}
+              <div>
+                <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Fill Color
+                </Label>
+                <div className="flex items-center gap-2 mt-1">
+                  <input
+                    type="color"
+                    value={fillColor}
+                    onChange={(e) => handleFillColorChange(e.target.value)}
+                    className="w-10 h-8 rounded cursor-pointer border border-gray-300 dark:border-gray-600"
+                  />
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-8 px-2">
+                        Choose Color
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-48 p-1 bg-white dark:bg-slate-800 rounded-sm shadow-lg z-60">
+                      <DropdownMenuSeparator />
+                      <DropdownMenuRadioGroup
+                        value={fillColor}
+                        onValueChange={(value) => handleFillColorChange(value)}
+                      >
+                        {COLOR_OPTIONS.map((colorOption) => (
+                          <DropdownMenuRadioItem
+                            key={colorOption.color}
+                            value={colorOption.color}
+                            className="flex items-center gap-2 p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 data-[state=checked]:bg-blue-50 dark:data-[state=checked]:bg-blue-900/20"
+                          >
+                            <div
+                              className="w-4 h-4 rounded"
+                              style={{ backgroundColor: colorOption.color }}
+                            />
+                            <span>{colorOption.name}</span>
+                          </DropdownMenuRadioItem>
+                        ))}
+                      </DropdownMenuRadioGroup>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleFillColorChange(DEFAULT_TEXT_STYLE.fillColor)}
+                    className="px-2 py-1 text-xs"
+                  >
+                    Reset
+                  </Button>
+                </div>
+              </div>
+
+              {/* Stroke Color Picker */}
+              <div>
+                <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Stroke Color
+                </Label>
+                <div className="flex items-center gap-2 mt-1">
+                  <input
+                    type="color"
+                    value={strokeColor}
+                    onChange={(e) => handleStrokeColorChange(e.target.value)}
+                    className="w-10 h-8 rounded cursor-pointer border border-gray-300 dark:border-gray-600"
+                  />
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-8 px-2">
+                        Choose Color
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-48 p-1 bg-white dark:bg-slate-800 rounded-sm shadow-lg z-60">
+                      <DropdownMenuSeparator />
+                      <DropdownMenuRadioGroup
+                        value={strokeColor}
+                        onValueChange={(value) => handleStrokeColorChange(value)}
+                      >
+                        {COLOR_OPTIONS.map((colorOption) => (
+                          <DropdownMenuRadioItem
+                            key={colorOption.color}
+                            value={colorOption.color}
+                            className="flex items-center gap-2 p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 data-[state=checked]:bg-blue-50 dark:data-[state=checked]:bg-blue-900/20"
+                          >
+                            <div
+                              className="w-4 h-4 rounded"
+                              style={{ backgroundColor: colorOption.color }}
+                            />
+                            <span>{colorOption.name}</span>
+                          </DropdownMenuRadioItem>
+                        ))}
+                      </DropdownMenuRadioGroup>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleStrokeColorChange(DEFAULT_TEXT_STYLE.strokeColor)}
                     className="px-2 py-1 text-xs"
                   >
                     Reset

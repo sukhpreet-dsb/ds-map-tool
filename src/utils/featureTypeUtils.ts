@@ -161,3 +161,19 @@ export const DEFAULT_LINE_STYLE = {
   color: "#00ff00",
   width: 4,
 } as const;
+
+/**
+ * Default text style configuration
+ */
+export const DEFAULT_TEXT_STYLE = {
+  fillColor: "#000000",
+  strokeColor: "#ffffff",
+} as const;
+
+/**
+ * Determines if a feature supports custom text styling (fill and stroke colors)
+ * Only text features support custom text styling
+ */
+export const supportsTextStyle = (feature: FeatureLike): boolean => {
+  return feature.get("isText") === true;
+};

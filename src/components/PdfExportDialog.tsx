@@ -13,7 +13,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Layout, X } from "lucide-react";
 import type { PdfExportConfig, PageSize, Resolution } from "@/types/pdf";
 import { PAGE_SIZE_OPTIONS, RESOLUTION_OPTIONS } from "@/types/pdf";
-import type { ExportProgress, MapImageExportResult } from "@/utils/mapImageExport";
+import type {
+  ExportProgress,
+  MapImageExportResult,
+} from "@/utils/mapImageExport";
 import { useLayoutStore } from "@/stores/layoutStore";
 
 interface PdfExportDialogProps {
@@ -21,7 +24,7 @@ interface PdfExportDialogProps {
   onClose: () => void;
   onExport: (
     config: PdfExportConfig,
-    onProgress: (progress: ExportProgress) => void
+    onProgress: (progress: ExportProgress) => void,
   ) => Promise<MapImageExportResult>;
   isExporting: boolean;
 }
@@ -34,13 +37,15 @@ export function PdfExportDialog({
 }: PdfExportDialogProps) {
   const navigate = useNavigate();
   const [pageSize, setPageSize] = useState<PageSize>("a4");
-  const [resolution, setResolution] = useState<Resolution>(1200);
+  const [resolution, setResolution] = useState<Resolution>(600);
   const [keepVectorLayerConstant, setKeepVectorLayerConstant] = useState(true);
   const [progress, setProgress] = useState<ExportProgress | null>(null);
   const [selectedLayoutId, setSelectedLayoutId] = useState<string>("");
 
   const layouts = useLayoutStore((state) => state.layouts);
-  const setPendingBackground = useLayoutStore((state) => state.setPendingBackground);
+  const setPendingBackground = useLayoutStore(
+    (state) => state.setPendingBackground,
+  );
   const selectedLayout = layouts.find((l) => l.id === selectedLayoutId);
 
   const handleExport = async () => {
@@ -58,15 +63,11 @@ export function PdfExportDialog({
           keepVectorLayerConstant,
           layoutId: selectedLayoutId || undefined,
         },
-        setProgress
+        setProgress,
       );
 
       // Store the image in Zustand
-      setPendingBackground(
-        result.dataURL,
-        pageSize,
-        selectedLayoutId || null
-      );
+      setPendingBackground(result.dataURL, pageSize, selectedLayoutId || null);
 
       // Navigate to layout editor
       const targetPath = selectedLayoutId
@@ -132,11 +133,9 @@ export function PdfExportDialog({
               {RESOLUTION_OPTIONS.map((res) => (
                 <option key={res} value={res}>
                   {res} DPI
-                  {res === 72 && " (fast)"}
                   {res === 600 && " (high quality)"}
                   {res === 1200 && " (ultra high quality)"}
                   {res === 2400 && " (maximum quality, very slow)"}
-                  {res === 3600 && " (maximum quality, very slow)"}
                 </option>
               ))}
             </select>
@@ -147,7 +146,9 @@ export function PdfExportDialog({
             <Checkbox
               id="keep-vector-constant"
               checked={keepVectorLayerConstant}
-              onCheckedChange={(checked) => setKeepVectorLayerConstant(checked === true)}
+              onCheckedChange={(checked) =>
+                setKeepVectorLayerConstant(checked === true)
+              }
               disabled={isExporting}
             />
             <Label

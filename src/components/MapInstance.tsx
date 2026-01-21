@@ -177,6 +177,8 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
           const textScale = feature.get("textScale") || 1;
           const textRotation = feature.get("textRotation") || 0;
           const textOpacity = feature.get("textOpacity") ?? 1;
+          const textFillColor = feature.get("textFillColor") || "#000000";
+          const textStrokeColor = feature.get("textStrokeColor") || "#ffffff";
 
           // Hide text when toggled off
           if (isTextFeatureHidden(typedFeature, hiddenTypes)) {
@@ -191,9 +193,17 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
           const baseScaleFactor = (desiredPxSize / STYLE_DEFAULTS.TEXT_FONT_SIZE) * (referenceResolution / resolution);
           const finalTextScale = baseScaleFactor * textScale;
 
-          // Apply opacity to colors
-          const fillColor = `rgba(0, 0, 0, ${textOpacity})`;
-          const strokeColor = `rgba(255, 255, 255, ${textOpacity})`;
+          // Convert hex color to rgba with opacity
+          const hexToRgba = (hex: string, opacity: number): string => {
+            const r = parseInt(hex.slice(1, 3), 16);
+            const g = parseInt(hex.slice(3, 5), 16);
+            const b = parseInt(hex.slice(5, 7), 16);
+            return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+          };
+
+          // Apply opacity to custom colors
+          const fillColor = hexToRgba(textFillColor, textOpacity);
+          const strokeColor = hexToRgba(textStrokeColor, textOpacity);
 
           // Create style with resolution-based scale, rotation, and opacity
           return new Style({

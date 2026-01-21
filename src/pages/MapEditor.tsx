@@ -859,7 +859,9 @@ const MapEditor: React.FC = () => {
     textContent: string,
     scale?: number,
     rotation?: number,
-    opacity?: number
+    opacity?: number,
+    fillColor?: string,
+    strokeColor?: string
   ) => {
     if (editingTextFeature) {
       // Update existing text feature with all properties
@@ -867,6 +869,8 @@ const MapEditor: React.FC = () => {
       editingTextFeature.set("textScale", scale || 1);
       editingTextFeature.set("textRotation", rotation || 0);
       editingTextFeature.set("textOpacity", opacity ?? 1);
+      editingTextFeature.set("textFillColor", fillColor || "#000000");
+      editingTextFeature.set("textStrokeColor", strokeColor || "#ffffff");
 
       // Remove temporary flag if it was a new text feature
       if (editingTextFeature.get("_isTemporaryTextPreview")) {
@@ -881,14 +885,16 @@ const MapEditor: React.FC = () => {
       // Clear selection after editing
       setSelectedFeature(null);
     } else if (pendingCoordinate && vectorSourceRef.current) {
-      // Create new text feature with scale/rotation/opacity
+      // Create new text feature with scale/rotation/opacity/colors
       handleTextClick(
         vectorSourceRef.current,
         pendingCoordinate,
         textContent,
         scale,
         rotation,
-        opacity
+        opacity,
+        fillColor,
+        strokeColor
       );
     }
   };
@@ -1079,6 +1085,9 @@ const MapEditor: React.FC = () => {
         initialText={editingTextFeature?.get("text") || ""}
         initialScale={editingTextScale}
         initialRotation={editingTextRotation}
+        initialOpacity={editingTextFeature?.get("textOpacity")}
+        initialFillColor={editingTextFeature?.get("textFillColor")}
+        initialStrokeColor={editingTextFeature?.get("textStrokeColor")}
         isEditing={!!editingTextFeature}
         selectInteraction={selectInteractionRef.current}
         editingTextFeature={editingTextFeature}
