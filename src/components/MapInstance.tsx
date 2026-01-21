@@ -100,7 +100,7 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
 
   useEffect(() => {
     if (vectorLayerRef.current) {
-      vectorLayerRef.current.setStyle((feature, resolution) => {
+      vectorLayerRef.current.setStyle((feature, resolution): Style | Style[] | void => {
         const type = feature.getGeometry()?.getType();
         const typedFeature = feature as Feature<Geometry>;
 
@@ -117,13 +117,25 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
           const iconWidth = feature.get("iconWidth") || 32;
           const iconPath = feature.get("iconPath");
 
+          // Get icon properties
+          const iconOpacity = feature.get("opacity") ?? 1;
+          const iconScale = feature.get("iconScale") ?? 1;
+          const labelScale = feature.get("labelScale") ?? 1;
+          const iconRotation = feature.get("iconRotation") ?? 0;
+
           if (iconPath) {
+            // Calculate base scale factor from resolution
+            const baseScaleFactor = (desiredPxSize / iconWidth) * (referenceResolution / resolution);
+            // Apply user-defined icon scale
+            const finalIconScale = baseScaleFactor * iconScale;
+
             const styles: Style[] = [
               new Style({
                 image: new Icon({
                   src: iconPath,
-                  scale:
-                    (desiredPxSize / iconWidth) * (referenceResolution / resolution),
+                  scale: finalIconScale,
+                  opacity: iconOpacity,
+                  rotation: (iconRotation * Math.PI) / 180, // Convert degrees to radians
                 }),
               }),
             ];
@@ -132,11 +144,11 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
             const labelProperty = feature.get("label") || "name";
             const labelValue = feature.get(labelProperty);
             if (labelValue) {
-              // Calculate scale factor matching icon scaling
-              const scaleFactor = (desiredPxSize / iconWidth) * (referenceResolution / resolution);
+              // Calculate label scale factor (base scale * user label scale)
+              const finalLabelScale = baseScaleFactor * labelScale;
               // Scale the offset proportionally with the icon
               const baseOffsetY = -40;
-              const scaledOffsetY = baseOffsetY * scaleFactor;
+              const scaledOffsetY = baseOffsetY * finalIconScale;
 
               styles.push(
                 new Style({
@@ -148,7 +160,7 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
                     textAlign: "center",
                     textBaseline: "middle",
                     offsetY: scaledOffsetY,
-                    scale: scaleFactor,
+                    scale: finalLabelScale,
                   }),
                   zIndex: 100,
                 }),

@@ -13,6 +13,7 @@ import { getLength } from "ol/sphere";
 import { usePropertiesPanel } from "@/hooks/usePropertiesPanel";
 import { useLineStyleEditor } from "@/hooks/useLineStyleEditor";
 import { useShapeStyleEditor } from "@/hooks/useShapeStyleEditor";
+import { useIconPropertiesEditor } from "@/hooks/useIconPropertiesEditor";
 import { usePointOpacityEditor } from "@/hooks/usePointOpacityEditor";
 import {
   DropdownMenu,
@@ -63,6 +64,12 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     properties.isEditing
   );
   const pointOpacity = usePointOpacityEditor(
+    selectedFeature,
+    map,
+    selectInteraction ?? null,
+    properties.isEditing
+  );
+  const iconProperties = useIconPropertiesEditor(
     selectedFeature,
     map,
     selectInteraction ?? null,
@@ -128,6 +135,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     lineStyle.commitLineStyle();
     shapeStyle.commitShapeStyle();
     pointOpacity.commitOpacity();
+    iconProperties.commitIconProperties();
   };
 
   const handleCancel = () => {
@@ -135,6 +143,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     lineStyle.resetToOriginal();
     shapeStyle.resetToOriginal();
     pointOpacity.resetToOriginal();
+    iconProperties.resetToOriginal();
   };
 
   if (!selectedFeature) {
@@ -204,8 +213,16 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
             />
           )}
 
-          {/* Point/Icon Opacity Controls */}
-          {pointOpacity.supportsPointOpacity && (
+          {/* Icon Style Controls (Google Earth icons) */}
+          {iconProperties.supportsIconProperties && (
+            <IconStyleSection
+              iconProperties={iconProperties}
+              isEditing={properties.isEditing}
+            />
+          )}
+
+          {/* Point/Icon Opacity Controls (non-icon point features) */}
+          {pointOpacity.supportsPointOpacity && !iconProperties.supportsIconProperties && (
             <PointOpacitySection
               pointOpacity={pointOpacity}
               isEditing={properties.isEditing}
@@ -1078,6 +1095,211 @@ const PointOpacityEditor: React.FC<PointOpacityEditorProps> = ({ pointOpacity })
       <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
         <span>0%</span>
         <span>100%</span>
+      </div>
+    </div>
+  </div>
+);
+
+// Icon Style Section (Google Earth icons)
+interface IconStyleSectionProps {
+  iconProperties: {
+    opacity: number;
+    iconScale: number;
+    labelScale: number;
+    rotation: number;
+    handleOpacityChange: (opacity: number) => void;
+    handleIconScaleChange: (scale: number) => void;
+    handleLabelScaleChange: (scale: number) => void;
+    handleRotationChange: (rotation: number) => void;
+  };
+  isEditing: boolean;
+}
+
+const IconStyleSection: React.FC<IconStyleSectionProps> = ({
+  iconProperties,
+  isEditing,
+}) => {
+  return (
+    <div className="border-t border-gray-100 dark:border-slate-700 pt-4 mt-4">
+      <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-3 uppercase tracking-wide">
+        Icon Style
+      </h4>
+
+      {!isEditing ? (
+        <IconStyleDisplay
+          opacity={iconProperties.opacity}
+          iconScale={iconProperties.iconScale}
+          labelScale={iconProperties.labelScale}
+          rotation={iconProperties.rotation}
+        />
+      ) : (
+        <IconStyleEditor iconProperties={iconProperties} />
+      )}
+    </div>
+  );
+};
+
+interface IconStyleDisplayProps {
+  opacity: number;
+  iconScale: number;
+  labelScale: number;
+  rotation: number;
+}
+
+const IconStyleDisplay: React.FC<IconStyleDisplayProps> = ({
+  opacity,
+  iconScale,
+  labelScale,
+  rotation,
+}) => (
+  <div className="space-y-2">
+    <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+      <span className="font-medium text-gray-700 dark:text-gray-300">Opacity:</span>
+      <span className="text-gray-600 dark:text-gray-400">{Math.round(opacity * 100)}%</span>
+    </div>
+    <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+      <span className="font-medium text-gray-700 dark:text-gray-300">Icon Scale:</span>
+      <span className="text-gray-600 dark:text-gray-400">{iconScale.toFixed(1)}x</span>
+    </div>
+    <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+      <span className="font-medium text-gray-700 dark:text-gray-300">Label Scale:</span>
+      <span className="text-gray-600 dark:text-gray-400">{labelScale.toFixed(1)}x</span>
+    </div>
+    <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+      <span className="font-medium text-gray-700 dark:text-gray-300">Rotation:</span>
+      <span className="text-gray-600 dark:text-gray-400">{Math.round(rotation)}°</span>
+    </div>
+  </div>
+);
+
+interface IconStyleEditorProps {
+  iconProperties: {
+    opacity: number;
+    iconScale: number;
+    labelScale: number;
+    rotation: number;
+    handleOpacityChange: (opacity: number) => void;
+    handleIconScaleChange: (scale: number) => void;
+    handleLabelScaleChange: (scale: number) => void;
+    handleRotationChange: (rotation: number) => void;
+  };
+}
+
+const IconStyleEditor: React.FC<IconStyleEditorProps> = ({ iconProperties }) => (
+  <div className="space-y-4">
+    {/* Opacity Slider */}
+    <div>
+      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        Opacity: {Math.round(iconProperties.opacity * 100)}%
+      </Label>
+      <div className="flex items-center gap-3">
+        <Slider
+          value={[iconProperties.opacity]}
+          onValueChange={(value) => iconProperties.handleOpacityChange(value[0])}
+          min={0}
+          max={1}
+          step={0.01}
+          className="flex-1"
+        />
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => iconProperties.handleOpacityChange(1)}
+          className="px-2 py-1 text-xs shrink-0"
+        >
+          Reset
+        </Button>
+      </div>
+      <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+        <span>0%</span>
+        <span>100%</span>
+      </div>
+    </div>
+
+    {/* Icon Scale Slider */}
+    <div>
+      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        Icon Scale: {iconProperties.iconScale.toFixed(1)}x
+      </Label>
+      <div className="flex items-center gap-3">
+        <Slider
+          value={[iconProperties.iconScale]}
+          onValueChange={(value) => iconProperties.handleIconScaleChange(value[0])}
+          min={0.1}
+          max={5}
+          step={0.1}
+          className="flex-1"
+        />
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => iconProperties.handleIconScaleChange(1)}
+          className="px-2 py-1 text-xs shrink-0"
+        >
+          Reset
+        </Button>
+      </div>
+      <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+        <span>0.1x</span>
+        <span>5x</span>
+      </div>
+    </div>
+
+    {/* Label Scale Slider */}
+    <div>
+      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        Label Scale: {iconProperties.labelScale.toFixed(1)}x
+      </Label>
+      <div className="flex items-center gap-3">
+        <Slider
+          value={[iconProperties.labelScale]}
+          onValueChange={(value) => iconProperties.handleLabelScaleChange(value[0])}
+          min={0.1}
+          max={5}
+          step={0.1}
+          className="flex-1"
+        />
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => iconProperties.handleLabelScaleChange(1)}
+          className="px-2 py-1 text-xs shrink-0"
+        >
+          Reset
+        </Button>
+      </div>
+      <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+        <span>0.1x</span>
+        <span>5x</span>
+      </div>
+    </div>
+
+    {/* Rotation Slider */}
+    <div>
+      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        Rotation: {Math.round(iconProperties.rotation)}°
+      </Label>
+      <div className="flex items-center gap-3">
+        <Slider
+          value={[iconProperties.rotation]}
+          onValueChange={(value) => iconProperties.handleRotationChange(value[0])}
+          min={0}
+          max={360}
+          step={1}
+          className="flex-1"
+        />
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => iconProperties.handleRotationChange(0)}
+          className="px-2 py-1 text-xs shrink-0"
+        >
+          Reset
+        </Button>
+      </div>
+      <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+        <span>0°</span>
+        <span>360°</span>
       </div>
     </div>
   </div>
