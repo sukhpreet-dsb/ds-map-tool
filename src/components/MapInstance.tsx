@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from "react";
 import Map from "ol/Map";
 import View from "ol/View";
 import { Feature } from "ol";
-import { Style, Text, Fill, Stroke } from "ol/style";
+import { Style, Text, Fill, Stroke, Icon } from "ol/style";
 import { Tile as TileLayer, Vector as VectorLayer } from "ol/layer";
 import { OSM, XYZ, Vector as VectorSource } from "ol/source";
 import { fromLonLat } from "ol/proj";
@@ -10,7 +10,10 @@ import { defaults as defaultControls } from "ol/control";
 import { getFeatureStyle } from "./FeatureStyler";
 import { useHiddenFeatures } from "@/hooks/useToggleObjects";
 import { useHiddenFeaturesStore } from "@/stores/useHiddenFeaturesStore";
-import { isFeatureHidden, isTextFeatureHidden } from "@/utils/features/visibilityUtils";
+import {
+  isFeatureHidden,
+  isTextFeatureHidden,
+} from "@/utils/features/visibilityUtils";
 import { STYLE_DEFAULTS } from "@/constants/styleDefaults";
 import type { Geometry } from "ol/geom";
 
@@ -18,7 +21,9 @@ export interface MapInstanceProps {
   onMapReady: (map: Map) => void;
   osmLayerRef: React.MutableRefObject<TileLayer<OSM> | null>;
   satelliteLayerRef: React.MutableRefObject<TileLayer<XYZ> | null>;
-  vectorLayerRef: React.MutableRefObject<VectorLayer<VectorSource<Feature<any>>> | null>;
+  vectorLayerRef: React.MutableRefObject<VectorLayer<
+    VectorSource<Feature<any>>
+  > | null>;
   vectorSourceRef: React.MutableRefObject<VectorSource<Feature<any>>>;
 }
 
@@ -39,7 +44,7 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
     // Create OSM layer
     const osmLayer = new TileLayer({
       source: new OSM({
-        crossOrigin: 'anonymous',
+        crossOrigin: "anonymous",
       }),
       visible: true,
     });
@@ -51,7 +56,7 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
         attributions: "Tiles © Esri",
         maxZoom: 18,
         minZoom: 0,
-        crossOrigin: 'anonymous',
+        crossOrigin: "anonymous",
       }),
       visible: false,
     });
@@ -62,6 +67,8 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
 
     const vectorLayer = new VectorLayer({
       source: vectorSourceRef.current,
+      updateWhileAnimating: true,
+      updateWhileInteracting: true,
     });
 
     // Store vector layer reference
@@ -93,7 +100,7 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
 
   useEffect(() => {
     if (vectorLayerRef.current) {
-      vectorLayerRef.current.setStyle((feature) => {
+      vectorLayerRef.current.setStyle((feature, resolution) => {
         const type = feature.getGeometry()?.getType();
         const typedFeature = feature as Feature<Geometry>;
 
@@ -101,6 +108,55 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
         const featureId = String((feature as any).ol_uid);
         if (hiddenFeatureIds.has(featureId)) {
           return new Style({ stroke: undefined });
+        }
+
+        // Apply world-scaling for icon features based on resolution
+        if (feature.get("isIcon") && resolution) {
+          const desiredPxSize = 16;
+          const referenceResolution = 1.0;
+          const iconWidth = feature.get("iconWidth") || 32;
+          const iconPath = feature.get("iconPath");
+
+          if (iconPath) {
+            const styles: Style[] = [
+              new Style({
+                image: new Icon({
+                  src: iconPath,
+                  scale:
+                    (desiredPxSize / iconWidth) * (referenceResolution / resolution),
+                }),
+              }),
+            ];
+
+            // Add label text style if feature has a name/label
+            const labelProperty = feature.get("label") || "name";
+            const labelValue = feature.get(labelProperty);
+            if (labelValue) {
+              // Calculate scale factor matching icon scaling
+              const scaleFactor = (desiredPxSize / iconWidth) * (referenceResolution / resolution);
+              // Scale the offset proportionally with the icon
+              const baseOffsetY = -40;
+              const scaledOffsetY = baseOffsetY * scaleFactor;
+
+              styles.push(
+                new Style({
+                  text: new Text({
+                    text: String(labelValue),
+                    font: "14px Arial, sans-serif",
+                    fill: new Fill({ color: "#000000" }),
+                    stroke: new Stroke({ color: "#ffffff", width: 3 }),
+                    textAlign: "center",
+                    textBaseline: "middle",
+                    offsetY: scaledOffsetY,
+                    scale: scaleFactor,
+                  }),
+                  zIndex: 100,
+                }),
+              );
+            }
+
+            return styles;
+          }
         }
 
         // Only process text features with resolution-based visibility
@@ -113,7 +169,7 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
           // Hide text when toggled off
           if (isTextFeatureHidden(typedFeature, hiddenTypes)) {
             return new Style({
-              text: new Text({ text: '' }) // OpenLayers pattern: empty text = hidden
+              text: new Text({ text: "" }), // OpenLayers pattern: empty text = hidden
             });
           }
 
@@ -127,15 +183,15 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
               text: textContent,
               font: `${STYLE_DEFAULTS.TEXT_FONT_SIZE * textScale}px Arial, sans-serif`,
               scale: textScale,
-              rotation: textRotation * Math.PI / 180,
+              rotation: (textRotation * Math.PI) / 180,
               fill: new Fill({ color: fillColor }),
               stroke: new Stroke({
                 color: strokeColor,
-                width: STYLE_DEFAULTS.TEXT_STROKE_WIDTH
+                width: STYLE_DEFAULTS.TEXT_STROKE_WIDTH,
               }),
               padding: [4, 6, 4, 6],
-              textAlign: 'center',
-              textBaseline: 'middle',
+              textAlign: "center",
+              textBaseline: "middle",
             }),
             zIndex: STYLE_DEFAULTS.Z_INDEX_TEXT,
           });
@@ -152,7 +208,9 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
     }
   }, [hiddenTypes, hiddenFeatureIds]);
 
-  return <div id="map" className="relative w-full h-screen" ref={mapContainerRef} />;
+  return (
+    <div id="map" className="relative w-full h-screen" ref={mapContainerRef} />
+  );
 };
 
 export default MapInstance;
