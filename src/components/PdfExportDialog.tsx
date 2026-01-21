@@ -1,5 +1,3 @@
-import { useState } from "react";
-import { useNavigate } from "react-router";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -9,15 +7,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Layout, X } from "lucide-react";
-import type { PdfExportConfig, PageSize, Resolution } from "@/types/pdf";
-import { PAGE_SIZE_OPTIONS, RESOLUTION_OPTIONS } from "@/types/pdf";
+import { useLayoutStore } from "@/stores/layoutStore";
+import type { PageSize, PdfExportConfig, Resolution } from "@/types/pdf";
+import { DEFAULT_RESOLUTION, PAGE_SIZE_OPTIONS } from "@/types/pdf";
 import type {
   ExportProgress,
   MapImageExportResult,
 } from "@/utils/mapImageExport";
-import { useLayoutStore } from "@/stores/layoutStore";
+import { Layout, Loader2, X } from "lucide-react";
+import { useState } from "react";
+import { useNavigate } from "react-router";
 
 interface PdfExportDialogProps {
   isOpen: boolean;
@@ -37,8 +36,8 @@ export function PdfExportDialog({
 }: PdfExportDialogProps) {
   const navigate = useNavigate();
   const [pageSize, setPageSize] = useState<PageSize>("a4");
-  const [resolution, setResolution] = useState<Resolution>(600);
-  const [keepVectorLayerConstant, setKeepVectorLayerConstant] = useState(true);
+  const [resolution, _setResolution] = useState<Resolution>(DEFAULT_RESOLUTION);
+  const [keepVectorLayerConstant, _setKeepVectorLayerConstant] = useState(false);
   const [progress, setProgress] = useState<ExportProgress | null>(null);
   const [selectedLayoutId, setSelectedLayoutId] = useState<string>("");
 
@@ -119,7 +118,7 @@ export function PdfExportDialog({
           </div>
 
           {/* Resolution Dropdown */}
-          <div className="grid gap-2">
+          {/* <div className="grid gap-2">
             <Label htmlFor="resolution">Resolution</Label>
             <select
               id="resolution"
@@ -139,10 +138,10 @@ export function PdfExportDialog({
                 </option>
               ))}
             </select>
-          </div>
+          </div> */}
 
           {/* Keep Vector Layer Constant Checkbox */}
-          <div className="flex items-center space-x-2">
+          {/* <div className="flex items-center space-x-2">
             <Checkbox
               id="keep-vector-constant"
               checked={keepVectorLayerConstant}
@@ -157,7 +156,7 @@ export function PdfExportDialog({
             >
               Keep drawn features at constant size (only zoom base map)
             </Label>
-          </div>
+          </div> */}
 
           {/* Layout Overlay Selector */}
           <div className="grid gap-2">

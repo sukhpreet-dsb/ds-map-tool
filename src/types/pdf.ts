@@ -25,4 +25,6 @@ export const PAGE_SIZES: Record<PageSize, PageDimensions> = {
 
 export const RESOLUTION_OPTIONS: Resolution[] = [300, 600, 1200, 2400];
 
+export const DEFAULT_RESOLUTION: Resolution = 300;
+
 export const PAGE_SIZE_OPTIONS: PageSize[] = ['a0', 'a1', 'a2', 'a3', 'a4', 'a5'];
