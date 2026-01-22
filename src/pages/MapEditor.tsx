@@ -1072,7 +1072,10 @@ const MapEditor: React.FC = () => {
       <PropertiesPanel
         map={mapRef.current}
         selectedFeature={selectedFeature}
-        onClose={() => setSelectedFeature(null)}
+        onClose={() => {
+          setSelectedFeature(null);
+          selectInteractionRef.current?.getFeatures().clear();
+        }}
         onSave={saveMapState}
         selectInteraction={selectInteractionRef.current}
       />

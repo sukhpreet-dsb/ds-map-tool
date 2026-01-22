@@ -92,16 +92,8 @@ export const usePointOpacityEditor = (
         features.push(selectedFeature);
       }
     }
-
-    return () => {
-      // Cleanup: restore selection on unmount
-      if (!isEditingOpacity && selectInteraction && selectedFeature) {
-        const features = selectInteraction.getFeatures();
-        if (!features.getArray().includes(selectedFeature)) {
-          features.push(selectedFeature);
-        }
-      }
-    };
+    // Note: No cleanup function - cleanup was causing stale closure issues
+    // where the old selectedFeature would be re-added after Escape press
   }, [isEditingOpacity, selectedFeature, selectInteraction, supportsPointOpacity]);
 
   // Handle immediate opacity change with live preview

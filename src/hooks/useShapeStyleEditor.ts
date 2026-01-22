@@ -150,16 +150,8 @@ export const useShapeStyleEditor = (
         features.push(selectedFeature);
       }
     }
-
-    return () => {
-      // Cleanup: restore selection on unmount
-      if (!isEditingShapeStyle && selectInteraction && selectedFeature) {
-        const features = selectInteraction.getFeatures();
-        if (!features.getArray().includes(selectedFeature)) {
-          features.push(selectedFeature);
-        }
-      }
-    };
+    // Note: No cleanup function - cleanup was causing stale closure issues
+    // where the old selectedFeature would be re-added after Escape press
   }, [isEditingShapeStyle, selectedFeature, selectInteraction, supportsShapeStyle]);
 
   // Handle immediate stroke color change with live preview

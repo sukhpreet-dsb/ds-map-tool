@@ -116,16 +116,8 @@ export const useIconPropertiesEditor = (
         features.push(selectedFeature);
       }
     }
-
-    return () => {
-      // Cleanup: restore selection on unmount
-      if (!isEditingIconProperties && selectInteraction && selectedFeature) {
-        const features = selectInteraction.getFeatures();
-        if (!features.getArray().includes(selectedFeature)) {
-          features.push(selectedFeature);
-        }
-      }
-    };
+    // Note: No cleanup function - cleanup was causing stale closure issues
+    // where the old selectedFeature would be re-added after Escape press
   }, [isEditingIconProperties, selectedFeature, selectInteraction, supportsIconProperties]);
 
   // Handle opacity change with live preview

@@ -99,16 +99,8 @@ export const useLineStyleEditor = (
         features.push(selectedFeature);
       }
     }
-
-    return () => {
-      // Cleanup: restore selection on unmount
-      if (!isEditingLineStyle && selectInteraction && selectedFeature) {
-        const features = selectInteraction.getFeatures();
-        if (!features.getArray().includes(selectedFeature)) {
-          features.push(selectedFeature);
-        }
-      }
-    };
+    // Note: No cleanup function - cleanup was causing stale closure issues
+    // where the old selectedFeature would be re-added after Escape press
   }, [isEditingLineStyle, selectedFeature, selectInteraction, supportsLineStyle]);
 
   // Handle immediate line color change with live preview
