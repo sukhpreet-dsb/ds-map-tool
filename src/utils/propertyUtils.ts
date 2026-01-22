@@ -73,6 +73,8 @@ const STYLE_PROPERTY_KEYS = [
   "iconScale",
   "labelScale",
   "iconRotation",
+  "textOffsetX",
+  "textOffsetY",
   "iconUrl",
 ] as const;
 
@@ -203,6 +205,8 @@ export const applyPropertiesToFeature = (
     "iconScale",
     "labelScale",
     "iconRotation",
+    "textOffsetX",
+    "textOffsetY",
     "iconUrl",
   ];
 
