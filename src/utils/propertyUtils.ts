@@ -69,6 +69,11 @@ const STYLE_PROPERTY_KEYS = [
   "strokeOpacity",
   "fillColor",
   "fillOpacity",
+  // Icon properties (Google Earth icons)
+  "iconScale",
+  "labelScale",
+  "iconRotation",
+  "iconUrl",
 ] as const;
 
 /**
@@ -194,6 +199,11 @@ export const applyPropertiesToFeature = (
     "strokeOpacity",
     "fillColor",
     "fillOpacity",
+    // Icon properties (Google Earth icons)
+    "iconScale",
+    "labelScale",
+    "iconRotation",
+    "iconUrl",
   ];
 
   const currentProperties = feature.getProperties();
