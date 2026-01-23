@@ -907,7 +907,8 @@ export const createContinuationDraw = (
       } else if (evt.key === "Escape") {
         evt.preventDefault();
         evt.stopImmediatePropagation();
-        drawInteraction.abortDrawing();
+        // Use finishDrawing() to keep the drawn coordinates (same as normal mode)
+        drawInteraction.finishDrawing();
       }
     };
 

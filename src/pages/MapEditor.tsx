@@ -856,6 +856,26 @@ const MapEditor: React.FC = () => {
     };
   }, []);
 
+  // Continuation complete event listener - save to DB after LineString continuation
+  useEffect(() => {
+    const handleContinuationComplete = () => {
+      console.log("Continuation complete, saving to DB");
+      saveMapState();
+    };
+
+    window.addEventListener(
+      "continuationComplete",
+      handleContinuationComplete as EventListener
+    );
+
+    return () => {
+      window.removeEventListener(
+        "continuationComplete",
+        handleContinuationComplete as EventListener
+      );
+    };
+  }, [saveMapState]);
+
   // Handle text feature selection for editing
   useEffect(() => {
     // Only handle editing when select tool is active and a text feature is selected
