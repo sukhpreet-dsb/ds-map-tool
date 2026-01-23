@@ -462,7 +462,9 @@ const MapEditor: React.FC = () => {
         return;
       }
 
-      const fileName = `map-export-${new Date().toISOString().split("T")[0]}`;
+      // Use current active job name as fileName
+      const currentProject = projects.find(p => p.id === currentProjectId);
+      const fileName = currentProject?.name || "map-export";
 
       // -------------------------------
       // GEOJSON DOWNLOAD
@@ -1176,6 +1178,7 @@ const MapEditor: React.FC = () => {
         onClose={() => setPdfDialogOpen(false)}
         onExport={handlePdfExport}
         isExporting={isExportingPdf}
+        jobName={projects.find(p => p.id === currentProjectId)?.name}
       />
 
       <DragBoxInstruction isActive={isDragBoxActive} />
