@@ -197,8 +197,8 @@ export const useSelectModify = ({
     window.addEventListener('keyup', handleKeyUp);
     map.on('singleclick', handleContinuationClick);
 
-    // Select event handler
-    newSelectInteraction.on('select', () => {
+    // Helper function to update panning and translate based on selection state
+    const updateSelectionState = () => {
       const allSelectedFeatures = newSelectInteraction.getFeatures().getArray();
 
       currentSelectedFeatureRef.current =
@@ -212,6 +212,13 @@ export const useSelectModify = ({
         dragPanRef.current?.setActive(true);
       }
 
+      return allSelectedFeatures;
+    };
+
+    // Select event handler (fired when user clicks to select/deselect)
+    newSelectInteraction.on('select', () => {
+      const allSelectedFeatures = updateSelectionState();
+
       onMultiSelectChange?.(allSelectedFeatures);
       onFeatureSelect(allSelectedFeatures[0] || null);
 
@@ -222,6 +229,17 @@ export const useSelectModify = ({
         }
       });
     });
+
+    // Listen to features collection changes to handle programmatic clears
+    // (e.g., Delete key, Cut operation, tool switches)
+    // This ensures panning is re-enabled even when clear() is called directly
+    const selectedFeatures = newSelectInteraction.getFeatures();
+
+    const handleFeaturesChange = () => {
+      updateSelectionState();
+    };
+
+    selectedFeatures.on('remove', handleFeaturesChange);
 
     // Set state to trigger re-render with interaction values
     setSelectInteraction(newSelectInteraction);
@@ -242,6 +260,12 @@ export const useSelectModify = ({
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
       map.un('singleclick', handleContinuationClick);
+
+      // Remove features collection listener
+      selectedFeatures.un('remove', handleFeaturesChange);
+
+      // Re-enable panning on cleanup to prevent it being left disabled
+      dragPanRef.current?.setActive(true);
 
       map.removeInteraction(newSelectInteraction);
       map.removeInteraction(newModifyInteraction);
