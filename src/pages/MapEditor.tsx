@@ -876,28 +876,46 @@ const MapEditor: React.FC = () => {
     };
   }, [saveMapState]);
 
+  // Track previous selected text feature for double-click-to-edit detection
+  const previousSelectedTextRef = useRef<Feature<Geometry> | null>(null);
+
   // Handle text feature selection for editing
+  // Only open edit dialog on double-click (clicking same text twice)
+  // Single click just selects for dragging
   useEffect(() => {
-    // Only handle editing when select tool is active and a text feature is selected
+    // Only handle when select tool is active and a text feature is selected
     if (
       activeTool === "select" &&
       selectedFeature &&
       selectedFeature.get("isText")
     ) {
-      const geometry = selectedFeature.getGeometry();
-      if (geometry && geometry.getType() === "Point") {
-        const point = geometry as any;
-        const coordinate = point.getCoordinates();
+      // Check if this is a "double-click" (clicking same text that's already selected)
+      const isSameTextClicked = previousSelectedTextRef.current === selectedFeature;
 
-        const currentScale = selectedFeature.get("textScale") || 1;
-        const currentRotation = selectedFeature.get("textRotation") || 0;
+      if (isSameTextClicked && !textDialogOpen) {
+        // Second click on same text - open edit dialog
+        const geometry = selectedFeature.getGeometry();
+        if (geometry && geometry.getType() === "Point") {
+          const point = geometry as any;
+          const coordinate = point.getCoordinates();
 
-        setEditingTextFeature(selectedFeature);
-        setEditingTextScale(currentScale);
-        setEditingTextRotation(currentRotation);
-        setPendingCoordinate(coordinate);
-        setTextDialogOpen(true);
+          const currentScale = selectedFeature.get("textScale") || 1;
+          const currentRotation = selectedFeature.get("textRotation") || 0;
+
+          setEditingTextFeature(selectedFeature);
+          setEditingTextScale(currentScale);
+          setEditingTextRotation(currentRotation);
+          setPendingCoordinate(coordinate);
+
+          // Clear selection styling before opening dialog
+          selectInteractionRef.current?.getFeatures().clear();
+
+          setTextDialogOpen(true);
+        }
       }
+
+      // Update previous reference for next click detection
+      previousSelectedTextRef.current = selectedFeature;
     } else if (
       activeTool !== "select" ||
       !selectedFeature ||
@@ -907,8 +925,12 @@ const MapEditor: React.FC = () => {
       setEditingTextFeature(null);
       setEditingTextScale(1);
       setEditingTextRotation(0);
+      // Clear previous text reference when deselected or different feature selected
+      if (!selectedFeature?.get("isText")) {
+        previousSelectedTextRef.current = null;
+      }
     }
-  }, [activeTool, selectedFeature]);
+  }, [activeTool, selectedFeature, textDialogOpen]);
 
   // Text dialog handlers
   const handleTextSubmit = (
@@ -967,6 +989,10 @@ const MapEditor: React.FC = () => {
         }
       }
     }
+
+    // Deselect feature (same as PropertiesPanel)
+    setSelectedFeature(null);
+    selectInteractionRef.current?.getFeatures().clear();
 
     setTextDialogOpen(false);
     setPendingCoordinate(null);
@@ -1168,7 +1194,6 @@ const MapEditor: React.FC = () => {
         initialFillColor={editingTextFeature?.get("textFillColor")}
         initialStrokeColor={editingTextFeature?.get("textStrokeColor")}
         isEditing={!!editingTextFeature}
-        selectInteraction={selectInteractionRef.current}
         editingTextFeature={editingTextFeature}
       />
 
