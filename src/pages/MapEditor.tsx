@@ -68,6 +68,7 @@ import { HelpModal } from "@/components/HelpModal";
 import { useToolStore } from "@/stores/useToolStore";
 import { useFolderStore } from "@/stores/useFolderStore";
 import { SeparateFeatures } from "@/components/SeparateFeatures";
+import { TogglingObject } from "@/components/TogglingObject";
 import { ToolCommand } from "@/components/ToolCommand";
 
 // Interface for properly serializable map data
@@ -1394,6 +1395,7 @@ const MapEditor: React.FC = () => {
         vectorSource={vectorSourceRef.current}
         onSaveMapState={saveMapState}
       />
+      <TogglingObject />
     </div>
   );
 };
