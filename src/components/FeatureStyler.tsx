@@ -48,13 +48,17 @@ export const getTextAlongLineStyle = (
   const opacity =
     customOpacity !== undefined ? customOpacity : legendType.style.opacity || 1;
 
+  // Check for custom strokeDash first, fallback to legend type dash
+  const customStrokeDash = feature.get("strokeDash") as number[] | undefined;
+  const lineDash = customStrokeDash ?? legendType.style.strokeDash;
+
   // Base line style from legend configuration
   styles.push(
     new Style({
       stroke: new Stroke({
         color: applyOpacityToColor(strokeColor, opacity),
         width: width,
-        lineDash: legendType.style.strokeDash,
+        lineDash: lineDash,
         lineCap: "butt",
       }),
       zIndex: 1, // Base line layer
@@ -360,12 +364,14 @@ export const getFeatureStyle = (
     const fillColor = feature.get("fillColor") || "#ffffff";
     const fillOpacity =
       feature.get("fillOpacity") !== undefined ? feature.get("fillOpacity") : 0;
+    const strokeDash = feature.get("strokeDash") as number[] | undefined;
     return createPolygonStyle(
       strokeColor,
       2,
       strokeOpacity,
       fillColor,
       fillOpacity,
+      strokeDash,
     );
   }
 
@@ -382,12 +388,14 @@ export const getFeatureStyle = (
     const fillColor = feature.get("fillColor") || "#ffffff";
     const fillOpacity =
       feature.get("fillOpacity") !== undefined ? feature.get("fillOpacity") : 0;
+    const strokeDash = feature.get("strokeDash") as number[] | undefined;
     return createPolygonStyle(
       strokeColor,
       2,
       strokeOpacity,
       fillColor,
       fillOpacity,
+      strokeDash,
     );
   }
 
@@ -406,12 +414,14 @@ export const getFeatureStyle = (
     const fillColor = feature.get("fillColor");
     const fillOpacity =
       feature.get("fillOpacity") !== undefined ? feature.get("fillOpacity") : 0;
+    const strokeDash = feature.get("strokeDash") as number[] | undefined;
     return createPolygonStyle(
       strokeColor,
       strokeWidth,
       strokeOpacity,
       fillColor,
       fillOpacity,
+      strokeDash,
     );
   }
 
@@ -461,12 +471,16 @@ export const getFeatureStyle = (
         ? customWidth
         : legendType.style.strokeWidth || 2;
 
+    // Check for custom strokeDash first, fallback to legend type dash
+    const customStrokeDash = feature.get("strokeDash") as number[] | undefined;
+    const lineDash = customStrokeDash ?? legendType.style.strokeDash ?? [5, 5];
+
     styles.push(
       new Style({
         stroke: new Stroke({
           color: applyOpacityToColor(strokeColor, opacity),
           width: width,
-          lineDash: legendType.style.strokeDash || [5, 5],
+          lineDash: lineDash,
           lineCap: "butt",
         }),
       }),
@@ -515,7 +529,8 @@ export const getFeatureStyle = (
       feature.get("lineWidth") !== undefined ? feature.get("lineWidth") : 4;
     const opacity =
       feature.get("opacity") !== undefined ? feature.get("opacity") : 1;
-    return createLineStyle(strokeColor, strokeWidth, opacity);
+    const strokeDash = feature.get("strokeDash") as number[] | undefined;
+    return createLineStyle(strokeColor, strokeWidth, opacity, strokeDash);
   }
 
   if (type === "LineString" || type === "MultiLineString") {
@@ -527,13 +542,14 @@ export const getFeatureStyle = (
       const customWidth = feature.get("lineWidth");
       const opacity =
         feature.get("opacity") !== undefined ? feature.get("opacity") : 1;
+      const strokeDash = feature.get("strokeDash") as number[] | undefined;
 
       // Use custom values if set, otherwise use defaults
       const color = customColor || DEFAULT_LINE_STYLE.color;
       const width =
         customWidth !== undefined ? customWidth : DEFAULT_LINE_STYLE.width;
 
-      const lineStyle = createLineStyle(color, width, opacity);
+      const lineStyle = createLineStyle(color, width, opacity, strokeDash);
       if (Array.isArray(lineStyle)) {
         styles.push(...lineStyle);
       } else {

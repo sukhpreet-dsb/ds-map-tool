@@ -1332,6 +1332,7 @@ const MapEditor: React.FC = () => {
         onSelectInteractionReady={handleSelectInteractionReady}
         onUndoInteractionReady={handleUndoInteractionReady}
         onMultiSelectChange={handleMultiSelectChange}
+        onSaveMapState={saveMapState}
       />
 
       <ToolManager

@@ -46,6 +46,7 @@ export interface MapInteractionsProps {
   onUndoInteractionReady?: (undoInteraction: UndoRedo | null) => void;
   onMultiSelectChange?: (features: Feature<Geometry>[]) => void;
   multiSelectMode?: MultiSelectMode;
+  onSaveMapState?: () => void;  // Callback to save state after style changes
 }
 
 export const MapInteractions: React.FC<MapInteractionsProps> = ({
@@ -57,6 +58,7 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
   onUndoInteractionReady,
   onMultiSelectChange,
   multiSelectMode = "shift-click",
+  onSaveMapState,
 }) => {
   const continuationDrawRef = useRef<Draw | null>(null);
   const isContinuingRef = useRef<boolean>(false);
@@ -133,6 +135,7 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
     map,
     vectorLayer,
     activeTool,
+    onSave: onSaveMapState,
   });
 
   // Handle offset tool - click to select feature and emit event for dialog
