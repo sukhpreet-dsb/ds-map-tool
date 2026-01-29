@@ -195,47 +195,27 @@ export const createDrawInteraction = (config: DrawInteractionConfig): Draw => {
 };
 
 /**
- * Create a point draw interaction
- * @param source - Vector source to draw on
- * @param onDrawEnd - Optional callback for when drawing ends
- * @returns Point draw interaction
+ * Ortho geometry function helper interface
  */
-export const createPointDraw = (
-  source: any,
-  onDrawEnd?: (event: any) => void
-): Draw => {
-  return createDrawInteraction({
-    ...DRAW_CONFIGS.point,
-    source,
-    onDrawEnd,
-  });
-};
+interface OrthoGeometryHelper {
+  geometryFunction: (coordinates: Coordinate[] | Coordinate[][], geometry?: SimpleGeometry) => SimpleGeometry;
+  getOrthoStates: () => boolean[];
+  reset: () => void;
+  recordFinalSegment: () => void;
+}
 
 /**
- * Create a polyline draw interaction with optional ortho mode support
+ * Create a reusable ortho geometry function with per-segment state tracking.
  * Supports toggling ortho mode during drawing - segments are constrained based on
  * the ortho state at the time each point was added (AutoCAD-like behavior).
- * @param source - Vector source to draw on
- * @param onDrawEnd - Optional callback for when drawing ends
- * @param color - Optional custom line color
- * @param width - Optional custom line width
- * @returns Polyline draw interaction
+ * @returns OrthoGeometryHelper with geometry function and state management
  */
-export const createPolylineDraw = (
-  source: any,
-  onDrawEnd?: (event: any) => void,
-  color?: string,
-  width?: number
-): Draw => {
-  const customColor = color || "#00ff00";
-  const customWidth = width || 4;
-
+const createOrthoGeometryFunction = (): OrthoGeometryHelper => {
   // Track ortho state for each segment during drawing
   // orthoStates[i] = true means segment from coord[i] to coord[i+1] should be ortho
   let orthoStates: boolean[] = [];
 
-  // Geometry function that dynamically checks ortho mode and tracks per-segment state
-  const orthoGeometryFunction = (
+  const geometryFunction = (
     coordinates: Coordinate[] | Coordinate[][],
     geometry?: SimpleGeometry
   ): SimpleGeometry => {
@@ -291,27 +271,76 @@ export const createPolylineDraw = (
     return geometry;
   };
 
+  return {
+    geometryFunction,
+    getOrthoStates: () => [...orthoStates],
+    reset: () => { orthoStates = []; },
+    recordFinalSegment: () => {
+      const currentOrthoEnabled = useToolStore.getState().orthoMode;
+      orthoStates.push(currentOrthoEnabled);
+    }
+  };
+};
+
+/**
+ * Create a point draw interaction
+ * @param source - Vector source to draw on
+ * @param onDrawEnd - Optional callback for when drawing ends
+ * @returns Point draw interaction
+ */
+export const createPointDraw = (
+  source: any,
+  onDrawEnd?: (event: any) => void
+): Draw => {
+  return createDrawInteraction({
+    ...DRAW_CONFIGS.point,
+    source,
+    onDrawEnd,
+  });
+};
+
+/**
+ * Create a polyline draw interaction with optional ortho mode support
+ * Supports toggling ortho mode during drawing - segments are constrained based on
+ * the ortho state at the time each point was added (AutoCAD-like behavior).
+ * @param source - Vector source to draw on
+ * @param onDrawEnd - Optional callback for when drawing ends
+ * @param color - Optional custom line color
+ * @param width - Optional custom line width
+ * @returns Polyline draw interaction
+ */
+export const createPolylineDraw = (
+  source: any,
+  onDrawEnd?: (event: any) => void,
+  color?: string,
+  width?: number
+): Draw => {
+  const customColor = color || "#00ff00";
+  const customWidth = width || 4;
+
+  // Create ortho geometry function helper
+  const orthoHelper = createOrthoGeometryFunction();
+
   // Wrap the onDrawEnd to apply final ortho constraint based on tracked states
   const handleDrawEnd = (event: any) => {
     const geometry = event.feature.getGeometry() as LineString;
     const coords = geometry.getCoordinates();
 
     // Record ortho state for the final segment if needed
-    const currentOrthoEnabled = useToolStore.getState().orthoMode;
+    const orthoStates = orthoHelper.getOrthoStates();
     if (orthoStates.length < coords.length - 1) {
-      orthoStates.push(currentOrthoEnabled);
+      orthoHelper.recordFinalSegment();
     }
 
     // Apply ortho constraint based on per-segment ortho states
-    const constrainedCoords = applyOrthoToMarkedCoordinates(coords, orthoStates);
+    const constrainedCoords = applyOrthoToMarkedCoordinates(coords, orthoHelper.getOrthoStates());
     geometry.setCoordinates(constrainedCoords);
 
     // Store ortho states in feature for potential later use
-    event.feature.set('orthoStates', [...orthoStates]);
+    event.feature.set('orthoStates', orthoHelper.getOrthoStates());
 
     // Reset tracking for next drawing
-    orthoStates = [];
-    // lastCoordCount = 0;
+    orthoHelper.reset();
 
     // Call the original onDrawEnd if provided
     if (onDrawEnd) {
@@ -328,14 +357,13 @@ export const createPolylineDraw = (
       lineColor: customColor,
       lineWidth: customWidth,
     },
-    geometryFunction: orthoGeometryFunction,
+    geometryFunction: orthoHelper.geometryFunction,
     onDrawEnd: handleDrawEnd,
   });
 
   // Reset ortho tracking when drawing is aborted
   drawInteraction.on('drawabort', () => {
-    orthoStates = [];
-    // lastCoordCount = 0;
+    orthoHelper.reset();
   });
 
   return drawInteraction;
@@ -372,7 +400,7 @@ export const createFreehandDraw = (
 };
 
 /**
- * Create an arrow draw interaction
+ * Create an arrow draw interaction with ortho mode support
  * @param source - Vector source to draw on
  * @param onDrawEnd - Optional callback for when drawing ends
  * @param color - Optional custom line color
@@ -388,7 +416,37 @@ export const createArrowDraw = (
   const customColor = color || "#000000";
   const customWidth = width || 4;
 
-  return createDrawInteraction({
+  // Create ortho geometry function helper
+  const orthoHelper = createOrthoGeometryFunction();
+
+  // Wrap the onDrawEnd to apply final ortho constraint
+  const handleDrawEnd = (event: any) => {
+    const geometry = event.feature.getGeometry() as LineString;
+    const coords = geometry.getCoordinates();
+
+    // Record ortho state for the final segment if needed
+    const orthoStates = orthoHelper.getOrthoStates();
+    if (orthoStates.length < coords.length - 1) {
+      orthoHelper.recordFinalSegment();
+    }
+
+    // Apply ortho constraint based on per-segment ortho states
+    const constrainedCoords = applyOrthoToMarkedCoordinates(coords, orthoHelper.getOrthoStates());
+    geometry.setCoordinates(constrainedCoords);
+
+    // Store ortho states in feature for potential later use
+    event.feature.set('orthoStates', orthoHelper.getOrthoStates());
+
+    // Reset tracking for next drawing
+    orthoHelper.reset();
+
+    // Call the original onDrawEnd if provided
+    if (onDrawEnd) {
+      onDrawEnd(event);
+    }
+  };
+
+  const drawInteraction = createDrawInteraction({
     ...DRAW_CONFIGS.arrow,
     source,
     style: createLineStyle(customColor, customWidth),
@@ -397,8 +455,16 @@ export const createArrowDraw = (
       lineColor: customColor,
       lineWidth: customWidth,
     },
-    onDrawEnd,
+    geometryFunction: orthoHelper.geometryFunction,
+    onDrawEnd: handleDrawEnd,
   });
+
+  // Reset ortho tracking when drawing is aborted
+  drawInteraction.on('drawabort', () => {
+    orthoHelper.reset();
+  });
+
+  return drawInteraction;
 };
 
 /**
@@ -507,7 +573,7 @@ export const createCircleDraw = (
 };
 
 /**
- * Create a legend line draw interaction
+ * Create a legend line draw interaction with ortho mode support
  * @param source - Vector source to draw on
  * @param style - Style for the legend line
  * @param legendTypeId - ID of the legend type
@@ -520,7 +586,37 @@ export const createLegendDraw = (
   legendTypeId: string,
   onDrawEnd?: (event: any) => void
 ): Draw => {
-  return createDrawInteraction({
+  // Create ortho geometry function helper
+  const orthoHelper = createOrthoGeometryFunction();
+
+  // Wrap the onDrawEnd to apply final ortho constraint
+  const handleDrawEnd = (event: any) => {
+    const geometry = event.feature.getGeometry() as LineString;
+    const coords = geometry.getCoordinates();
+
+    // Record ortho state for the final segment if needed
+    const orthoStates = orthoHelper.getOrthoStates();
+    if (orthoStates.length < coords.length - 1) {
+      orthoHelper.recordFinalSegment();
+    }
+
+    // Apply ortho constraint based on per-segment ortho states
+    const constrainedCoords = applyOrthoToMarkedCoordinates(coords, orthoHelper.getOrthoStates());
+    geometry.setCoordinates(constrainedCoords);
+
+    // Store ortho states in feature for potential later use
+    event.feature.set('orthoStates', orthoHelper.getOrthoStates());
+
+    // Reset tracking for next drawing
+    orthoHelper.reset();
+
+    // Call the original onDrawEnd if provided
+    if (onDrawEnd) {
+      onDrawEnd(event);
+    }
+  };
+
+  const drawInteraction = createDrawInteraction({
     type: "LineString",
     source,
     style,
@@ -528,18 +624,55 @@ export const createLegendDraw = (
       islegends: true,
       legendType: legendTypeId,
     },
-    onDrawEnd,
+    geometryFunction: orthoHelper.geometryFunction,
+    onDrawEnd: handleDrawEnd,
   });
+
+  // Reset ortho tracking when drawing is aborted
+  drawInteraction.on('drawabort', () => {
+    orthoHelper.reset();
+  });
+
+  return drawInteraction;
 };
 
+/**
+ * Create a measure draw interaction with ortho mode support
+ * @param source - Vector source to draw on
+ * @param style - Style for the measure line
+ * @param onDrawEnd - Optional callback for when drawing ends
+ * @returns Measure draw interaction
+ */
 export const createMeasureDraw = (
   source: any,
   style: Style | Style[],
   onDrawEnd?: (event: any) => void
 ): Draw => {
+  // Create ortho geometry function helper
+  const orthoHelper = createOrthoGeometryFunction();
+
   // Add measurement logic to the default handler
   const handleDrawEnd = (event: any) => {
-    const geometry = event.feature.getGeometry();
+    const geometry = event.feature.getGeometry() as LineString;
+    const coords = geometry.getCoordinates();
+
+    // Record ortho state for the final segment if needed
+    const orthoStates = orthoHelper.getOrthoStates();
+    if (orthoStates.length < coords.length - 1) {
+      orthoHelper.recordFinalSegment();
+    }
+
+    // Apply ortho constraint based on per-segment ortho states
+    const constrainedCoords = applyOrthoToMarkedCoordinates(coords, orthoHelper.getOrthoStates());
+    geometry.setCoordinates(constrainedCoords);
+
+    // Store ortho states in feature for potential later use
+    event.feature.set('orthoStates', orthoHelper.getOrthoStates());
+
+    // Reset tracking for next drawing
+    orthoHelper.reset();
+
+    // Calculate length AFTER ortho constraint is applied
     const length = getLength(geometry); // Returns length in meters
 
     // Store distance in feature properties for text display
@@ -552,15 +685,23 @@ export const createMeasureDraw = (
     }
   };
 
-  return createDrawInteraction({
+  const drawInteraction = createDrawInteraction({
     type: "LineString",
     source,
     style,
     featureProperties: {
       isMeasure: true,
     },
+    geometryFunction: orthoHelper.geometryFunction,
     onDrawEnd: handleDrawEnd,
   });
+
+  // Reset ortho tracking when drawing is aborted
+  drawInteraction.on('drawabort', () => {
+    orthoHelper.reset();
+  });
+
+  return drawInteraction;
 };
 
 /**
