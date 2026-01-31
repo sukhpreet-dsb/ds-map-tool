@@ -20,6 +20,7 @@ import { useLineStyleEditor } from "@/hooks/useLineStyleEditor";
 import { useShapeStyleEditor } from "@/hooks/useShapeStyleEditor";
 import { useIconPropertiesEditor } from "@/hooks/useIconPropertiesEditor";
 import { usePointOpacityEditor } from "@/hooks/usePointOpacityEditor";
+import { useTextStyleEditor } from "@/hooks/useTextStyleEditor";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -80,6 +81,12 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     properties.isEditing,
   );
   const iconProperties = useIconPropertiesEditor(
+    selectedFeature,
+    map,
+    selectInteraction ?? null,
+    properties.isEditing,
+  );
+  const textStyle = useTextStyleEditor(
     selectedFeature,
     map,
     selectInteraction ?? null,
@@ -149,6 +156,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     shapeStyle.commitShapeStyle();
     pointOpacity.commitOpacity();
     iconProperties.commitIconProperties();
+    textStyle.commitTextStyle();
   };
 
   const handleCancel = () => {
@@ -157,14 +165,10 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     shapeStyle.resetToOriginal();
     pointOpacity.resetToOriginal();
     iconProperties.resetToOriginal();
+    textStyle.resetToOriginal();
   };
 
   if (!selectedFeature) {
-    return null;
-  }
-
-  // Don't show properties panel for text features
-  if (selectedFeature.get("isText")) {
     return null;
   }
 
@@ -189,59 +193,69 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto overflow-x-hidden p-4">
-          <div className="space-y-2">
-            {!properties.isEditing ? (
-              <PropertyDisplayList
-                properties={properties.customProperties}
-                currentLabel={currentLabel}
-                lengthUnit={lengthUnit}
-                onLengthUnitChange={handleLengthUnitChange}
-              />
-            ) : (
-              <PropertyEditList
-                properties={properties.customProperties}
-                onUpdate={properties.updateProperty}
-                onDelete={properties.deleteProperty}
-                currentLabel={currentLabel}
-                onLabelSelect={handleLabelSelect}
-                lengthUnit={lengthUnit}
-                onLengthUnitChange={handleLengthUnitChange}
-              />
-            )}
-          </div>
-
-          {/* Line Style Controls */}
-          {lineStyle.supportsLineStyle && (
-            <LineStyleSection
-              lineStyle={lineStyle}
+          {/* For text features, show only Text Style section */}
+          {textStyle.supportsTextStyle ? (
+            <TextStyleSection
+              textStyle={textStyle}
               isEditing={properties.isEditing}
             />
-          )}
+          ) : (
+            <>
+              <div className="space-y-2">
+                {!properties.isEditing ? (
+                  <PropertyDisplayList
+                    properties={properties.customProperties}
+                    currentLabel={currentLabel}
+                    lengthUnit={lengthUnit}
+                    onLengthUnitChange={handleLengthUnitChange}
+                  />
+                ) : (
+                  <PropertyEditList
+                    properties={properties.customProperties}
+                    onUpdate={properties.updateProperty}
+                    onDelete={properties.deleteProperty}
+                    currentLabel={currentLabel}
+                    onLabelSelect={handleLabelSelect}
+                    lengthUnit={lengthUnit}
+                    onLengthUnitChange={handleLengthUnitChange}
+                  />
+                )}
+              </div>
 
-          {/* Shape Style Controls (Box and Circle) */}
-          {shapeStyle.supportsShapeStyle && (
-            <ShapeStyleSection
-              shapeStyle={shapeStyle}
-              isEditing={properties.isEditing}
-            />
-          )}
+              {/* Line Style Controls */}
+              {lineStyle.supportsLineStyle && (
+                <LineStyleSection
+                  lineStyle={lineStyle}
+                  isEditing={properties.isEditing}
+                />
+              )}
 
-          {/* Icon Style Controls (Google Earth icons) */}
-          {iconProperties.supportsIconProperties && (
-            <IconStyleSection
-              iconProperties={iconProperties}
-              isEditing={properties.isEditing}
-            />
-          )}
+              {/* Shape Style Controls (Box and Circle) */}
+              {shapeStyle.supportsShapeStyle && (
+                <ShapeStyleSection
+                  shapeStyle={shapeStyle}
+                  isEditing={properties.isEditing}
+                />
+              )}
 
-          {/* Point/Icon Opacity Controls (non-icon point features) */}
-          {pointOpacity.supportsPointOpacity &&
-            !iconProperties.supportsIconProperties && (
-              <PointOpacitySection
-                pointOpacity={pointOpacity}
-                isEditing={properties.isEditing}
-              />
-            )}
+              {/* Icon Style Controls (Google Earth icons) */}
+              {iconProperties.supportsIconProperties && (
+                <IconStyleSection
+                  iconProperties={iconProperties}
+                  isEditing={properties.isEditing}
+                />
+              )}
+
+              {/* Point/Icon Opacity Controls (non-icon point features) */}
+              {pointOpacity.supportsPointOpacity &&
+                !iconProperties.supportsIconProperties && (
+                  <PointOpacitySection
+                    pointOpacity={pointOpacity}
+                    isEditing={properties.isEditing}
+                  />
+                )}
+            </>
+          )}
         </div>
 
         {/* Footer */}
@@ -1567,6 +1581,397 @@ const IconStyleEditor: React.FC<IconStyleEditorProps> = ({
       <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
         <span>0°</span>
         <span>360°</span>
+      </div>
+    </div>
+  </div>
+);
+
+// Text Style Section
+interface TextStyleSectionProps {
+  textStyle: {
+    text: string;
+    textScale: number;
+    textRotation: number;
+    textOpacity: number;
+    textFillColor: string;
+    textStrokeColor: string;
+    label: string;
+    longitude: string;
+    latitude: string;
+    handleTextChange: (text: string) => void;
+    handleScaleChange: (scale: number) => void;
+    handleRotationChange: (rotation: number) => void;
+    handleOpacityChange: (opacity: number) => void;
+    handleFillColorChange: (color: string) => void;
+    handleStrokeColorChange: (color: string) => void;
+    handleLabelChange: (label: string) => void;
+    handleLongitudeChange: (lon: string) => void;
+    handleLatitudeChange: (lat: string) => void;
+  };
+  isEditing: boolean;
+}
+
+const TextStyleSection: React.FC<TextStyleSectionProps> = ({
+  textStyle,
+  isEditing,
+}) => {
+  return (
+    <div>
+      <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-3 uppercase tracking-wide">
+        Text Properties
+      </h4>
+
+      {!isEditing ? (
+        <TextStyleDisplay
+          text={textStyle.text}
+          textScale={textStyle.textScale}
+          textRotation={textStyle.textRotation}
+          textOpacity={textStyle.textOpacity}
+          textFillColor={textStyle.textFillColor}
+          textStrokeColor={textStyle.textStrokeColor}
+          label={textStyle.label}
+          longitude={textStyle.longitude}
+          latitude={textStyle.latitude}
+        />
+      ) : (
+        <TextStyleEditor textStyle={textStyle} />
+      )}
+    </div>
+  );
+};
+
+interface TextStyleDisplayProps {
+  text: string;
+  textScale: number;
+  textRotation: number;
+  textOpacity: number;
+  textFillColor: string;
+  textStrokeColor: string;
+  label: string;
+  longitude: string;
+  latitude: string;
+}
+
+const TextStyleDisplay: React.FC<TextStyleDisplayProps> = ({
+  text,
+  textScale,
+  textRotation,
+  textOpacity,
+  textFillColor,
+  textStrokeColor,
+  label,
+  longitude,
+  latitude,
+}) => (
+  <div className="space-y-2">
+    <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+      <span className="font-medium text-gray-700 dark:text-gray-300">Label:</span>
+      <span className="text-gray-600 dark:text-gray-400">{label}</span>
+    </div>
+    <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+      <span className="font-medium text-gray-700 dark:text-gray-300">Longitude:</span>
+      <span className="text-gray-600 dark:text-gray-400">{longitude}</span>
+    </div>
+    <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+      <span className="font-medium text-gray-700 dark:text-gray-300">Latitude:</span>
+      <span className="text-gray-600 dark:text-gray-400">{latitude}</span>
+    </div>
+    <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+      <span className="font-medium text-gray-700 dark:text-gray-300">Text:</span>
+      <span className="text-gray-600 dark:text-gray-400 truncate max-w-[150px]">
+        {text || <span className="italic text-gray-400">Empty</span>}
+      </span>
+    </div>
+    <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+      <span className="font-medium text-gray-700 dark:text-gray-300">Scale:</span>
+      <span className="text-gray-600 dark:text-gray-400">{textScale.toFixed(1)}x</span>
+    </div>
+    <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+      <span className="font-medium text-gray-700 dark:text-gray-300">Rotation:</span>
+      <span className="text-gray-600 dark:text-gray-400">{Math.round(textRotation)}°</span>
+    </div>
+    <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+      <span className="font-medium text-gray-700 dark:text-gray-300">Opacity:</span>
+      <span className="text-gray-600 dark:text-gray-400">{Math.round(textOpacity * 100)}%</span>
+    </div>
+    <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+      <span className="font-medium text-gray-700 dark:text-gray-300">Fill Color:</span>
+      <div className="flex items-center gap-2">
+        <div
+          className="w-6 h-6 rounded border border-gray-300 dark:border-gray-600"
+          style={{ backgroundColor: textFillColor }}
+        />
+        <span className="text-gray-600 dark:text-gray-400 font-mono text-xs">
+          {textFillColor.toUpperCase()}
+        </span>
+      </div>
+    </div>
+    <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+      <span className="font-medium text-gray-700 dark:text-gray-300">Stroke Color:</span>
+      <div className="flex items-center gap-2">
+        <div
+          className="w-6 h-6 rounded border border-gray-300 dark:border-gray-600"
+          style={{ backgroundColor: textStrokeColor }}
+        />
+        <span className="text-gray-600 dark:text-gray-400 font-mono text-xs">
+          {textStrokeColor.toUpperCase()}
+        </span>
+      </div>
+    </div>
+  </div>
+);
+
+interface TextStyleEditorProps {
+  textStyle: {
+    text: string;
+    textScale: number;
+    textRotation: number;
+    textOpacity: number;
+    textFillColor: string;
+    textStrokeColor: string;
+    label: string;
+    longitude: string;
+    latitude: string;
+    handleTextChange: (text: string) => void;
+    handleScaleChange: (scale: number) => void;
+    handleRotationChange: (rotation: number) => void;
+    handleOpacityChange: (opacity: number) => void;
+    handleFillColorChange: (color: string) => void;
+    handleStrokeColorChange: (color: string) => void;
+    handleLabelChange: (label: string) => void;
+    handleLongitudeChange: (lon: string) => void;
+    handleLatitudeChange: (lat: string) => void;
+  };
+}
+
+const TextStyleEditor: React.FC<TextStyleEditorProps> = ({ textStyle }) => (
+  <div className="space-y-4">
+    {/* Label Input */}
+    <div>
+      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        Label
+      </Label>
+      <Input
+        value={textStyle.label}
+        onChange={(e) => textStyle.handleLabelChange(e.target.value)}
+        placeholder="Text"
+        className="mt-1"
+      />
+    </div>
+
+    {/* Longitude Input */}
+    <div>
+      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        Longitude
+      </Label>
+      <Input
+        type="number"
+        step="any"
+        value={textStyle.longitude}
+        onChange={(e) => textStyle.handleLongitudeChange(e.target.value)}
+        placeholder="0.000000"
+        className="mt-1"
+      />
+    </div>
+
+    {/* Latitude Input */}
+    <div>
+      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        Latitude
+      </Label>
+      <Input
+        type="number"
+        step="any"
+        value={textStyle.latitude}
+        onChange={(e) => textStyle.handleLatitudeChange(e.target.value)}
+        placeholder="0.000000"
+        className="mt-1"
+      />
+    </div>
+
+    {/* Text Content Input */}
+    <div>
+      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        Text Content
+      </Label>
+      <Input
+        value={textStyle.text}
+        onChange={(e) => textStyle.handleTextChange(e.target.value)}
+        placeholder="Enter text..."
+        className="mt-1"
+      />
+    </div>
+
+    {/* Scale Slider */}
+    <div>
+      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        Scale: {textStyle.textScale.toFixed(1)}x
+      </Label>
+      <div className="flex items-center gap-3">
+        <Slider
+          value={[textStyle.textScale]}
+          onValueChange={(value) => textStyle.handleScaleChange(value[0])}
+          min={0.5}
+          max={3.0}
+          step={0.1}
+          className="flex-1"
+        />
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => textStyle.handleScaleChange(1)}
+          className="px-2 py-1 text-xs shrink-0"
+        >
+          Reset
+        </Button>
+      </div>
+      <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+        <span>0.5x</span>
+        <span>3.0x</span>
+      </div>
+    </div>
+
+    {/* Rotation Slider */}
+    <div>
+      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        Rotation: {Math.round(textStyle.textRotation)}°
+      </Label>
+      <div className="flex items-center gap-3">
+        <Slider
+          value={[textStyle.textRotation]}
+          onValueChange={(value) => textStyle.handleRotationChange(value[0])}
+          min={0}
+          max={360}
+          step={1}
+          className="flex-1"
+        />
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => textStyle.handleRotationChange(0)}
+          className="px-2 py-1 text-xs shrink-0"
+        >
+          Reset
+        </Button>
+      </div>
+      <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+        <span>0°</span>
+        <span>360°</span>
+      </div>
+    </div>
+
+    {/* Opacity Slider */}
+    <div>
+      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        Opacity: {Math.round(textStyle.textOpacity * 100)}%
+      </Label>
+      <div className="flex items-center gap-3">
+        <Slider
+          value={[textStyle.textOpacity]}
+          onValueChange={(value) => textStyle.handleOpacityChange(value[0])}
+          min={0}
+          max={1}
+          step={0.01}
+          className="flex-1"
+        />
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => textStyle.handleOpacityChange(1)}
+          className="px-2 py-1 text-xs shrink-0"
+        >
+          Reset
+        </Button>
+      </div>
+      <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+        <span>0%</span>
+        <span>100%</span>
+      </div>
+    </div>
+
+    {/* Fill Color Picker */}
+    <div>
+      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        Fill Color
+      </Label>
+      <div className="flex items-center gap-3">
+        <input
+          type="color"
+          value={textStyle.textFillColor}
+          onChange={(e) => textStyle.handleFillColorChange(e.target.value)}
+          className="w-12 h-10 rounded cursor-pointer border border-gray-300 dark:border-gray-600"
+        />
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="h-10 px-3">
+              Choose Color
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-48 p-1 bg-white rounded-sm shadow-lg z-10">
+            <DropdownMenuSeparator />
+            <DropdownMenuRadioGroup
+              value={textStyle.textFillColor}
+              onValueChange={(value) => textStyle.handleFillColorChange(value)}
+            >
+              {COLOR_OPTIONS.map((colorOption) => (
+                <DropdownMenuRadioItem
+                  key={colorOption.color}
+                  value={colorOption.color}
+                  className="flex items-center gap-2 p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 data-[state=checked]:bg-blue-50 dark:data-[state=checked]:bg-blue-900/20"
+                >
+                  <div
+                    className="w-4 h-4 rounded"
+                    style={{ backgroundColor: colorOption.color }}
+                  />
+                  <span>{colorOption.name}</span>
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </div>
+
+    {/* Stroke Color Picker */}
+    <div>
+      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        Stroke Color
+      </Label>
+      <div className="flex items-center gap-3">
+        <input
+          type="color"
+          value={textStyle.textStrokeColor}
+          onChange={(e) => textStyle.handleStrokeColorChange(e.target.value)}
+          className="w-12 h-10 rounded cursor-pointer border border-gray-300 dark:border-gray-600"
+        />
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="h-10 px-3">
+              Choose Color
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-48 p-1 bg-white rounded-sm shadow-lg z-10">
+            <DropdownMenuSeparator />
+            <DropdownMenuRadioGroup
+              value={textStyle.textStrokeColor}
+              onValueChange={(value) => textStyle.handleStrokeColorChange(value)}
+            >
+              {COLOR_OPTIONS.map((colorOption) => (
+                <DropdownMenuRadioItem
+                  key={colorOption.color}
+                  value={colorOption.color}
+                  className="flex items-center gap-2 p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 data-[state=checked]:bg-blue-50 dark:data-[state=checked]:bg-blue-900/20"
+                >
+                  <div
+                    className="w-4 h-4 rounded"
+                    style={{ backgroundColor: colorOption.color }}
+                  />
+                  <span>{colorOption.name}</span>
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   </div>

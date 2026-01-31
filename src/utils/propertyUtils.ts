@@ -121,6 +121,13 @@ const STYLE_PROPERTY_KEYS = [
   "textOffsetX",
   "textOffsetY",
   "iconUrl",
+  // Text properties
+  "text",
+  "textScale",
+  "textRotation",
+  "textOpacity",
+  "textFillColor",
+  "textStrokeColor",
 ] as const;
 
 /**
@@ -274,6 +281,13 @@ export const applyPropertiesToFeature = (
     "textOffsetX",
     "textOffsetY",
     "iconUrl",
+    // Text properties
+    "text",
+    "textScale",
+    "textRotation",
+    "textOpacity",
+    "textFillColor",
+    "textStrokeColor",
   ];
 
   const currentProperties = feature.getProperties();

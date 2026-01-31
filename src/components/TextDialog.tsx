@@ -107,16 +107,21 @@ export function TextDialog({
         setOriginalFillColor(DEFAULT_TEXT_STYLE.fillColor);
         setOriginalStrokeColor(DEFAULT_TEXT_STYLE.strokeColor);
       }
-      // Auto-focus input when dialog opens
-      if (inputRef.current) {
-        inputRef.current.focus();
-        // Select all text for editing
-        if (isEditing && initialText) {
-          inputRef.current.select();
-        }
-      }
     }
   }, [isOpen, isEditing, initialText, initialScale, initialRotation, initialOpacity, initialFillColor, initialStrokeColor]);
+
+  // Auto-focus input when entering edit mode for new text (after render)
+  useEffect(() => {
+    if (isOpen && isEditMode && !isEditing) {
+      // Use setTimeout to ensure input is rendered before focusing
+      const timer = setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+        }
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen, isEditMode, isEditing]);
 
   // Handle click outside to close and deselect
   useEffect(() => {
@@ -140,11 +145,11 @@ export function TextDialog({
     };
   }, [isOpen]);
 
-  // Live preview handlers for editing text features
+  // Live preview handlers - apply to feature for both new and existing text
   const handleTextChange = (newText: string) => {
     setText(newText);
-    // Apply live changes to feature if editing
-    if (isEditing && editingTextFeature) {
+    // Apply live changes to feature for preview
+    if (editingTextFeature) {
       editingTextFeature.set("text", newText);
       editingTextFeature.changed();
     }
@@ -152,8 +157,8 @@ export function TextDialog({
 
   const handleScaleChange = (newScale: number) => {
     setScale(newScale);
-    // Apply live changes to feature if editing
-    if (isEditing && editingTextFeature) {
+    // Apply live changes to feature for preview
+    if (editingTextFeature) {
       editingTextFeature.set("textScale", newScale);
       editingTextFeature.changed();
     }
@@ -161,8 +166,8 @@ export function TextDialog({
 
   const handleRotationChange = (newRotation: number) => {
     setRotation(newRotation);
-    // Apply live changes to feature if editing
-    if (isEditing && editingTextFeature) {
+    // Apply live changes to feature for preview
+    if (editingTextFeature) {
       editingTextFeature.set("textRotation", newRotation);
       editingTextFeature.changed();
     }
@@ -170,8 +175,8 @@ export function TextDialog({
 
   const handleOpacityChange = (newOpacity: number) => {
     setOpacity(newOpacity);
-    // Apply live changes to feature if editing
-    if (isEditing && editingTextFeature) {
+    // Apply live changes to feature for preview
+    if (editingTextFeature) {
       editingTextFeature.set("textOpacity", newOpacity);
       editingTextFeature.changed();
     }
@@ -179,8 +184,8 @@ export function TextDialog({
 
   const handleFillColorChange = (newColor: string) => {
     setFillColor(newColor);
-    // Apply live changes to feature if editing
-    if (isEditing && editingTextFeature) {
+    // Apply live changes to feature for preview
+    if (editingTextFeature) {
       editingTextFeature.set("textFillColor", newColor);
       editingTextFeature.changed();
     }
@@ -188,15 +193,15 @@ export function TextDialog({
 
   const handleStrokeColorChange = (newColor: string) => {
     setStrokeColor(newColor);
-    // Apply live changes to feature if editing
-    if (isEditing && editingTextFeature) {
+    // Apply live changes to feature for preview
+    if (editingTextFeature) {
       editingTextFeature.set("textStrokeColor", newColor);
       editingTextFeature.changed();
     }
   };
 
   const handleCancel = useCallback(() => {
-    // If editing, revert changes to feature
+    // If editing existing text, revert changes to feature
     if (isEditing && editingTextFeature) {
       editingTextFeature.set("text", originalText);
       editingTextFeature.set("textScale", originalScale);
@@ -206,6 +211,7 @@ export function TextDialog({
       editingTextFeature.set("textStrokeColor", originalStrokeColor);
       editingTextFeature.changed();
     }
+    // For new text, the temporary feature will be removed by onClose handler in MapEditor
     setIsEditMode(false);
     onClose();
   }, [isEditing, editingTextFeature, originalText, originalScale, originalRotation, originalOpacity, originalFillColor, originalStrokeColor, onClose]);
