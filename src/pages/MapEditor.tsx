@@ -62,6 +62,7 @@ import {
   createExportedGeoJSON,
   extractFolderStructureFromGeoJSON,
   parseKmlFolders,
+  assignUniquePlacemarkIds,
 } from "@/utils/kmlFolderUtils";
 import type { PdfExportConfig } from "@/types/pdf";
 import { HelpModal } from "@/components/HelpModal";
@@ -220,18 +221,23 @@ const MapEditor: React.FC = () => {
           try {
             console.log("kml : ", data);
 
-            // Step 0: Parse folder structure from KML
+            // Step 0: Pre-process KML to assign unique IDs to each Placemark
+            // OpenLayers merges Placemarks with same id, so we need unique IDs
+            const processedKml = assignUniquePlacemarkIds(data as string);
+
+            // Step 0.5: Parse folder structure from KML (use original to preserve hierarchy)
             const { folders: importedFolders, featureFolderMap } = parseKmlFolders(data as string);
             console.log("Parsed KML folders:", Object.keys(importedFolders).length, "folders found");
 
-            // Step 0.5: Parse standard KML styles (for Google Earth compatibility)
+            // Step 0.6: Parse standard KML styles (for Google Earth compatibility)
             const kmlStyleMap = parseKmlStyles(data as string);
             const placemarkStyles = parsePlacemarkStyles(data as string);
             console.log("Parsed KML styles:", kmlStyleMap.size, "styles found");
 
             // Step 1: Parse KML to OpenLayers Features with correct projections
+            // Use processed KML with unique IDs to prevent merging
             const kmlFeatures = new KML({ extractStyles: false }).readFeatures(
-              data,
+              processedKml,
               {
                 featureProjection: "EPSG:3857",
                 dataProjection: "EPSG:4326", // CRITICAL: KML is always in WGS84
@@ -293,18 +299,23 @@ const MapEditor: React.FC = () => {
               return;
             }
 
-            // Step 0: Parse folder structure from KML
+            // Step 0: Pre-process KML to assign unique IDs to each Placemark
+            // OpenLayers merges Placemarks with same id, so we need unique IDs
+            const processedKml = assignUniquePlacemarkIds(kmlText);
+
+            // Step 0.5: Parse folder structure from KML (use original to preserve hierarchy)
             const { folders: importedFolders, featureFolderMap } = parseKmlFolders(kmlText);
             console.log("Parsed KMZ folders:", Object.keys(importedFolders).length, "folders found");
 
-            // Step 0.5: Parse standard KML styles (for Google Earth compatibility)
+            // Step 0.6: Parse standard KML styles (for Google Earth compatibility)
             const kmlStyleMap = parseKmlStyles(kmlText);
             const placemarkStyles = parsePlacemarkStyles(kmlText);
             console.log("Parsed KMZ styles:", kmlStyleMap.size, "styles found");
 
             // Step 1: Parse KML to OpenLayers Features with correct projections
+            // Use processed KML with unique IDs to prevent merging
             const kmlFeatures = new KML({ extractStyles: false }).readFeatures(
-              kmlText,
+              processedKml,
               {
                 featureProjection: "EPSG:3857",
                 dataProjection: "EPSG:4326", // CRITICAL: KML is always in WGS84
