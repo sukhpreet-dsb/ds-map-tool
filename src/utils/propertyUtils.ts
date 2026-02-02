@@ -121,6 +121,7 @@ const STYLE_PROPERTY_KEYS = [
   "textOffsetX",
   "textOffsetY",
   "iconUrl",
+  "showLabel",
   // Text properties
   "text",
   "textScale",
@@ -282,6 +283,7 @@ export const applyPropertiesToFeature = (
     "textOffsetX",
     "textOffsetY",
     "iconUrl",
+    "showLabel",
     // Text properties
     "text",
     "textScale",

@@ -142,10 +142,11 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
               }),
             ];
 
-            // Add label text style if feature has a name/label
+            // Add label text style if feature has a name/label and showLabel is enabled
+            const showLabel = feature.get("showLabel") ?? true;
             const labelProperty = feature.get("label") || "name";
             const labelValue = feature.get(labelProperty);
-            if (labelValue) {
+            if (labelValue && showLabel) {
               // Calculate label scale factor (base scale * user label scale)
               const finalLabelScale = baseScaleFactor * labelScale;
               // Scale the offset proportionally with the icon
