@@ -297,6 +297,7 @@ export const createHoverStyle = (feature: Feature<Geometry>, resolution?: number
       const textContent = feature.get("text") || "Text";
       const textScale = feature.get("textScale") || 1;
       const textRotation = feature.get("textRotation") || 0;
+      const textAlign = feature.get("textAlign") || "center";
 
       // Apply resolution-based scaling when resolution is available
       let finalTextScale = textScale;
@@ -320,7 +321,7 @@ export const createHoverStyle = (feature: Feature<Geometry>, resolution?: number
             width: 4,
           }),
           padding: [4, 6, 4, 6],
-          textAlign: "center",
+          textAlign: textAlign,
           textBaseline: "middle",
         }),
         zIndex: 100,

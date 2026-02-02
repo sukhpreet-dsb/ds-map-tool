@@ -128,6 +128,7 @@ const STYLE_PROPERTY_KEYS = [
   "textOpacity",
   "textFillColor",
   "textStrokeColor",
+  "textAlign",
 ] as const;
 
 /**
@@ -288,6 +289,7 @@ export const applyPropertiesToFeature = (
     "textOpacity",
     "textFillColor",
     "textStrokeColor",
+    "textAlign",
   ];
 
   const currentProperties = feature.getProperties();

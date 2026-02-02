@@ -185,6 +185,7 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
           const textOpacity = feature.get("textOpacity") ?? 1;
           const textFillColor = feature.get("textFillColor") || "#000000";
           const textStrokeColor = feature.get("textStrokeColor") || "#ffffff";
+          const textAlign = feature.get("textAlign") || "center";
 
           // Hide text when toggled off
           if (isTextFeatureHidden(typedFeature, hiddenTypes)) {
@@ -224,7 +225,7 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
                 width: STYLE_DEFAULTS.TEXT_STROKE_WIDTH,
               }),
               padding: [4, 6, 4, 6],
-              textAlign: "center",
+              textAlign: textAlign,
               textBaseline: "middle",
             }),
             zIndex: STYLE_DEFAULTS.Z_INDEX_TEXT,

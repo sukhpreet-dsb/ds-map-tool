@@ -1599,6 +1599,7 @@ interface TextStyleSectionProps {
     textOpacity: number;
     textFillColor: string;
     textStrokeColor: string;
+    textAlign: TextAlign;
     longitude: string;
     latitude: string;
     handleTextChange: (text: string) => void;
@@ -1607,6 +1608,7 @@ interface TextStyleSectionProps {
     handleOpacityChange: (opacity: number) => void;
     handleFillColorChange: (color: string) => void;
     handleStrokeColorChange: (color: string) => void;
+    handleTextAlignChange: (align: TextAlign) => void;
     handleLongitudeChange: (lon: string) => void;
     handleLatitudeChange: (lat: string) => void;
   };
@@ -1743,6 +1745,8 @@ const TextStyleDisplay: React.FC<TextStyleDisplayProps> = ({
   </div>
 );
 
+type TextAlign = 'left' | 'center' | 'right';
+
 interface TextStyleEditorProps {
   textStyle: {
     text: string;
@@ -1751,6 +1755,7 @@ interface TextStyleEditorProps {
     textOpacity: number;
     textFillColor: string;
     textStrokeColor: string;
+    textAlign: TextAlign;
     longitude: string;
     latitude: string;
     handleTextChange: (text: string) => void;
@@ -1759,6 +1764,7 @@ interface TextStyleEditorProps {
     handleOpacityChange: (opacity: number) => void;
     handleFillColorChange: (color: string) => void;
     handleStrokeColorChange: (color: string) => void;
+    handleTextAlignChange: (align: TextAlign) => void;
     handleLongitudeChange: (lon: string) => void;
     handleLatitudeChange: (lat: string) => void;
   };
@@ -1804,6 +1810,26 @@ const TextStyleEditor: React.FC<TextStyleEditorProps> = ({ textStyle, onSave, on
         placeholder="Enter text... (Alt+Enter for new line)"
         className="mt-1 min-h-[60px]"
       />
+    </div>
+
+    {/* Text Align */}
+    <div>
+      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        Text Align
+      </Label>
+      <div className="flex gap-1 mt-1">
+        {(['left', 'center', 'right'] as const).map((align) => (
+          <Button
+            key={align}
+            variant={textStyle.textAlign === align ? "default" : "outline"}
+            size="sm"
+            onClick={() => textStyle.handleTextAlignChange(align)}
+            className="flex-1 capitalize"
+          >
+            {align}
+          </Button>
+        ))}
+      </div>
     </div>
 
     {/* Longitude Input */}
