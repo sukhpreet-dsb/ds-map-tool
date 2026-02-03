@@ -18,6 +18,7 @@ import {
   extendLineStringCoordinates,
 } from '@/utils/splitUtils';
 import { STYLE_DEFAULTS } from '@/constants/styleDefaults';
+import { useToolStore } from '@/stores/useToolStore';
 
 export type MultiSelectMode = 'shift-click' | 'always' | 'custom';
 
@@ -54,6 +55,8 @@ export const useSelectModify = ({
   const currentSelectedFeatureRef = useRef<Feature<Geometry> | null>(null);
   const isEKeyPressedRef = useRef<boolean>(false);
 
+  const { resolutionScalingEnabled } = useToolStore();
+
   useEffect(() => {
     if (!map || !vectorLayer) return;
 
@@ -63,7 +66,9 @@ export const useSelectModify = ({
       layers: [vectorLayer],
       filter: isSelectableFeature,
       hitTolerance: STYLE_DEFAULTS.HIT_TOLERANCE,
-      style: createSelectStyle,
+      style: (feature: Feature<Geometry>, resolution: number) => {
+        return createSelectStyle(feature, resolution, resolutionScalingEnabled);
+      },
     };
 
     if (multiSelectMode === 'always') {
@@ -276,7 +281,7 @@ export const useSelectModify = ({
       setModifyInteraction(null);
       setTranslateInteraction(null);
     };
-  }, [map, vectorLayer, onFeatureSelect, onMultiSelectChange, multiSelectMode]);
+  }, [map, vectorLayer, onFeatureSelect, onMultiSelectChange, multiSelectMode, resolutionScalingEnabled]);
 
   return {
     selectInteraction,

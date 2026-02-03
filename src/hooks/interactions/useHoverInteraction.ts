@@ -8,6 +8,7 @@ import type { Feature } from 'ol';
 import type { Geometry } from 'ol/geom';
 import { createHoverStyle } from '@/utils/styleUtils';
 import { STYLE_DEFAULTS } from '@/constants/styleDefaults';
+import { useToolStore } from '@/stores/useToolStore';
 
 interface UseHoverInteractionOptions {
   map: Map | null;
@@ -21,6 +22,7 @@ export const useHoverInteraction = ({
   selectInteraction,
 }: UseHoverInteractionOptions): void => {
   const hoverInteractionRef = useRef<Select | null>(null);
+  const { resolutionScalingEnabled } = useToolStore();
 
   useEffect(() => {
     if (!map || !vectorLayer) return;
@@ -35,7 +37,7 @@ export const useHoverInteraction = ({
         return !selectedFeatures.includes(feature as Feature<Geometry>);
       },
       style: (feature, resolution) => {
-        return createHoverStyle(feature as Feature<Geometry>, resolution);
+        return createHoverStyle(feature as Feature<Geometry>, resolution, resolutionScalingEnabled);
       },
       hitTolerance: STYLE_DEFAULTS.HIT_TOLERANCE,
     });
@@ -49,5 +51,5 @@ export const useHoverInteraction = ({
         hoverInteractionRef.current = null;
       }
     };
-  }, [map, vectorLayer, selectInteraction]);
+  }, [map, vectorLayer, selectInteraction, resolutionScalingEnabled]);
 };

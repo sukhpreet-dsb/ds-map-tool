@@ -17,6 +17,7 @@ interface ToolState {
   lineColor: string;
   lineWidth: number;
   orthoMode: boolean;
+  resolutionScalingEnabled: boolean;
 
   // Actions
   setActiveTool: (tool: string) => void;
@@ -29,6 +30,7 @@ interface ToolState {
   handleLegendSelect: (legend: LegendType) => void;
   handleIconSelect: (iconPath: string) => void;
   toggleOrthoMode: () => void;
+  toggleResolutionScaling: () => void;
   undo: () => void;
   redo: () => void;
 }
@@ -43,6 +45,7 @@ export const useToolStore = create<ToolState>((set, get) => ({
   lineColor: DEFAULT_LINE_COLOR,
   lineWidth: DEFAULT_LINE_WIDTH,
   orthoMode: false,
+  resolutionScalingEnabled: true,
 
   setActiveTool: (tool) =>
     set((state) => ({
@@ -66,6 +69,8 @@ export const useToolStore = create<ToolState>((set, get) => ({
     }),
 
   toggleOrthoMode: () => set((state) => ({ orthoMode: !state.orthoMode })),
+
+  toggleResolutionScaling: () => set((state) => ({ resolutionScalingEnabled: !state.resolutionScalingEnabled })),
 
   undo: () => get().undoRedoInteraction?.undo(),
   redo: () => get().undoRedoInteraction?.redo(),

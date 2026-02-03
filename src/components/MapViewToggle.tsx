@@ -1,6 +1,8 @@
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Card } from '@/components/ui/card';
-import { Map, Layers } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Map, Layers, Eye, EyeOff } from 'lucide-react';
+import { useToolStore } from '@/stores/useToolStore';
 
 export type MapViewType = 'osm' | 'satellite';
 
@@ -10,8 +12,11 @@ interface MapViewToggleProps {
 }
 
 export function MapViewToggle({ currentView, onViewChange }: MapViewToggleProps) {
+  const { resolutionScalingEnabled, toggleResolutionScaling } = useToolStore();
+
   return (
-    <Card className="absolute bottom-2 right-2 z-10 p-1 shadow-lg">
+    <>
+    <Card className="absolute bottom-2 right-2 z-10 p-1 shadow-lg flex items-center gap-1">
       <ToggleGroup
         type="single"
         value={currentView}
@@ -40,5 +45,15 @@ export function MapViewToggle({ currentView, onViewChange }: MapViewToggleProps)
         </ToggleGroupItem>
       </ToggleGroup>
     </Card>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={toggleResolutionScaling}
+        title={resolutionScalingEnabled ? "Disable resolution scaling" : "Enable resolution scaling"}
+        className={`absolute bottom-2 right-55 z-10 size-10 rounded-lg shadow-lg bg-white ${!resolutionScalingEnabled ? 'text-muted-foreground' : ''}`}
+      >
+        {!resolutionScalingEnabled ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+      </Button>
+    </>
   );
 }
