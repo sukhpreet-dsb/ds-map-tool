@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
+import { Checkbox } from "@/components/ui/checkbox";
 import { DEFAULT_LINE_STYLE } from "@/utils/featureTypeUtils";
 import {
   isProtectedProperty,
@@ -1280,12 +1281,14 @@ interface IconStyleSectionProps {
     textOffsetX: number;
     textOffsetY: number;
     rotation: number;
+    showLabel: boolean;
     handleOpacityChange: (opacity: number) => void;
     handleIconScaleChange: (scale: number) => void;
     handleLabelScaleChange: (scale: number) => void;
     handleTextOffsetXChange: (offset: number) => void;
     handleTextOffsetYChange: (offset: number) => void;
     handleRotationChange: (rotation: number) => void;
+    handleShowLabelChange: (show: boolean) => void;
   };
   isEditing: boolean;
 }
@@ -1308,6 +1311,7 @@ const IconStyleSection: React.FC<IconStyleSectionProps> = ({
           textOffsetX={iconProperties.textOffsetX}
           textOffsetY={iconProperties.textOffsetY}
           rotation={iconProperties.rotation}
+          showLabel={iconProperties.showLabel}
         />
       ) : (
         <IconStyleEditor iconProperties={iconProperties} />
@@ -1323,6 +1327,7 @@ interface IconStyleDisplayProps {
   textOffsetX: number;
   textOffsetY: number;
   rotation: number;
+  showLabel: boolean;
 }
 
 const IconStyleDisplay: React.FC<IconStyleDisplayProps> = ({
@@ -1332,6 +1337,7 @@ const IconStyleDisplay: React.FC<IconStyleDisplayProps> = ({
   textOffsetX,
   textOffsetY,
   rotation,
+  showLabel,
 }) => (
   <div className="space-y-2">
     <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
@@ -1348,6 +1354,14 @@ const IconStyleDisplay: React.FC<IconStyleDisplayProps> = ({
       </span>
       <span className="text-gray-600 dark:text-gray-400">
         {iconScale.toFixed(1)}x
+      </span>
+    </div>
+    <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+      <span className="font-medium text-gray-700 dark:text-gray-300">
+        Show Label:
+      </span>
+      <span className="text-gray-600 dark:text-gray-400">
+        {showLabel ? "On" : "Off"}
       </span>
     </div>
     <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
@@ -1389,12 +1403,14 @@ interface IconStyleEditorProps {
     textOffsetX: number;
     textOffsetY: number;
     rotation: number;
+    showLabel: boolean;
     handleOpacityChange: (opacity: number) => void;
     handleIconScaleChange: (scale: number) => void;
     handleLabelScaleChange: (scale: number) => void;
     handleTextOffsetXChange: (offset: number) => void;
     handleTextOffsetYChange: (offset: number) => void;
     handleRotationChange: (rotation: number) => void;
+    handleShowLabelChange: (show: boolean) => void;
   };
 }
 
@@ -1462,6 +1478,19 @@ const IconStyleEditor: React.FC<IconStyleEditorProps> = ({
         <span>0.1x</span>
         <span>5x</span>
       </div>
+    </div>
+
+    {/* Show Label Toggle */}
+    <div className="flex items-center justify-between py-2 px-3 rounded-lg bg-gray-50 dark:bg-slate-700/50">
+      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
+        Show Label
+      </Label>
+      <Checkbox
+        checked={iconProperties.showLabel}
+        onCheckedChange={(checked) =>
+          iconProperties.handleShowLabelChange(checked === true)
+        }
+      />
     </div>
 
     {/* Label Scale Slider */}
@@ -1599,6 +1628,7 @@ interface TextStyleSectionProps {
     textOpacity: number;
     textFillColor: string;
     textStrokeColor: string;
+    textAlign: TextAlign;
     longitude: string;
     latitude: string;
     handleTextChange: (text: string) => void;
@@ -1607,6 +1637,7 @@ interface TextStyleSectionProps {
     handleOpacityChange: (opacity: number) => void;
     handleFillColorChange: (color: string) => void;
     handleStrokeColorChange: (color: string) => void;
+    handleTextAlignChange: (align: TextAlign) => void;
     handleLongitudeChange: (lon: string) => void;
     handleLatitudeChange: (lat: string) => void;
   };
@@ -1743,6 +1774,8 @@ const TextStyleDisplay: React.FC<TextStyleDisplayProps> = ({
   </div>
 );
 
+type TextAlign = 'left' | 'center' | 'right';
+
 interface TextStyleEditorProps {
   textStyle: {
     text: string;
@@ -1751,6 +1784,7 @@ interface TextStyleEditorProps {
     textOpacity: number;
     textFillColor: string;
     textStrokeColor: string;
+    textAlign: TextAlign;
     longitude: string;
     latitude: string;
     handleTextChange: (text: string) => void;
@@ -1759,6 +1793,7 @@ interface TextStyleEditorProps {
     handleOpacityChange: (opacity: number) => void;
     handleFillColorChange: (color: string) => void;
     handleStrokeColorChange: (color: string) => void;
+    handleTextAlignChange: (align: TextAlign) => void;
     handleLongitudeChange: (lon: string) => void;
     handleLatitudeChange: (lat: string) => void;
   };
@@ -1806,6 +1841,26 @@ const TextStyleEditor: React.FC<TextStyleEditorProps> = ({ textStyle, onSave, on
       />
     </div>
 
+    {/* Text Align */}
+    <div>
+      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        Text Align
+      </Label>
+      <div className="flex gap-1 mt-1">
+        {(['left', 'center', 'right'] as const).map((align) => (
+          <Button
+            key={align}
+            variant={textStyle.textAlign === align ? "default" : "outline"}
+            size="sm"
+            onClick={() => textStyle.handleTextAlignChange(align)}
+            className="flex-1 capitalize"
+          >
+            {align}
+          </Button>
+        ))}
+      </div>
+    </div>
+
     {/* Longitude Input */}
     <div>
       <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -1847,7 +1902,7 @@ const TextStyleEditor: React.FC<TextStyleEditorProps> = ({ textStyle, onSave, on
         <Slider
           value={[textStyle.textScale]}
           onValueChange={(value) => textStyle.handleScaleChange(value[0])}
-          min={0.5}
+          min={0.1}
           max={3.0}
           step={0.1}
           className="flex-1"
@@ -1862,7 +1917,7 @@ const TextStyleEditor: React.FC<TextStyleEditorProps> = ({ textStyle, onSave, on
         </Button>
       </div>
       <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
-        <span>0.5x</span>
+        <span>0.1x</span>
         <span>3.0x</span>
       </div>
     </div>

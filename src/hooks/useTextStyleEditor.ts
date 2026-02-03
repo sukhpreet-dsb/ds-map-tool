@@ -6,6 +6,8 @@ import type { Select } from "ol/interaction";
 import { toLonLat, fromLonLat } from "ol/proj";
 import { DEFAULT_TEXT_STYLE } from "@/utils/featureTypeUtils";
 
+export type TextAlign = 'left' | 'center' | 'right';
+
 export interface UseTextStyleEditorReturn {
   // State
   text: string;
@@ -14,6 +16,7 @@ export interface UseTextStyleEditorReturn {
   textOpacity: number;
   textFillColor: string;
   textStrokeColor: string;
+  textAlign: TextAlign;
   longitude: string;
   latitude: string;
   supportsTextStyle: boolean;
@@ -26,6 +29,7 @@ export interface UseTextStyleEditorReturn {
   handleOpacityChange: (opacity: number) => void;
   handleFillColorChange: (color: string) => void;
   handleStrokeColorChange: (color: string) => void;
+  handleTextAlignChange: (align: TextAlign) => void;
   handleLongitudeChange: (lon: string) => void;
   handleLatitudeChange: (lat: string) => void;
   resetToOriginal: () => void;
@@ -49,6 +53,7 @@ export const useTextStyleEditor = (
   const [textStrokeColor, setTextStrokeColor] = useState<string>(
     DEFAULT_TEXT_STYLE.strokeColor
   );
+  const [textAlign, setTextAlign] = useState<TextAlign>("center");
   const [longitude, setLongitude] = useState<string>("");
   const [latitude, setLatitude] = useState<string>("");
 
@@ -63,6 +68,7 @@ export const useTextStyleEditor = (
   const [originalStrokeColor, setOriginalStrokeColor] = useState<string>(
     DEFAULT_TEXT_STYLE.strokeColor
   );
+  const [originalTextAlign, setOriginalTextAlign] = useState<TextAlign>("center");
   const [originalLongitude, setOriginalLongitude] = useState<string>("");
   const [originalLatitude, setOriginalLatitude] = useState<string>("");
 
@@ -85,6 +91,7 @@ export const useTextStyleEditor = (
         selectedFeature.get("textFillColor") || DEFAULT_TEXT_STYLE.fillColor;
       const strokeColor =
         selectedFeature.get("textStrokeColor") || DEFAULT_TEXT_STYLE.strokeColor;
+      const align = (selectedFeature.get("textAlign") as TextAlign) || "center";
 
       // Get coordinates from geometry
       const geometry = selectedFeature.getGeometry() as Point | undefined;
@@ -103,6 +110,7 @@ export const useTextStyleEditor = (
       setTextOpacity(opacity);
       setTextFillColor(fillColor);
       setTextStrokeColor(strokeColor);
+      setTextAlign(align);
       setLongitude(lon);
       setLatitude(lat);
 
@@ -112,6 +120,7 @@ export const useTextStyleEditor = (
       setOriginalOpacity(opacity);
       setOriginalFillColor(fillColor);
       setOriginalStrokeColor(strokeColor);
+      setOriginalTextAlign(align);
       setOriginalLongitude(lon);
       setOriginalLatitude(lat);
     } else {
@@ -121,6 +130,7 @@ export const useTextStyleEditor = (
       setTextOpacity(1);
       setTextFillColor(DEFAULT_TEXT_STYLE.fillColor);
       setTextStrokeColor(DEFAULT_TEXT_STYLE.strokeColor);
+      setTextAlign("center");
       setLongitude("");
       setLatitude("");
 
@@ -130,6 +140,7 @@ export const useTextStyleEditor = (
       setOriginalOpacity(1);
       setOriginalFillColor(DEFAULT_TEXT_STYLE.fillColor);
       setOriginalStrokeColor(DEFAULT_TEXT_STYLE.strokeColor);
+      setOriginalTextAlign("center");
       setOriginalLongitude("");
       setOriginalLatitude("");
     }
@@ -239,6 +250,19 @@ export const useTextStyleEditor = (
     [selectedFeature, map]
   );
 
+  // Handle text align change with live preview
+  const handleTextAlignChange = useCallback(
+    (align: TextAlign) => {
+      setTextAlign(align);
+      if (selectedFeature) {
+        selectedFeature.set("textAlign", align);
+        selectedFeature.changed();
+        map?.render();
+      }
+    },
+    [selectedFeature, map]
+  );
+
   // Handle longitude change
   const handleLongitudeChange = useCallback(
     (lon: string) => {
@@ -289,6 +313,7 @@ export const useTextStyleEditor = (
     setTextOpacity(originalOpacity);
     setTextFillColor(originalFillColor);
     setTextStrokeColor(originalStrokeColor);
+    setTextAlign(originalTextAlign);
     setLongitude(originalLongitude);
     setLatitude(originalLatitude);
 
@@ -299,6 +324,7 @@ export const useTextStyleEditor = (
       selectedFeature.set("textOpacity", originalOpacity);
       selectedFeature.set("textFillColor", originalFillColor);
       selectedFeature.set("textStrokeColor", originalStrokeColor);
+      selectedFeature.set("textAlign", originalTextAlign);
 
       // Reset coordinates
       const lonNum = parseFloat(originalLongitude);
@@ -323,6 +349,7 @@ export const useTextStyleEditor = (
     originalOpacity,
     originalFillColor,
     originalStrokeColor,
+    originalTextAlign,
     originalLongitude,
     originalLatitude,
   ]);
@@ -335,9 +362,10 @@ export const useTextStyleEditor = (
     setOriginalOpacity(textOpacity);
     setOriginalFillColor(textFillColor);
     setOriginalStrokeColor(textStrokeColor);
+    setOriginalTextAlign(textAlign);
     setOriginalLongitude(longitude);
     setOriginalLatitude(latitude);
-  }, [text, textScale, textRotation, textOpacity, textFillColor, textStrokeColor, longitude, latitude]);
+  }, [text, textScale, textRotation, textOpacity, textFillColor, textStrokeColor, textAlign, longitude, latitude]);
 
   return {
     text,
@@ -346,6 +374,7 @@ export const useTextStyleEditor = (
     textOpacity,
     textFillColor,
     textStrokeColor,
+    textAlign,
     longitude,
     latitude,
     supportsTextStyle,
@@ -356,6 +385,7 @@ export const useTextStyleEditor = (
     handleOpacityChange,
     handleFillColorChange,
     handleStrokeColorChange,
+    handleTextAlignChange,
     handleLongitudeChange,
     handleLatitudeChange,
     resetToOriginal,
