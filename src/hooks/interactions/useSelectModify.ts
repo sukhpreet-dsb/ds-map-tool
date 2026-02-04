@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Modify, Select, Translate, DragPan } from 'ol/interaction';
+import { Modify, Select, Translate, DragPan, Snap } from 'ol/interaction';
 import type { Draw } from 'ol/interaction';
 import { Collection } from 'ol';
 import { click, altKeyOnly, shiftKeyOnly, always } from 'ol/events/condition';
@@ -54,6 +54,7 @@ export const useSelectModify = ({
   const isContinuingRef = useRef<boolean>(false);
   const currentSelectedFeatureRef = useRef<Feature<Geometry> | null>(null);
   const isEKeyPressedRef = useRef<boolean>(false);
+  const continuationSnapRef = useRef<Snap | null>(null);
 
   const { resolutionScalingEnabled } = useToolStore();
 
@@ -114,6 +115,11 @@ export const useSelectModify = ({
 
     // Helper function to end continuation mode and trigger save
     const endContinuation = (shouldSave: boolean = false) => {
+      // Remove snap interaction first
+      if (continuationSnapRef.current) {
+        map.removeInteraction(continuationSnapRef.current);
+        continuationSnapRef.current = null;
+      }
       if (continuationDrawRef.current) {
         map.removeInteraction(continuationDrawRef.current);
         continuationDrawRef.current = null;
@@ -151,6 +157,16 @@ export const useSelectModify = ({
       });
 
       map.addInteraction(continuationDrawRef.current);
+
+      // Create and add snap interaction for continuation drawing
+      // Must be added AFTER draw interaction for proper event ordering
+      continuationSnapRef.current = new Snap({
+        source: vectorSource,
+        pixelTolerance: 15,
+        vertex: true,
+        edge: true,
+      });
+      map.addInteraction(continuationSnapRef.current);
     };
 
     // Track 'e' key state for continuation shortcut
@@ -258,6 +274,10 @@ export const useSelectModify = ({
     onReady?.(newSelectInteraction);
 
     return () => {
+      if (continuationSnapRef.current) {
+        map.removeInteraction(continuationSnapRef.current);
+        continuationSnapRef.current = null;
+      }
       if (continuationDrawRef.current) {
         map.removeInteraction(continuationDrawRef.current);
         continuationDrawRef.current = null;
