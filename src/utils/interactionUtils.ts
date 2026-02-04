@@ -954,7 +954,7 @@ export const createRevisionCloudDraw = (
     event.feature.set("isRevisionCloud", true);
     event.feature.set("strokeColor", customStrokeColor);
     event.feature.set("fillColor", customFillColor);
-    event.feature.set("fillOpacity", 1);
+    event.feature.set("fillOpacity", 0);
     event.feature.set("scallopRadius", radius);
 
     if (onDrawEnd) {
