@@ -1,7 +1,6 @@
 /**
  * Revision Cloud Utilities
- * Generates scalloped/wavy edge polygons from freehand paths
- * Similar to AutoCAD's Revision Cloud feature
+ * Generates AutoCAD-style revision clouds with uniform scalloped edges
  */
 
 import type { Coordinate } from "ol/coordinate";
@@ -9,11 +8,16 @@ import { Polygon } from "ol/geom";
 
 // Configuration constants
 export const REVISION_CLOUD_CONFIG = {
-  defaultScallopRadius: 50, // in map units (meters at equator for EPSG:3857)
-  minScallopRadius: 20,
-  maxScallopRadius: 200,
-  arcSegments: 8, // segments per scallop arc
+  defaultArcLength: 100, // chord length of each arc in map units (higher = bigger arcs)
+  minArcLength: 10,
+  maxArcLength: 100,
+  arcSegments: 8, // segments per arc for smoothness
+  bulgeRatio: 0.5, // how much the arc bulges outward (0.25 = subtle, 0.5 = semicircle)
   minPathPoints: 3,
+  // Legacy names for compatibility
+  defaultScallopRadius: 25,
+  minScallopRadius: 10,
+  maxScallopRadius: 100,
 };
 
 /**
@@ -47,7 +51,6 @@ const closePathIfNeeded = (coordinates: Coordinate[]): Coordinate[] => {
   const first = coordinates[0];
   const last = coordinates[coordinates.length - 1];
 
-  // Check if already closed (within tolerance)
   if (distance(first, last) < 1) {
     return coordinates;
   }
@@ -56,49 +59,70 @@ const closePathIfNeeded = (coordinates: Coordinate[]): Coordinate[] => {
 };
 
 /**
- * Resample path into uniform segment lengths
+ * Resample path to have exactly uniform segment lengths
  */
 export const resamplePath = (
   coordinates: Coordinate[],
-  targetSegmentLength: number
+  arcLength: number
 ): Coordinate[] => {
   if (coordinates.length < 2) return coordinates;
 
+  // Calculate total path length
+  let totalLength = 0;
+  for (let i = 1; i < coordinates.length; i++) {
+    totalLength += distance(coordinates[i - 1], coordinates[i]);
+  }
+
+  if (totalLength < arcLength) {
+    return coordinates;
+  }
+
+  // Calculate number of segments to create uniform distribution
+  const numSegments = Math.max(3, Math.round(totalLength / arcLength));
+  const actualSegmentLength = totalLength / numSegments;
+
   const result: Coordinate[] = [coordinates[0]];
-  let accumulatedLength = 0;
+  let targetDist = actualSegmentLength;
+  let accumulatedDist = 0;
+  let prevPoint = coordinates[0];
 
   for (let i = 1; i < coordinates.length; i++) {
-    const prev = result[result.length - 1];
-    const curr = coordinates[i];
-    const segDist = distance(prev, curr);
+    const currPoint = coordinates[i];
+    const segDist = distance(prevPoint, currPoint);
 
-    if (segDist === 0) continue;
+    if (segDist === 0) {
+      prevPoint = currPoint;
+      continue;
+    }
 
-    let remaining = segDist;
-    let currentPoint = prev;
+    let remainingInSegment = segDist;
+    let segmentStart = prevPoint;
 
-    while (accumulatedLength + remaining >= targetSegmentLength) {
-      const needed = targetSegmentLength - accumulatedLength;
-      const ratio = needed / remaining;
+    while (accumulatedDist + remainingInSegment >= targetDist) {
+      const needed = targetDist - accumulatedDist;
+      const ratio = needed / remainingInSegment;
 
       const newPoint: Coordinate = [
-        currentPoint[0] + ratio * (curr[0] - currentPoint[0]),
-        currentPoint[1] + ratio * (curr[1] - currentPoint[1]),
+        segmentStart[0] + ratio * (currPoint[0] - segmentStart[0]),
+        segmentStart[1] + ratio * (currPoint[1] - segmentStart[1]),
       ];
 
       result.push(newPoint);
-      remaining = remaining - needed;
-      currentPoint = newPoint;
-      accumulatedLength = 0;
+
+      remainingInSegment -= needed;
+      segmentStart = newPoint;
+      accumulatedDist = 0;
+      targetDist = actualSegmentLength;
     }
 
-    accumulatedLength += remaining;
+    accumulatedDist += remainingInSegment;
+    prevPoint = currPoint;
   }
 
-  // Add the final point if not too close to the last result point
+  // Ensure the path closes properly - add final point if needed
   const lastInput = coordinates[coordinates.length - 1];
   const lastResult = result[result.length - 1];
-  if (distance(lastInput, lastResult) > targetSegmentLength * 0.1) {
+  if (distance(lastInput, lastResult) > 1) {
     result.push(lastInput);
   }
 
@@ -106,54 +130,48 @@ export const resamplePath = (
 };
 
 /**
- * Generate a single scallop arc between two points
+ * Generate a single arc between two points using quadratic bezier approximation
+ * This creates smooth, consistent arcs like AutoCAD revision clouds
  */
 export const generateScallopArc = (
   p1: Coordinate,
   p2: Coordinate,
-  direction: number,
+  bulgeDirection: number,
+  bulgeRatio: number = REVISION_CLOUD_CONFIG.bulgeRatio,
   segments: number = REVISION_CLOUD_CONFIG.arcSegments
 ): Coordinate[] => {
-  const points: Coordinate[] = [];
-
   const dx = p2[0] - p1[0];
   const dy = p2[1] - p1[1];
   const chordLength = Math.sqrt(dx * dx + dy * dy);
 
-  if (chordLength < 1) return [p1, p2];
+  if (chordLength < 0.5) return [p1, p2];
 
-  // Calculate arc parameters
-  // Radius is half the chord length for a semicircle
-  const radius = chordLength / 2;
+  // Midpoint of chord
+  const midX = (p1[0] + p2[0]) / 2;
+  const midY = (p1[1] + p2[1]) / 2;
 
-  // Midpoint (arc center for semicircle)
-  const centerX = (p1[0] + p2[0]) / 2;
-  const centerY = (p1[1] + p2[1]) / 2;
+  // Perpendicular unit vector
+  const perpX = -dy / chordLength;
+  const perpY = dx / chordLength;
 
-  // Start and end angles
-  const startAngle = Math.atan2(p1[1] - centerY, p1[0] - centerX);
-  const endAngle = Math.atan2(p2[1] - centerY, p2[0] - centerX);
+  // Bulge height - consistent for all arcs
+  const bulgeHeight = chordLength * bulgeRatio;
 
-  // Determine sweep direction
-  let angleDiff = endAngle - startAngle;
+  // Control point for quadratic bezier (apex of arc)
+  const controlX = midX + bulgeDirection * bulgeHeight * perpX;
+  const controlY = midY + bulgeDirection * bulgeHeight * perpY;
 
-  // Normalize angle difference based on bulge direction
-  if (direction > 0) {
-    // Bulge outward (larger arc)
-    if (angleDiff > 0) angleDiff -= 2 * Math.PI;
-  } else {
-    // Bulge inward (smaller arc)
-    if (angleDiff < 0) angleDiff += 2 * Math.PI;
-  }
-
-  // Generate arc points
+  // Generate arc using quadratic bezier curve
+  const points: Coordinate[] = [];
   for (let i = 0; i <= segments; i++) {
     const t = i / segments;
-    const angle = startAngle + t * angleDiff;
-    points.push([
-      centerX + radius * Math.cos(angle),
-      centerY + radius * Math.sin(angle),
-    ]);
+    const mt = 1 - t;
+
+    // Quadratic bezier: B(t) = (1-t)²P0 + 2(1-t)tP1 + t²P2
+    const x = mt * mt * p1[0] + 2 * mt * t * controlX + t * t * p2[0];
+    const y = mt * mt * p1[1] + 2 * mt * t * controlY + t * t * p2[1];
+
+    points.push([x, y]);
   }
 
   return points;
@@ -164,7 +182,7 @@ export const generateScallopArc = (
  */
 export const generateRevisionCloudCoordinates = (
   inputCoordinates: Coordinate[],
-  scallopRadius: number = REVISION_CLOUD_CONFIG.defaultScallopRadius
+  arcLength: number = REVISION_CLOUD_CONFIG.defaultArcLength
 ): Coordinate[] => {
   if (inputCoordinates.length < REVISION_CLOUD_CONFIG.minPathPoints) {
     return inputCoordinates;
@@ -173,18 +191,17 @@ export const generateRevisionCloudCoordinates = (
   // Step 1: Close the path
   const closedPath = closePathIfNeeded(inputCoordinates);
 
-  // Step 2: Resample to uniform segments
-  const targetSegmentLength = scallopRadius * 2;
-  const resampledPath = resamplePath(closedPath, targetSegmentLength);
+  // Step 2: Resample to uniform arc lengths
+  const resampledPath = resamplePath(closedPath, arcLength);
 
   if (resampledPath.length < 3) {
     return closedPath;
   }
 
-  // Step 3: Determine winding direction for consistent scallop bulge
-  // Scallops should bulge outward from the polygon center
-  // const clockwise = isClockwise(resampledPath);
-  const bulgeDirection = 1;
+  // Step 3: Determine winding direction - scallops should bulge OUTWARD
+  const clockwise = isClockwise(resampledPath);
+  // For clockwise paths, bulge left (-1); for counter-clockwise, bulge right (+1)
+  const bulgeDirection = clockwise ? 1 : -1;
 
   // Step 4: Generate scallops
   const cloudCoordinates: Coordinate[] = [];
@@ -195,7 +212,7 @@ export const generateRevisionCloudCoordinates = (
 
     const arcPoints = generateScallopArc(p1, p2, bulgeDirection);
 
-    // Add all arc points except the last (to avoid duplicates)
+    // Add all arc points except the last (to avoid duplicates at joints)
     if (i < resampledPath.length - 2) {
       cloudCoordinates.push(...arcPoints.slice(0, -1));
     } else {
@@ -219,26 +236,25 @@ export const generateRevisionCloudCoordinates = (
  */
 export const createRevisionCloudPolygon = (
   inputCoordinates: Coordinate[],
-  scallopRadius?: number
+  arcLength?: number
 ): Polygon => {
   const cloudCoords = generateRevisionCloudCoordinates(
     inputCoordinates,
-    scallopRadius
+    arcLength
   );
   return new Polygon([cloudCoords]);
 };
 
 /**
- * Generate preview during drawing (simplified for performance)
+ * Generate preview during drawing
  */
 export const generateRevisionCloudPreview = (
   coordinates: Coordinate[],
-  scallopRadius?: number
+  arcLength?: number
 ): Coordinate[] => {
   if (coordinates.length < 3) {
     return coordinates;
   }
 
-  // Use same algorithm for preview - it's fast enough
-  return generateRevisionCloudCoordinates(coordinates, scallopRadius);
+  return generateRevisionCloudCoordinates(coordinates, arcLength);
 };
