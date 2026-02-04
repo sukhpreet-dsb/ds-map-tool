@@ -115,10 +115,25 @@ const setupDrawKeyboardHandlers = (draw: Draw): void => {
       evt.stopImmediatePropagation();
       draw.removeLastPoint();
     }
-    // Check if Escape was pressed to finish drawing
+    // Check if Escape was pressed to finish or abort drawing
     else if (evt.key === 'Escape') {
       evt.preventDefault();
       evt.stopImmediatePropagation();
+
+      // For LineString drawings, check if we have enough points for a valid line
+      // If only 1 point has been clicked (2 coords including cursor), abort instead of finish
+      const sketchFeature = (draw as any).sketchFeature_;
+      if (sketchFeature) {
+        const geometry = sketchFeature.getGeometry();
+        if (geometry && geometry.getType() === 'LineString') {
+          const coords = geometry.getCoordinates();
+          // coords includes the cursor position, so 2 coords = 1 clicked point
+          if (coords.length <= 2) {
+            draw.abortDrawing();
+            return;
+          }
+        }
+      }
       draw.finishDrawing();
     }
   };
