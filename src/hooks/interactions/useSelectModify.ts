@@ -19,7 +19,6 @@ import {
   extendLineStringCoordinates,
 } from '@/utils/splitUtils';
 import { STYLE_DEFAULTS } from '@/constants/styleDefaults';
-import { useToolStore } from '@/stores/useToolStore';
 
 export type MultiSelectMode = 'shift-click' | 'always' | 'custom';
 
