@@ -277,12 +277,19 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
         );
         break;
 
-      case "icons":
-        // Always open picker when icons tool is activated from toolbar
-        const iconPickerEvent = new CustomEvent('iconPickerOpen');
-        window.dispatchEvent(iconPickerEvent);
+      case "icons": {
+        // Only open picker when not resuming from a drawing pause
+        const { isResumingDrawing } = useToolStore.getState();
+        if (!isResumingDrawing) {
+          const iconPickerEvent = new CustomEvent('iconPickerOpen');
+          window.dispatchEvent(iconPickerEvent);
+        }
+        // Clear the resuming flag after use
+        if (isResumingDrawing) {
+          useToolStore.setState({ isResumingDrawing: false });
+        }
 
-        // If an icon is already selected, also register the click handler
+        // If an icon is already selected, register the click handler
         if (selectedIconPath) {
           registerClickHandler(
             map,
@@ -307,6 +314,7 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
           );
         }
         break;
+      }
 
       case "measure":
         // Use the measure legend configuration

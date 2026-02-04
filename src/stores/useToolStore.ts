@@ -41,6 +41,7 @@ interface ToolState {
   pauseDrawing: (tool: string) => void;
   resumeDrawing: () => void;
   setIsNewlyCreatedFeature: (isNew: boolean) => void;
+  isResumingDrawing: boolean;
 }
 
 export const useToolStore = create<ToolState>((set, get) => ({
@@ -57,6 +58,7 @@ export const useToolStore = create<ToolState>((set, get) => ({
   isDrawingPaused: false,
   pausedTool: null,
   isNewlyCreatedFeature: false,
+  isResumingDrawing: false,
 
   setActiveTool: (tool) =>
     set((state) => ({
@@ -65,6 +67,7 @@ export const useToolStore = create<ToolState>((set, get) => ({
       // Clear pause state when manually switching tools
       isDrawingPaused: false,
       pausedTool: null,
+      isResumingDrawing: false,
     })),
 
   setSelectedLegend: (legend) => set({ selectedLegend: legend }),
@@ -102,6 +105,7 @@ export const useToolStore = create<ToolState>((set, get) => ({
       activeTool: state.pausedTool || 'select',
       pausedTool: null,
       isNewlyCreatedFeature: false,
+      isResumingDrawing: true,
     })),
 
   setIsNewlyCreatedFeature: (isNew) => set({ isNewlyCreatedFeature: isNew }),
