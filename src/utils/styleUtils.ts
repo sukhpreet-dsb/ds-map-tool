@@ -5,6 +5,13 @@ import { Feature } from "ol";
 import type { Geometry } from "ol/geom";
 import { Point, LineString, MultiLineString } from "ol/geom";
 import { applyOpacityToColor } from "./colorUtils";
+import {
+  calculateIconScale,
+  calculateTextScale,
+  calculateIconHighlightRadius,
+  calculatePointRadius,
+  RESOLUTION_SCALE_DEFAULTS,
+} from "./resolutionScaleUtils";
 
 /**
  * Basic style configuration interface
@@ -252,9 +259,10 @@ const createVertexStylesForGeometry = (
  * Applies a bright outline to indicate hover state
  * @param feature - The feature to create hover style for
  * @param resolution - Optional map resolution for resolution-based scaling
+ * @param resolutionScalingEnabled - Whether resolution-based scaling is enabled (default: true)
  * @returns OpenLayers Style object or array of styles
  */
-export const createHoverStyle = (feature: Feature<Geometry>, resolution?: number): Style | Style[] => {
+export const createHoverStyle = (feature: Feature<Geometry>, resolution?: number, resolutionScalingEnabled: boolean = true): Style | Style[] => {
   const geometry = feature.getGeometry();
   if (!geometry) return new Style();
 
@@ -279,17 +287,13 @@ export const createHoverStyle = (feature: Feature<Geometry>, resolution?: number
       const opacity = feature.get("opacity") !== undefined ? feature.get("opacity") : 1;
       const iconRotation = feature.get("iconRotation") ?? 0;
 
-      // Apply resolution-based scaling (same as MapInstance.tsx)
+      // Apply resolution-based scaling (same as MapInstance.tsx) if enabled
+      const iconWidth = feature.get("iconWidth") || RESOLUTION_SCALE_DEFAULTS.DEFAULT_ICON_WIDTH;
       let finalIconScale = userIconScale;
       let highlightRadius = 10; // Base highlight circle radius
-      if (resolution) {
-        const desiredPxSize = 16;
-        const referenceResolution = 1.0;
-        const iconWidth = feature.get("iconWidth") || 32;
-        const baseScaleFactor = (desiredPxSize / iconWidth) * (referenceResolution / resolution);
-        finalIconScale = baseScaleFactor * userIconScale;
-        // Scale the highlight circle proportionally
-        highlightRadius = Math.max(10, 16 * baseScaleFactor * userIconScale);
+      if (resolution && resolutionScalingEnabled) {
+        finalIconScale = calculateIconScale(resolution, iconWidth, userIconScale);
+        highlightRadius = calculateIconHighlightRadius(resolution, iconWidth, userIconScale);
       }
 
       return [
@@ -325,14 +329,10 @@ export const createHoverStyle = (feature: Feature<Geometry>, resolution?: number
       const textRotation = feature.get("textRotation") || 0;
       const textAlign = feature.get("textAlign") || "center";
 
-      // Apply resolution-based scaling when resolution is available
+      // Apply resolution-based scaling when resolution is available and enabled
       let finalTextScale = textScale;
-      if (resolution) {
-        const desiredPxSize = 16;
-        const referenceResolution = 1.0;
-        const TEXT_FONT_SIZE = 14;
-        const baseScaleFactor = (desiredPxSize / TEXT_FONT_SIZE) * (referenceResolution / resolution);
-        finalTextScale = baseScaleFactor * textScale;
+      if (resolution && resolutionScalingEnabled) {
+        finalTextScale = calculateTextScale(resolution, RESOLUTION_SCALE_DEFAULTS.TEXT_FONT_SIZE, textScale);
       }
 
       return new Style({
@@ -378,19 +378,10 @@ export const createHoverStyle = (feature: Feature<Geometry>, resolution?: number
   }
 
   // For LineString, MultiLineString, GeometryCollection (most common)
-  const styles: Style[] = [
-    new Style({
-      stroke: hoverStroke,
-    }),
-  ];
-
-  // Add vertex highlighting for LineStrings and MultiLineStrings
-  if (geometryType === "LineString" || geometryType === "MultiLineString") {
-    const vertexStyles = createVertexStylesForGeometry(geometry);
-    styles.push(...vertexStyles);
-  }
-
-  return styles;
+  // Only show stroke highlight on hover - vertices are shown only on selection
+  return new Style({
+    stroke: hoverStroke,
+  });
 };
 
 /**
@@ -399,9 +390,10 @@ export const createHoverStyle = (feature: Feature<Geometry>, resolution?: number
  * Includes vertex highlighting for LineStrings
  * @param feature - The feature to create selection style for
  * @param resolution - Optional map resolution for resolution-based scaling
+ * @param resolutionScalingEnabled - Whether resolution-based scaling is enabled (default: true)
  * @returns OpenLayers Style object or array of styles
  */
-export const createSelectStyle = (feature: Feature<Geometry>, resolution?: number): Style | Style[] => {
+export const createSelectStyle = (feature: Feature<Geometry>, resolution?: number, resolutionScalingEnabled: boolean = true): Style | Style[] => {
   const geometry = feature.getGeometry();
   if (!geometry) return new Style();
 
@@ -425,17 +417,13 @@ export const createSelectStyle = (feature: Feature<Geometry>, resolution?: numbe
       const opacity = feature.get("opacity") !== undefined ? feature.get("opacity") : 1;
       const iconRotation = feature.get("iconRotation") ?? 0;
 
-      // Apply resolution-based scaling (same as MapInstance.tsx)
+      // Apply resolution-based scaling (same as MapInstance.tsx) if enabled
+      const iconWidth = feature.get("iconWidth") || RESOLUTION_SCALE_DEFAULTS.DEFAULT_ICON_WIDTH;
       let finalIconScale = userIconScale;
       let highlightRadius = 10; // Base highlight circle radius
-      if (resolution) {
-        const desiredPxSize = 16;
-        const referenceResolution = 1.0;
-        const iconWidth = feature.get("iconWidth") || 32;
-        const baseScaleFactor = (desiredPxSize / iconWidth) * (referenceResolution / resolution);
-        finalIconScale = baseScaleFactor * userIconScale;
-        // Scale the highlight circle proportionally
-        highlightRadius = Math.max(10, 16 * baseScaleFactor * userIconScale);
+      if (resolution && resolutionScalingEnabled) {
+        finalIconScale = calculateIconScale(resolution, iconWidth, userIconScale);
+        highlightRadius = calculateIconHighlightRadius(resolution, iconWidth, userIconScale);
       }
 
       return [
@@ -471,14 +459,10 @@ export const createSelectStyle = (feature: Feature<Geometry>, resolution?: numbe
       const textRotation = feature.get("textRotation") || 0;
       const textAlign = feature.get("textAlign") || "center";
 
-      // Apply resolution-based scaling when resolution is available
+      // Apply resolution-based scaling when resolution is available and enabled
       let finalTextScale = textScale;
-      if (resolution) {
-        const desiredPxSize = 16;
-        const referenceResolution = 1.0;
-        const TEXT_FONT_SIZE = 14;
-        const baseScaleFactor = (desiredPxSize / TEXT_FONT_SIZE) * (referenceResolution / resolution);
-        finalTextScale = baseScaleFactor * textScale;
+      if (resolution && resolutionScalingEnabled) {
+        finalTextScale = calculateTextScale(resolution, RESOLUTION_SCALE_DEFAULTS.TEXT_FONT_SIZE, textScale);
       }
 
       return new Style({
@@ -500,14 +484,8 @@ export const createSelectStyle = (feature: Feature<Geometry>, resolution?: numbe
       });
     }
 
-    // Regular point - apply resolution-based scaling for CircleStyle
-    let pointRadius = 9; // Base radius
-    if (resolution) {
-      const desiredPxSize = 16;
-      const referenceResolution = 1.0;
-      const baseScaleFactor = (desiredPxSize / 16) * (referenceResolution / resolution);
-      pointRadius = Math.max(6, 9 * baseScaleFactor);
-    }
+    // Regular point - apply resolution-based scaling for CircleStyle if enabled
+    const pointRadius = (resolution && resolutionScalingEnabled) ? calculatePointRadius(resolution) : 9;
 
     return new Style({
       image: new CircleStyle({

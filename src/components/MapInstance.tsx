@@ -10,11 +10,19 @@ import { defaults as defaultControls } from "ol/control";
 import { getFeatureStyle } from "./FeatureStyler";
 import { useHiddenFeatures } from "@/hooks/useToggleObjects";
 import { useHiddenFeaturesStore } from "@/stores/useHiddenFeaturesStore";
+import { useToolStore } from "@/stores/useToolStore";
 import {
   isFeatureHidden,
   isTextFeatureHidden,
 } from "@/utils/features/visibilityUtils";
 import { STYLE_DEFAULTS } from "@/constants/styleDefaults";
+import {
+  calculateIconScale,
+  calculateTextScale,
+  calculateStrokeScale,
+  shouldApplyResolutionScaling,
+  RESOLUTION_SCALE_DEFAULTS,
+} from "@/utils/resolutionScaleUtils";
 import type { Geometry } from "ol/geom";
 
 export interface MapInstanceProps {
@@ -37,6 +45,7 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const { hiddenTypes } = useHiddenFeatures();
   const { hiddenFeatureIds } = useHiddenFeaturesStore();
+  const { resolutionScalingEnabled } = useToolStore();
 
   useEffect(() => {
     if (!mapContainerRef.current) return;
@@ -112,8 +121,6 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
 
         // Apply world-scaling for icon features based on resolution
         if (feature.get("isIcon") && resolution) {
-          const desiredPxSize = 16;
-          const referenceResolution = 1.0;
           const iconWidth = feature.get("iconWidth") || 32;
           const iconPath = feature.get("iconPath");
 
@@ -126,10 +133,10 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
           const iconRotation = feature.get("iconRotation") ?? 0;
 
           if (iconPath) {
-            // Calculate base scale factor from resolution
-            const baseScaleFactor = (desiredPxSize / iconWidth) * (referenceResolution / resolution);
-            // Apply user-defined icon scale
-            const finalIconScale = baseScaleFactor * iconScale;
+            // Calculate final icon scale using resolution-based scaling (if enabled)
+            const finalIconScale = resolutionScalingEnabled
+              ? calculateIconScale(resolution, iconWidth, iconScale)
+              : iconScale;
 
             const styles: Style[] = [
               new Style({
@@ -147,8 +154,10 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
             const labelProperty = feature.get("label") || "name";
             const labelValue = feature.get(labelProperty);
             if (labelValue && showLabel) {
-              // Calculate label scale factor (base scale * user label scale)
-              const finalLabelScale = baseScaleFactor * labelScale;
+              // Calculate label scale factor using same icon-based scaling with label scale (if enabled)
+              const finalLabelScale = resolutionScalingEnabled
+                ? calculateIconScale(resolution, iconWidth, labelScale)
+                : labelScale;
               // Scale the offset proportionally with the icon
               // User offsets must also be scaled to remain constant relative to icon size
               const baseOffsetY = -40;
@@ -196,10 +205,7 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
           }
 
           // Apply world-scaling for text based on resolution (same as icon labels)
-          const desiredPxSize = 16;
-          const referenceResolution = 1.0;
-          const baseScaleFactor = (desiredPxSize / STYLE_DEFAULTS.TEXT_FONT_SIZE) * (referenceResolution / resolution);
-          const finalTextScale = baseScaleFactor * textScale;
+          const finalTextScale = calculateTextScale(resolution, STYLE_DEFAULTS.TEXT_FONT_SIZE, textScale);
 
           // Convert hex color to rgba with opacity
           const hexToRgba = (hex: string, opacity: number): string => {
@@ -238,19 +244,43 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
           return new Style({ stroke: undefined });
         }
 
-        // Apply world-scaling for all LineString/MultiLineString features based on resolution
-        if (resolution>=0.8 && (type === "LineString" || type === "MultiLineString")) {
-          const desiredPxSize = 16;
-          const referenceResolution = 1.0;
-          const baseScaleFactor = (desiredPxSize / 16) * (referenceResolution / resolution);
+        // Apply world-scaling for all LineString/MultiLineString features based on resolution (if enabled)
+        if (resolutionScalingEnabled && shouldApplyResolutionScaling(resolution!) && (type === "LineString" || type === "MultiLineString")) {
+          const baseScaleFactor = calculateStrokeScale(resolution!);
 
           // Get base style from FeatureStyler first
           const baseStyle = getFeatureStyle(feature);
           if (!baseStyle) return baseStyle;
 
-          // Apply resolution scaling to stroke widths
+          // Apply resolution scaling to stroke widths and text
           const applyScalingToStyle = (style: Style): Style => {
             const stroke = style.getStroke();
+            const text = style.getText();
+
+            // Calculate text scale for legends with text using resolution scale utilities
+            let scaledText: Text | undefined = text ?? undefined;
+            if (text && resolutionScalingEnabled) {
+              const originalTextScale = text.getScale();
+              const baseTextScale = typeof originalTextScale === 'number' ? originalTextScale : 1;
+              const finalTextScale = calculateTextScale(resolution!, RESOLUTION_SCALE_DEFAULTS.TEXT_FONT_SIZE, baseTextScale);
+
+              scaledText = new Text({
+                text: text.getText() as string,
+                font: text.getFont(),
+                fill: text.getFill() ?? undefined,
+                stroke: text.getStroke() ?? undefined,
+                scale: finalTextScale,
+                placement: text.getPlacement(),
+                repeat: text.getRepeat() ?? undefined,
+                textAlign: text.getTextAlign() ?? undefined,
+                textBaseline: text.getTextBaseline() ?? undefined,
+                maxAngle: text.getMaxAngle(),
+                offsetX: text.getOffsetX(),
+                offsetY: text.getOffsetY(),
+                rotation: text.getRotation(),
+              });
+            }
+
             if (stroke) {
               const originalWidth = stroke.getWidth() || 2;
               const scaledWidth = originalWidth * baseScaleFactor;
@@ -261,13 +291,25 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
                   lineDash: stroke.getLineDash() || undefined,
                   lineCap: stroke.getLineCap() as CanvasLineCap || "butt",
                 }),
-                text: style.getText() ?? undefined,
+                text: scaledText,
                 image: style.getImage() ?? undefined,
                 fill: style.getFill() ?? undefined,
                 geometry: style.getGeometry() as any,
                 zIndex: style.getZIndex(),
               });
             }
+
+            // If no stroke but has text that was scaled, return new style with scaled text
+            if (scaledText !== text) {
+              return new Style({
+                text: scaledText,
+                image: style.getImage() ?? undefined,
+                fill: style.getFill() ?? undefined,
+                geometry: style.getGeometry() as any,
+                zIndex: style.getZIndex(),
+              });
+            }
+
             return style;
           };
 
@@ -281,7 +323,7 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
         return getFeatureStyle(feature);
       });
     }
-  }, [hiddenTypes, hiddenFeatureIds]);
+  }, [hiddenTypes, hiddenFeatureIds, resolutionScalingEnabled]);
 
   return (
     <div id="map" className="relative w-full h-screen" ref={mapContainerRef} />

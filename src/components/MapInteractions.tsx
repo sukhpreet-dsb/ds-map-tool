@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { useMatchProperties } from "@/hooks/useMatchProperties";
 import { useOffsetTool } from "@/hooks/interactions/useOffsetTool";
+import { useToolStore } from "@/stores/useToolStore";
 import { DragPan, Select } from "ol/interaction";
 import type { Draw } from "ol/interaction";
 import type Map from "ol/Map";
@@ -68,6 +69,9 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
   const offsetTooltipElementRef = useRef<HTMLDivElement | null>(null);
   const offsetOriginalGeometryRef = useRef<Geometry | null>(null);
 
+  // Subscribe to drawing pause state
+  const isDrawingPaused = useToolStore((state) => state.isDrawingPaused);
+
   // Initialize UndoRedo interaction
   useUndoRedo({
     map,
@@ -87,12 +91,13 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
     });
 
   // Initialize arc-specific editing with 3 control points
-  // Must be after useSelectModify to access selectInteraction and modifyInteraction
+  // Must be after useSelectModify to access selectInteraction, modifyInteraction, and translateInteraction
   useArcModify({
     map,
     vectorLayer,
     selectInteraction,
     modifyInteraction,
+    translateInteraction,
   });
 
   // Initialize hover interaction for feature highlighting
@@ -368,16 +373,21 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
       selectInteraction.setActive(true);
     } else {
       selectInteraction.setActive(false);
-      selectInteraction.getFeatures().clear();
+
+      // Only clear selection if NOT in paused drawing mode
+      // When drawing is paused, we want to keep the selection to show the Properties Panel
+      if (!isDrawingPaused) {
+        selectInteraction.getFeatures().clear();
+        onFeatureSelect(null);
+        onMultiSelectChange?.([]);
+      }
 
       translateInteraction?.setActive(false);
       dragPan?.setActive(true);
-
-      onFeatureSelect(null);
-      onMultiSelectChange?.([]);
     }
   }, [
     activeTool,
+    isDrawingPaused,
     map,
     selectInteraction,
     translateInteraction,

@@ -1,14 +1,16 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import type Map from "ol/Map";
 import type Feature from "ol/Feature";
 import type { Select } from "ol/interaction";
-import { X, Edit2, Save, Plus, Trash2, ChevronDown } from "lucide-react";
+import { X, Edit2, Save, Plus, Trash2, ChevronDown, AlertCircle } from "lucide-react";
+import { useToolStore } from "@/stores/useToolStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
+import { EditableSliderValue } from "@/components/ui/editable-slider-value";
 import { DEFAULT_LINE_STYLE } from "@/utils/featureTypeUtils";
 import {
   isProtectedProperty,
@@ -95,6 +97,22 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     properties.isEditing,
   );
 
+  // Validation error state
+  const [nameError, setNameError] = useState<string | null>(null);
+
+  // Auto-enable edit mode when it's a newly created feature
+  useEffect(() => {
+    const { isNewlyCreatedFeature } = useToolStore.getState();
+    if (isNewlyCreatedFeature && selectedFeature) {
+      properties.setIsEditing(true);
+    }
+  }, [selectedFeature, properties]);
+
+  // Clear error when feature changes or editing starts
+  useEffect(() => {
+    setNameError(null);
+  }, [selectedFeature, properties.isEditing]);
+
   // Local state for length unit (syncs with feature)
   const [lengthUnit, setLengthUnit] = React.useState<LengthUnit>(
     (selectedFeature?.get("lengthUnit") as LengthUnit) || "km",
@@ -153,12 +171,30 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   };
 
   const handleSave = () => {
+    // Validate name field for newly created features
+    const { isNewlyCreatedFeature } = useToolStore.getState();
+    const nameProp = properties.customProperties.find((p) => p.key === "name");
+    const nameValue = nameProp?.value?.trim() || "";
+
+    if (isNewlyCreatedFeature && !nameValue) {
+      setNameError("Name is required");
+      return;
+    }
+
+    setNameError(null);
     properties.save();
     lineStyle.commitLineStyle();
     shapeStyle.commitShapeStyle();
     pointOpacity.commitOpacity();
     iconProperties.commitIconProperties();
     textStyle.commitTextStyle();
+
+    // Resume drawing if paused and close the panel
+    const { isDrawingPaused, resumeDrawing } = useToolStore.getState();
+    if (isDrawingPaused) {
+      resumeDrawing();
+    }
+    onClose();
   };
 
   const handleCancel = () => {
@@ -168,6 +204,13 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     pointOpacity.resetToOriginal();
     iconProperties.resetToOriginal();
     textStyle.resetToOriginal();
+
+    // Resume drawing if paused and close the panel
+    const { isDrawingPaused, resumeDrawing } = useToolStore.getState();
+    if (isDrawingPaused) {
+      resumeDrawing();
+    }
+    onClose();
   };
 
   if (!selectedFeature) {
@@ -222,6 +265,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                     onLabelSelect={handleLabelSelect}
                     lengthUnit={lengthUnit}
                     onLengthUnitChange={handleLengthUnitChange}
+                    nameError={nameError}
                   />
                 )}
               </div>
@@ -437,6 +481,7 @@ const PropertyDisplayList: React.FC<PropertyDisplayListProps> = ({
   lengthUnit,
   onLengthUnitChange,
 }) => {
+  console.log("properties", properties);
   if (properties.length === 0) {
     return (
       <div className="text-center py-8 text-gray-500 dark:text-gray-400">
@@ -450,9 +495,9 @@ const PropertyDisplayList: React.FC<PropertyDisplayListProps> = ({
   return (
     <div className="space-y-1">
       {properties.map((prop) => {
-        // Check if this is an image URL property
+        // Check if this is an image URL property (supports "Image URL" and "Image URL 1", "Image URL 2", etc.)
         const isImageUrl =
-          prop.key === "Image URL" && prop.value?.startsWith("http");
+          prop.key.startsWith("Image URL") && prop.value?.startsWith("http");
 
         if (isImageUrl) {
           return (
@@ -533,6 +578,7 @@ interface PropertyEditListProps {
   onLabelSelect: (key: string) => void;
   lengthUnit: LengthUnit;
   onLengthUnitChange: (unit: LengthUnit) => void;
+  nameError?: string | null;
 }
 
 const PropertyEditList: React.FC<PropertyEditListProps> = ({
@@ -543,6 +589,7 @@ const PropertyEditList: React.FC<PropertyEditListProps> = ({
   onLabelSelect,
   lengthUnit,
   onLengthUnitChange,
+  nameError,
 }) => {
   if (properties.length === 0) {
     return (
@@ -561,8 +608,9 @@ const PropertyEditList: React.FC<PropertyEditListProps> = ({
       {properties.map((prop) => {
         const isReadOnly = isProtectedProperty(prop.key);
         const isCalculated = isCalculatedProperty(prop.key);
+        // Check if this is an image URL property (supports "Image URL" and "Image URL 1", "Image URL 2", etc.)
         const isImageUrl =
-          prop.key === "Image URL" && prop.value?.startsWith("http");
+          prop.key.startsWith("Image URL") && prop.value?.startsWith("http");
 
         // Special layout for Image URL - show preview below
         if (isImageUrl) {
@@ -604,58 +652,69 @@ const PropertyEditList: React.FC<PropertyEditListProps> = ({
           );
         }
 
+        const isNameField = prop.key === "name";
+        const hasNameError = isNameField && nameError;
+
         return (
-          <div key={prop.id} className="flex gap-2 items-center relative">
-            <LabelSelector
-              propertyKey={prop.key}
-              currentLabel={currentLabel}
-              onSelect={onLabelSelect}
-              disabled={false}
-            />
-            <Input
-              placeholder="Property name"
-              value={prop.key}
-              onChange={(e) => onUpdate(prop.id, "key", e.target.value)}
-              className={`flex-1 text-sm ${
-                isReadOnly || isCalculated ? "bg-gray-50 dark:bg-slate-700" : ""
-              }`}
-              disabled={isReadOnly || isCalculated}
-            />
-            {prop.key === "length" ? (
-              <div className="flex-1 flex items-center">
-                <LengthValueWithUnit
-                  value={prop.value}
-                  unit={lengthUnit}
-                  onUnitChange={onLengthUnitChange}
-                />
-              </div>
-            ) : (
-              <Input
-                placeholder="Value"
-                value={prop.value}
-                onChange={(e) => onUpdate(prop.id, "value", e.target.value)}
-                className={`flex-1 text-sm ${
-                  isCalculated ? "bg-gray-50 dark:bg-slate-700" : ""
-                }`}
-                disabled={isCalculated}
-                type={
-                  prop.key === "long" || prop.key === "lat" ? "number" : "text"
-                }
-                step={
-                  prop.key === "long" || prop.key === "lat" ? "any" : undefined
-                }
+          <div key={prop.id} className="relative">
+            <div className="flex gap-2 items-center relative">
+              <LabelSelector
+                propertyKey={prop.key}
+                currentLabel={currentLabel}
+                onSelect={onLabelSelect}
+                disabled={false}
               />
-            )}
-            {!isReadOnly && !isCalculated && (
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => onDelete(prop.id)}
-                className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
-                aria-label="Delete property"
-              >
-                <Trash2 className="h-3 w-3" />
-              </Button>
+              <Input
+                placeholder="Property name"
+                value={prop.key}
+                onChange={(e) => onUpdate(prop.id, "key", e.target.value)}
+                className={`flex-1 text-sm ${
+                  isReadOnly || isCalculated ? "bg-gray-50 dark:bg-slate-700" : ""
+                }`}
+                disabled={isReadOnly || isCalculated}
+              />
+              {prop.key === "length" ? (
+                <div className="flex-1 flex items-center">
+                  <LengthValueWithUnit
+                    value={prop.value}
+                    unit={lengthUnit}
+                    onUnitChange={onLengthUnitChange}
+                  />
+                </div>
+              ) : (
+                <Input
+                  placeholder="Value"
+                  value={prop.value}
+                  onChange={(e) => onUpdate(prop.id, "value", e.target.value)}
+                  className={`flex-1 text-sm ${
+                    isCalculated ? "bg-gray-50 dark:bg-slate-700" : ""
+                  } ${hasNameError ? "border-red-500 focus:ring-red-500" : ""}`}
+                  disabled={isCalculated}
+                  type={
+                    prop.key === "long" || prop.key === "lat" ? "number" : "text"
+                  }
+                  step={
+                    prop.key === "long" || prop.key === "lat" ? "any" : undefined
+                  }
+                />
+              )}
+              {!isReadOnly && !isCalculated && (
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => onDelete(prop.id)}
+                  className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                  aria-label="Delete property"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
+            {hasNameError && (
+              <div className="flex items-center gap-1 mt-1 text-red-500 text-xs">
+                <AlertCircle className="h-3 w-3" />
+                <span>{nameError}</span>
+              </div>
             )}
           </div>
         );
@@ -803,7 +862,15 @@ const LineStyleEditor: React.FC<LineStyleEditorProps> = ({ lineStyle }) => (
     {/* Width Slider */}
     <div>
       <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        Line Width: {lineStyle.lineWidth}px
+        Line Width:{" "}
+        <EditableSliderValue
+          value={lineStyle.lineWidth}
+          onChange={lineStyle.handleWidthChange}
+          min={1}
+          max={20}
+          step={1}
+          format="px"
+        />
       </Label>
       <div className="flex items-center gap-3">
         <Slider
@@ -832,7 +899,15 @@ const LineStyleEditor: React.FC<LineStyleEditorProps> = ({ lineStyle }) => (
     {/* Opacity Slider */}
     <div>
       <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        Opacity: {Math.round(lineStyle.opacity * 100)}%
+        Opacity:{" "}
+        <EditableSliderValue
+          value={lineStyle.opacity}
+          onChange={lineStyle.handleOpacityChange}
+          min={0}
+          max={1}
+          step={0.01}
+          format="percent"
+        />
       </Label>
       <div className="flex items-center gap-3">
         <Slider
@@ -1052,7 +1127,14 @@ const ShapeStyleEditor: React.FC<ShapeStyleEditorProps> = ({ shapeStyle }) => (
     <div>
       <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
         {shapeStyle.isRevisionCloud ? "Width" : "Stroke Width"}:{" "}
-        {shapeStyle.strokeWidth}px
+        <EditableSliderValue
+          value={shapeStyle.strokeWidth}
+          onChange={shapeStyle.handleStrokeWidthChange}
+          min={1}
+          max={20}
+          step={1}
+          format="px"
+        />
       </Label>
       <div className="flex items-center gap-3">
         <Slider
@@ -1084,7 +1166,14 @@ const ShapeStyleEditor: React.FC<ShapeStyleEditorProps> = ({ shapeStyle }) => (
     <div>
       <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
         {shapeStyle.isRevisionCloud ? "Opacity" : "Stroke Opacity"}:{" "}
-        {Math.round(shapeStyle.strokeOpacity * 100)}%
+        <EditableSliderValue
+          value={shapeStyle.strokeOpacity}
+          onChange={shapeStyle.handleStrokeOpacityChange}
+          min={0}
+          max={1}
+          step={0.01}
+          format="percent"
+        />
       </Label>
       <div className="flex items-center gap-3">
         <Slider
@@ -1161,7 +1250,15 @@ const ShapeStyleEditor: React.FC<ShapeStyleEditorProps> = ({ shapeStyle }) => (
     {!shapeStyle.isRevisionCloud && (
       <div>
         <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-          Fill Opacity: {Math.round(shapeStyle.fillOpacity * 100)}%
+          Fill Opacity:{" "}
+          <EditableSliderValue
+            value={shapeStyle.fillOpacity}
+            onChange={shapeStyle.handleFillOpacityChange}
+            min={0}
+            max={1}
+            step={0.01}
+            format="percent"
+          />
         </Label>
         <Slider
           value={[shapeStyle.fillOpacity]}
@@ -1244,7 +1341,15 @@ const PointOpacityEditor: React.FC<PointOpacityEditorProps> = ({
   <div className="space-y-4">
     <div>
       <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        Opacity: {Math.round(pointOpacity.opacity * 100)}%
+        Opacity:{" "}
+        <EditableSliderValue
+          value={pointOpacity.opacity}
+          onChange={pointOpacity.handleOpacityChange}
+          min={0}
+          max={1}
+          step={0.01}
+          format="percent"
+        />
       </Label>
       <div className="flex items-center gap-3">
         <Slider
@@ -1421,7 +1526,15 @@ const IconStyleEditor: React.FC<IconStyleEditorProps> = ({
     {/* Opacity Slider */}
     <div>
       <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        Opacity: {Math.round(iconProperties.opacity * 100)}%
+        Opacity:{" "}
+        <EditableSliderValue
+          value={iconProperties.opacity}
+          onChange={iconProperties.handleOpacityChange}
+          min={0}
+          max={1}
+          step={0.01}
+          format="percent"
+        />
       </Label>
       <div className="flex items-center gap-3">
         <Slider
@@ -1452,7 +1565,16 @@ const IconStyleEditor: React.FC<IconStyleEditorProps> = ({
     {/* Icon Scale Slider */}
     <div>
       <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        Icon Scale: {iconProperties.iconScale.toFixed(1)}x
+        Icon Scale:{" "}
+        <EditableSliderValue
+          value={iconProperties.iconScale}
+          onChange={iconProperties.handleIconScaleChange}
+          min={0.1}
+          max={5}
+          step={0.1}
+          format="decimal"
+          suffix="x"
+        />
       </Label>
       <div className="flex items-center gap-3">
         <Slider
@@ -1496,7 +1618,16 @@ const IconStyleEditor: React.FC<IconStyleEditorProps> = ({
     {/* Label Scale Slider */}
     <div>
       <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        Label Scale: {iconProperties.labelScale.toFixed(1)}x
+        Label Scale:{" "}
+        <EditableSliderValue
+          value={iconProperties.labelScale}
+          onChange={iconProperties.handleLabelScaleChange}
+          min={0.1}
+          max={5}
+          step={0.1}
+          format="decimal"
+          suffix="x"
+        />
       </Label>
       <div className="flex items-center gap-3">
         <Slider
@@ -1527,7 +1658,15 @@ const IconStyleEditor: React.FC<IconStyleEditorProps> = ({
     {/* Text Offset X Slider */}
     <div>
       <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        Label Offset X: {iconProperties.textOffsetX}px
+        Label Offset X:{" "}
+        <EditableSliderValue
+          value={iconProperties.textOffsetX}
+          onChange={iconProperties.handleTextOffsetXChange}
+          min={-100}
+          max={100}
+          step={1}
+          format="px"
+        />
       </Label>
       <div className="flex items-center gap-3">
         <Slider
@@ -1558,7 +1697,15 @@ const IconStyleEditor: React.FC<IconStyleEditorProps> = ({
     {/* Text Offset Y Slider */}
     <div>
       <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        Label Offset Y: {iconProperties.textOffsetY}px
+        Label Offset Y:{" "}
+        <EditableSliderValue
+          value={iconProperties.textOffsetY}
+          onChange={iconProperties.handleTextOffsetYChange}
+          min={-100}
+          max={100}
+          step={1}
+          format="px"
+        />
       </Label>
       <div className="flex items-center gap-3">
         <Slider
@@ -1589,7 +1736,15 @@ const IconStyleEditor: React.FC<IconStyleEditorProps> = ({
     {/* Rotation Slider */}
     <div>
       <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        Rotation: {Math.round(iconProperties.rotation)}°
+        Rotation:{" "}
+        <EditableSliderValue
+          value={iconProperties.rotation}
+          onChange={iconProperties.handleRotationChange}
+          min={0}
+          max={360}
+          step={1}
+          format="degrees"
+        />
       </Label>
       <div className="flex items-center gap-3">
         <Slider
@@ -1896,7 +2051,16 @@ const TextStyleEditor: React.FC<TextStyleEditorProps> = ({ textStyle, onSave, on
     {/* Scale Slider */}
     <div>
       <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        Scale: {textStyle.textScale.toFixed(1)}x
+        Scale:{" "}
+        <EditableSliderValue
+          value={textStyle.textScale}
+          onChange={textStyle.handleScaleChange}
+          min={0.1}
+          max={3.0}
+          step={0.1}
+          format="decimal"
+          suffix="x"
+        />
       </Label>
       <div className="flex items-center gap-3">
         <Slider
@@ -1925,7 +2089,15 @@ const TextStyleEditor: React.FC<TextStyleEditorProps> = ({ textStyle, onSave, on
     {/* Rotation Slider */}
     <div>
       <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        Rotation: {Math.round(textStyle.textRotation)}°
+        Rotation:{" "}
+        <EditableSliderValue
+          value={textStyle.textRotation}
+          onChange={textStyle.handleRotationChange}
+          min={0}
+          max={360}
+          step={1}
+          format="degrees"
+        />
       </Label>
       <div className="flex items-center gap-3">
         <Slider
@@ -1954,7 +2126,15 @@ const TextStyleEditor: React.FC<TextStyleEditorProps> = ({ textStyle, onSave, on
     {/* Opacity Slider */}
     <div>
       <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        Opacity: {Math.round(textStyle.textOpacity * 100)}%
+        Opacity:{" "}
+        <EditableSliderValue
+          value={textStyle.textOpacity}
+          onChange={textStyle.handleOpacityChange}
+          min={0}
+          max={1}
+          step={0.01}
+          format="percent"
+        />
       </Label>
       <div className="flex items-center gap-3">
         <Slider

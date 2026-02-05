@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Modify, Select, Translate, DragPan } from 'ol/interaction';
+import { Modify, Select, Translate, DragPan, Snap } from 'ol/interaction';
 import type { Draw } from 'ol/interaction';
 import { Collection } from 'ol';
 import { click, altKeyOnly, shiftKeyOnly, always } from 'ol/events/condition';
@@ -11,6 +11,7 @@ import type { Geometry } from 'ol/geom';
 import { isSelectableFeature, isEditableFeature } from '@/utils/featureTypeUtils';
 import { recalculateMeasureDistances, createContinuationDraw } from '@/utils/interactionUtils';
 import { createSelectStyle } from '@/utils/styleUtils';
+import { useToolStore } from '@/stores/useToolStore';
 import {
   isContinuableFeature,
   detectEndpointClick,
@@ -53,6 +54,9 @@ export const useSelectModify = ({
   const isContinuingRef = useRef<boolean>(false);
   const currentSelectedFeatureRef = useRef<Feature<Geometry> | null>(null);
   const isEKeyPressedRef = useRef<boolean>(false);
+  const continuationSnapRef = useRef<Snap | null>(null);
+
+  const { resolutionScalingEnabled } = useToolStore();
 
   useEffect(() => {
     if (!map || !vectorLayer) return;
@@ -63,7 +67,9 @@ export const useSelectModify = ({
       layers: [vectorLayer],
       filter: isSelectableFeature,
       hitTolerance: STYLE_DEFAULTS.HIT_TOLERANCE,
-      style: createSelectStyle,
+      style: (feature: Feature<Geometry>, resolution: number) => {
+        return createSelectStyle(feature, resolution, resolutionScalingEnabled);
+      },
     };
 
     if (multiSelectMode === 'always') {
@@ -109,6 +115,11 @@ export const useSelectModify = ({
 
     // Helper function to end continuation mode and trigger save
     const endContinuation = (shouldSave: boolean = false) => {
+      // Remove snap interaction first
+      if (continuationSnapRef.current) {
+        map.removeInteraction(continuationSnapRef.current);
+        continuationSnapRef.current = null;
+      }
       if (continuationDrawRef.current) {
         map.removeInteraction(continuationDrawRef.current);
         continuationDrawRef.current = null;
@@ -146,6 +157,16 @@ export const useSelectModify = ({
       });
 
       map.addInteraction(continuationDrawRef.current);
+
+      // Create and add snap interaction for continuation drawing
+      // Must be added AFTER draw interaction for proper event ordering
+      continuationSnapRef.current = new Snap({
+        source: vectorSource,
+        pixelTolerance: 15,
+        vertex: true,
+        edge: true,
+      });
+      map.addInteraction(continuationSnapRef.current);
     };
 
     // Track 'e' key state for continuation shortcut
@@ -218,6 +239,9 @@ export const useSelectModify = ({
 
     // Select event handler (fired when user clicks to select/deselect)
     newSelectInteraction.on('select', () => {
+      // Clear "newly created" flag when selecting via click (existing feature)
+      useToolStore.getState().setIsNewlyCreatedFeature(false);
+
       const allSelectedFeatures = updateSelectionState();
 
       onMultiSelectChange?.(allSelectedFeatures);
@@ -250,6 +274,10 @@ export const useSelectModify = ({
     onReady?.(newSelectInteraction);
 
     return () => {
+      if (continuationSnapRef.current) {
+        map.removeInteraction(continuationSnapRef.current);
+        continuationSnapRef.current = null;
+      }
       if (continuationDrawRef.current) {
         map.removeInteraction(continuationDrawRef.current);
         continuationDrawRef.current = null;
@@ -276,7 +304,7 @@ export const useSelectModify = ({
       setModifyInteraction(null);
       setTranslateInteraction(null);
     };
-  }, [map, vectorLayer, onFeatureSelect, onMultiSelectChange, multiSelectMode]);
+  }, [map, vectorLayer, onFeatureSelect, onMultiSelectChange, multiSelectMode, resolutionScalingEnabled]);
 
   return {
     selectInteraction,
